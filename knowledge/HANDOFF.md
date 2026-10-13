@@ -1,6 +1,6 @@
 # LeaveTrack — Session Handoff
 
-Last updated: 2026-10-13 · Code state: commit `6eca3a1` on `main`
+Last updated: Tuesday 2026-10-13 · Code state: commit `e3c8e1e` on `main` (the commit that added this note; later edits to this file may be uncommitted)
 
 A living note for starting a new session without chat history. Update it at the end of each session.
 Everything below is either **verified** (checked on the date above) or explicitly marked as a
@@ -8,7 +8,76 @@ Everything below is either **verified** (checked on the date above) or explicitl
 
 **Suggested opening prompt for the next session:**
 
-> Read AGENTS.md, knowledge/HANDOFF.md and the retro in knowledge/retros/, then tell me what's next.
+> Read AGENTS.md, knowledge/HANDOFF.md and the retro in knowledge/retros/, then run git log and git status.
+> Tell me the current state in a few lines and what's next. Don't start any work yet.
+
+**Suggested closing prompt for each session:**
+
+> Update knowledge/HANDOFF.md for this session. Re-verify the repo state (git log, git status, tests), record what
+> changed, which decisions I made, what's still open, and what to do next. Show me the diff and wait for my approval.
+> Don't commit.
+
+---
+
+## 0. Deadline and demo plan (read this first)
+
+- **Demo: Monday 2026-10-19.** The user must show their supervisor an **online** system. Work resumes Wednesday 2026-10-14.
+  The user can work weekends and is working alone as far as we know (unconfirmed).
+- **Supervisor's expected scope:** all user stories in the PRD, US-01 to US-08, which is all of EPIC-1 (tasks 010-018).
+  The supervisor also said extra ideas can be added later; that is a future decision and is parked.
+- **UI approach for the demo:** the user does not know Figma. Plan: Claude generates a **prototype UI** per page on a small
+  shared foundation (Tailwind, a few color/type/spacing tokens, about 6-8 shared components), restyled later if a real design
+  appears. Needs the user's one color/vibe (and light-only vs light+dark) before building. **This replaces the earlier
+  "unstyled until a design export" rule; `AGENTS.md` and `knowledge/rules/coding-standards.md` still carry the old wording
+  and must be updated, with approval, when UI work starts** (`AGENTS.md` lines 81-82; the "React / UI" section of the standards).
+- **"Online" means GitHub + Supabase (staging) + Vercel.** The demo uses the **mock login with fake data only**, must be
+  described to the supervisor as a demo login, and the URL should be access-restricted (Vercel has an access-protection
+  feature; its current options are unverified, check their docs).
+- **Accounts:** the user created a private GitHub repo `leavetrack`
+  (`https://github.com/alfrancisdagaang/leavetrack.git`; remote `origin` is configured locally) and a Supabase project (exact
+  name, region and password not recorded here; recommended name was `leavetrack-staging`). Vercel is not confirmed.
+  **Nothing had been pushed** when this note was written: the user wanted this note updated and committed first.
+  The first push starts CI on GitHub for the first time.
+- **Do not add the `SUPABASE_DB_URL` secret to GitHub until the leave-types migration exists**, otherwise CI would push a
+  database with no leave types. The database password and connection strings must never be pasted into chat or committed.
+
+### Plan (6 days, almost no slack)
+
+**The days below are targets, not a rigid timetable.** The user works whenever they have free time on a given day, so the
+amount done per day will vary. Track progress by tasks finished (and the cut order below), not by the calendar day. Whenever
+a session starts, recompute what is left and how many days remain until Monday, and say plainly if the plan has slipped.
+
+| Day                   | Work                                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| **Wed 10-14**         | Confirm defaults; push; leave-types fix; **put the current app online early**; UI foundation (Tailwind + kit) |
+| **Thu 10-15**         | TASK-011 submit + TASK-012 balance; role-aware navigation and dashboard                                       |
+| **Fri 10-16**         | TASK-013 team queue + TASK-014 approve/reject                                                                 |
+| **Sat 10-17**         | TASK-015 HR audit + TASK-017 accrual                                                                          |
+| **Sun 10-18**         | TASK-016 mobile pass, TASK-018 leave-type checks, bug fixes, demo data                                        |
+| **Mon 10-19 morning** | Rehearse, then demo                                                                                           |
+
+If time runs short, cut in this order: polish on 018, then mobile polish, then extra accrual features. The core loop
+(US-01 to US-05) stays. A demo shortcut for accrual (seeded balances and a manual run) is acceptable if openly stated.
+Check progress each evening and adjust. Deploying early (Wednesday) is deliberate: first-deployment surprises are the biggest unknown.
+
+### Working style for this week
+
+- Flexible hours: sessions can be short or long and happen at any time. End every session with a clean, committed or
+  clearly described state and an up-to-date note, so the next session can resume from wherever the last one stopped.
+- Batch the cycle: one evaluate and plan per slice (011 with 012, 013 with 014) instead of one per task. The user still
+  approves each plan; commits still happen only on request after reviewing the diff.
+- Open decisions use the defaults below unless the user objects.
+
+### Defaults assumed for the demo (proposed by the tutor, NOT yet confirmed by the user; confirm Wednesday)
+
+1. Roles stack up: managers and HR admins can also request leave.
+2. Rejection note stored in a new nullable `decision_note` column on `leave_requests`.
+3. Manager "notification" = pending items shown in their approvals queue (no email).
+4. Leave days counted as working days (Mon-Fri); holidays out of scope.
+5. Mock login for the demo, clearly labelled, fake data only.
+6. The top person's leave is approved by a second `hr_admin`.
+7. The `reason` field is optional.
+8. The over-balance warning is returned in a `warnings` field of the success payload.
 
 ---
 
@@ -16,8 +85,11 @@ Everything below is either **verified** (checked on the date above) or explicitl
 
 ### Source control
 
-- 2 commits on `main`: `b5ae414 chore: day 0 scaffold`, `6eca3a1 chore: ignore graphify output and enforce npm`.
-- **No git remote.** CI (`.github/workflows/ci.yml`) has never run on GitHub; its steps were replicated locally.
+- 3 commits on `main`: `b5ae414 chore: day 0 scaffold`, `6eca3a1 chore: ignore graphify output and enforce npm`,
+  `e3c8e1e docs: add session handoff note`.
+- Remote `origin` is set to `https://github.com/alfrancisdagaang/leavetrack.git` (verified reachable and empty).
+  **Not pushed yet** when this was written. A pre-push scan found no secrets in the tracked files or the whole history.
+  CI (`.github/workflows/ci.yml`) has never run on GitHub; its steps were replicated locally.
 - Package manager is **npm only**. A stray `pnpm install` once added pnpm files; they were deleted.
 
 ### Quality gate (all green on 2026-10-13)
@@ -39,7 +111,8 @@ Dev-only audit findings (5 high, `braces` via `eslint-config-next`) are document
 - **No UI shell or design system.** `docs/designs/` does not exist; no design export was supplied.
 - **No real authentication.** Login accepts anything and trusts a role cookie. Must never ship (ADR-LeaveTrack-E001).
 - **No persistent dev database.** Throwaway Postgres instances used for verification were stopped.
-- No Supabase project, no Vercel deployment, no `vercel.json` (cron schedule), no `.env.local`, no notification mechanism.
+- A Supabase project exists (created by the user) but has **no migrations applied** and is not connected to the app. No Vercel
+  deployment, no `vercel.json` (cron schedule), no `.env.local`, no notification mechanism.
 - Only `/api/health` touches the database client, and it works without a database (`db: "not_configured"`).
 
 ### Machine and tooling notes
@@ -98,7 +171,9 @@ CI hides this because its check applies migration **and** seed before counting.
 
 ## 3. Unresolved decisions
 
-None of these has been answered by the user. "Lean" is a recommendation only.
+None of these has been answered by the user. "Lean" is a recommendation only. For the Monday demo, the defaults in
+section 0 are assumed unless the user objects (to be confirmed Wednesday). Decision 12 (design export) is superseded for
+the demo by the prototype-UI approach in section 0.
 
 | #   | Decision                                                 | Options / lean                                                                                                                                                                      | Blocks                                                              |
 | --- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
@@ -153,7 +228,7 @@ Rules of engagement:
      └─ 017        018 needs 011 + 017
 ```
 
-### Recommended order
+### Recommended order (general; the Monday demo schedule in section 0 overrides it this week)
 
 1. **TASK-010 follow-up**: the leave-types migration (section 2).
 2. **TASK-017** accrual (the BRD's riskiest requirement; needs decisions 9 and 10, and the missing ADR).
@@ -184,7 +259,8 @@ with analogies, diagrams, and clear labels for built / planned / unknown.
 
 Questions the user raised, all answered: why manager scoping matters; why the audit trail is strict; what "Day 0"
 means; what the mock covers; how to inspect the database; how a manager can also be an employee; what the MVP
-should look like; role-based dashboards; when to use Docker versus deploying.
+should look like; role-based dashboards; when to use Docker versus deploying; design options (Figma versus images versus
+prototyping the UI in code); what to name the GitHub repo and Supabase project; what "user stories" means.
 
 Understanding checks:
 
