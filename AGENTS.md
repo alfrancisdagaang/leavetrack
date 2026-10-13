@@ -50,6 +50,16 @@ supabase/               migrations, seed, schema verification
 knowledge/              standards, prompts, patterns
 ```
 
+## Code exploration (Graphify)
+
+- If `graphify-out/graph.json` exists, start codebase questions with `graphify query "<question>"`
+  (`--dfs` to trace a flow), `graphify path "<A>" "<B>"`, or `graphify explain "<node>"`; skim
+  `graphify-out/GRAPH_REPORT.md` for architecture questions.
+- The graph is a map, not ground truth: confirm findings in the source before relying on them, and say
+  which came from the graph. No graph hit for something does not prove it is absent.
+- `graphify-out/` is generated and git-ignored; a hook refreshes it. Never edit it by hand. Doc changes
+  need a manual `/graphify . --update`.
+
 ## Backend rules
 
 1. **Every route handler is wrapped in `withErrorHandling`.** Every non-2xx response is
