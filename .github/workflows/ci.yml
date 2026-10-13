@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  HUSKY: "0" # husky's prepare script must not run in CI
+
+jobs:
+  check:
+    name: Lint · Typecheck · Test · Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build # no credentials: Day 0 builds without any env vars
+
+  db-verify:
+    name: Migrations + seed (throwaway Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: postgres
+    steps:
+      - uses: actions/checkout@v7
+      - name: Apply migrations
+        run: |
+          for f in supabase/migrations/*.sql; do
+            echo "Applying $f"
+            psql -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - name: Seed twice (proves idempotency)
+        run: |
+          psql -v ON_ERROR_STOP=1 -f supabase/seed.sql
+          psql -v ON_ERROR_STOP=1 -f supabase/seed.sql
+      - name: Verify schema invariants
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/verify_schema.sql
+
+  db-push:
+    name: Push migrations to Supabase
+    needs: [check, db-verify]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }} # DIRECT (5432) connection string
+    steps:
+      - name: Skip when Supabase is not configured (Day 0)
+        if: env.SUPABASE_DB_URL == ''
+        run: echo "SUPABASE_DB_URL secret not set — skipping db push."
+      - uses: actions/checkout@v7
+        if: env.SUPABASE_DB_URL != ''
+      - uses: actions/setup-node@v7
+        if: env.SUPABASE_DB_URL != ''
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - if: env.SUPABASE_DB_URL != ''
+        run: npm ci
+      - if: env.SUPABASE_DB_URL != ''
+        run: npx supabase db push --db-url "$SUPABASE_DB_URL"

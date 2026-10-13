@@ -1,0 +1,43 @@
+# --- Secrets (never commit) ---
+# .mcp.json holds a live MCP API key.
+.mcp.json
+.env
+.env*.local
+.env.development
+.env.staging
+.env.production
+!.env.example
+.claude/settings.local.json
+
+# --- Dependencies ---
+node_modules/
+
+# --- Build output ---
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# --- Test / coverage ---
+coverage/
+
+# --- Supabase local state ---
+supabase/.branches/
+supabase/.temp/
+
+# --- Vercel ---
+.vercel/
+
+# --- Logs ---
+npm-debug.log*
+*.log
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/*
+!.vscode/extensions.json

@@ -1,0 +1,11 @@
+# Supabase CLI project config. Only what LeaveTrack uses is set here;
+# everything else takes CLI defaults. Remote project is linked via
+# `npx supabase link --project-ref <ref>` (Day 1) — never committed credentials.
+project_id = "leavetrack"
+
+[db]
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]

@@ -1,0 +1,10 @@
+.next/
+node_modules/
+coverage/
+package-lock.json
+next-env.d.ts
+supabase/.temp/
+supabase/.branches/
+.claude/
+docs/
+knowledge/rules/arch-summary.md
