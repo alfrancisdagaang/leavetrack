@@ -22,4 +22,13 @@ Scope: `/scaffold` Option B — infrastructure, mock auth, migrations; UI shell 
 - [ ] **`APP_ENV` not enforced on Vercel** — a production deploy without `APP_ENV=production` runs with lenient env validation. Add a startup check (e.g. `VERCEL_ENV === "production"` ⇒ require `APP_ENV=production`) when deployment is set up.
 - [ ] **`server-only` guard** — `src/lib/db/client.ts` has no import-time guard against client bundling. Add the `server-only` package (pinned) when the first client component lands near data code.
 - [ ] **`resolve_package_versions` MCP tool fails on Windows** (`WinError 2` — likely spawning `npm` without `npm.cmd`/shell). Versions were resolved directly against the npm registry instead. Report upstream.
-- [ ] **Knowledge graph unavailable** — neither graphify nor codegraph is set up, so VALIDATE's blast-radius check was skipped.
+- [x] **Knowledge graph unavailable** — resolved: graphify 0.9.88 (+ `[sql]` extra) installed, full graph built (367 nodes / 590 edges / 21 communities); blast-radius check ran in the second VALIDATE with no unplanned boundary crossings.
+- [ ] **`/create-pr` gate may never block** — graphify flagged an AMBIGUOUS edge: `/create-pr` checks the reviewer's `blocked: true` (findings JSON schema), but the `code-reviewer` agent reports via the `ReportFindings` tool instead. Trace and fix in `.claude/` tooling before relying on the PR gate.
+- [ ] **graphify hook needs `graphifyy[sql]`** — without it `.sql` files contribute nothing; `seed.sql` and `verify_schema.sql` still yield no symbols. The hook (`graphify update . --force`) also only re-extracts structure; re-run `/graphify . --update` after doc changes to refresh semantic nodes.
+
+## Second VALIDATE (graph available)
+
+| Severity | Issue                                                                                                               | Fix                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| FIX NOW  | `graphify-out/` untracked and not ignored — Prettier checked the graph/cache files, local `format:check` failed     | Added `graphify-out/` to `.gitignore` (hook regenerates it; Prettier 3 honors .gitignore) |
+| BLOCKER  | A `pnpm install` after the commit added `pnpm-lock.yaml` + `pnpm-workspace.yaml` and replaced `node_modules` layout | Decision: keep npm. Removed pnpm files, reinstalled with `npm ci`, full gate green        |

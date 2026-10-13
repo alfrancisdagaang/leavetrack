@@ -32,6 +32,8 @@ managers approve **only their direct reports**, HR gets a 3-year auditable decis
 | Hosting    | Vercel (app + Cron), Supabase (Postgres)                         |
 
 Exact versions are pinned in `package.json` (no `^`/`~`). Add dependencies with an exact version.
+**Package manager is npm only** (`package-lock.json`, CI runs `npm ci`) — never run `pnpm`/`yarn`
+here; a second lockfile silently diverges from what CI installs.
 
 ## Layout
 
