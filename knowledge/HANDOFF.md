@@ -87,7 +87,54 @@ If time runs short, cut in this order: polish, the optional real-database test w
 4. Do a **browser pass as each role** (Elena, Marco, Hana): submit, over-balance warning, reversed dates, approve/reject,
    audit with the soft-delete toggle, accrual line. Everything built after the UI foundation was verified through the real
    SQL and routes, but not clicked through.
-5. Demo prep (see section 3, "Say plainly to the supervisor").
+5. **Discuss the polish and new-requirement ideas below** (raised by the user on 2026-10-14), after TASK-018 and TASK-016.
+6. Demo prep (see section 3, "Say plainly to the supervisor").
+
+### Ideas to discuss next session (after TASK-018 and TASK-016)
+
+**Status of the PRD:** all user stories US-01 to US-08 are built. Two are not yet _closed_: US-06 (mobile) waits for TASK-016
+and US-08 (independent leave types) waits for TASK-018. EPIC-1 is otherwise complete, and the user wants to **add to it** now
+(fixes and polish, plus some new requirements). Nothing below is decided; each item needs its own evaluate and plan.
+
+**A. Flow polish (the user's words, grouped).**
+
+1. **Employee: cancel a request, and navigate their own requests easily.** Today `/balance` lists the last 50 requests with a
+   status badge, and there is no way to cancel or open one. Ideas: a "My requests" view with a status filter and a detail
+   page; a **Cancel** action on pending requests. _Open design question:_ cancel must not hard-delete (BR-04). Options: a new
+   `cancelled` status (migration and enum change) or `is_deleted` plus the existing `soft_deleted` audit action. The audit
+   report must still show it, and a cancel needs an audit row in the same transaction.
+2. **Manager: approve/decline flow.** Easier navigation (filters by employee or leave type, a request detail view, a longer
+   decided history than the 10-row "recently decided" list), clearer confirmation after a decision, possibly undo within a
+   short window (would need a rule; decisions are currently final and audited).
+3. **HR audit.** Filters such as **today, a preset range, all, per employee**, easier navigation, possibly export (CSV). The
+   date range and the employee picker exist today (optional UTC `from`/`to`, include-soft-deleted toggle).
+
+**B. Login page and Google sign-in (the user wants it "if possible", and documented).**
+
+- Fix the login page (appearance and wording): polish, small.
+- **Google sign-in as an additional method** is a new requirement and the open **decision 5** (real login provider). It is not
+  in the PRD (US-01 to US-08). Docs come first: add the requirement and user stories to the BRD/PRD, an ADR (the provider; the
+  session contract in ADR-LeaveTrack-E001 must stay the same: only how the cookie gets set changes), the architecture doc and
+  new dev tasks (the repo's `/dev-tasks-planner` skill exists for this).
+- Things a plan must settle: Supabase Auth with Google (the natural fit) vs another provider; a Google Cloud OAuth client and
+  redirect URLs; new env vars (`env.ts` and `.env.example`); **only emails HR has added may sign in** (allowlist; the
+  `users.email` lower-case unique index already exists); linking the Google account to the `users` row by email; how the
+  **first HR admin** is created; keeping the mock login as a labelled fallback for the demo; Vercel Deployment Protection.
+
+**C. HR user management (new requirement, same epic as B).**
+
+- HR **adds new users**, assigns and **changes managers**, and manages roles. Needs a screen and API (route handlers only, rule 11).
+- A new user needs a **leave policy and opening balance** or accrual and the balance page do nothing for them. That is the
+  parked **decision 11** (HR policy configuration).
+- Users cannot be deleted (foreign keys restrict), so leaving the company needs a deactivation flag. Changing a manager
+  already re-routes pending requests (US-04 AC2, implemented through the live join on `users.manager_id`).
+
+**D. Lean on ordering (not agreed; the user has not answered).** Polish A and the login-page fix before Monday; Google
+sign-in and HR user management (B, C) after the demo unless the supervisor expects them there. **Open question for the user:**
+does the supervisor expect real sign-in at the 2026-10-19 demo? If yes, plan B first, keep the mock login as a fallback, and
+cut polish. Fold the cheap retro-backlog items into the polish round instead of a separate pass: friendly validation messages,
+readable dates, an active nav link, the three-row mobile nav. The rest of the backlog (consolidate the retros into one
+prioritised list) waits until after the polish and the new requirements.
 
 ### Working style
 
