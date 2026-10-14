@@ -47,7 +47,8 @@ describe.each([
   });
 
   it("has a header placeholder like the real page", () => {
-    expect(html).toContain("h-8 w-48");
+    // Every page has a page-header block; the dashboard's is its welcome heading.
+    expect(html).toMatch(/h-8 w-48|h-9 w-64/);
   });
 });
 
@@ -79,9 +80,10 @@ describe("loading states mirror their pages", () => {
     expect(html).toContain("max-w-xl");
   });
 
-  it("dashboard: a grid of cards each with a button", () => {
+  it("dashboard: a welcome block and a grid of icon cards each with a button", () => {
     const html = render(DashboardLoading);
-    expect(count(html, "shadow-sm")).toBe(4);
-    expect(count(html, "h-11 w-24")).toBe(4);
+    expect(html).toContain("h-9 w-64"); // the user's name
+    expect(count(html, "shadow-tile")).toBe(3);
+    expect(count(html, "h-[54px] w-28")).toBe(3);
   });
 });

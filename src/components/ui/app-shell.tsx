@@ -1,9 +1,14 @@
+import { Inter } from "next/font/google";
+import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { UserRole } from "@/lib/db/types";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { initialsOf } from "@/components/ui/initials";
+import { HeaderMenu } from "@/components/ui/header-menu";
+import { MainNav } from "@/components/ui/main-nav";
 import type { NavItem } from "@/components/ui/nav";
+
+const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
 
 const ROLE_LABEL: Record<UserRole, string> = {
   employee: "Employee",
@@ -19,54 +24,53 @@ interface AppShellProps {
   children: ReactNode;
 }
 
-const NAV_ITEM = "inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium";
-
 /**
- * Chrome for signed-in pages: skip link, navy header with the wordmark, role-aware navigation and
- * sign-out. Nav wraps on small screens, so nothing needs horizontal scroll at 375px.
+ * Chrome for signed-in pages: skip link, navy header with the logo, role-aware navigation, the
+ * signed-in user and sign-out. The header wraps on small screens, so nothing needs horizontal
+ * scroll at 375px.
  */
 export function AppShell({ userName, role, items, signOutAction, children }: AppShellProps) {
   return (
-    <div className="min-h-dvh">
+    <div className={`${inter.variable} min-h-dvh bg-page font-sans`}>
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-10 focus:rounded-lg focus:bg-white focus:px-3 focus:py-2 focus:text-navy-900"
       >
         Skip to content
       </a>
-      <header className="bg-navy-900 text-white">
-        <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
-          <Link href="/dashboard" className="text-xl font-semibold tracking-tight">
-            leavetrack
+      <header className="bg-nav text-white">
+        <div className="flex flex-wrap items-center justify-between gap-x-8 gap-y-2 px-4 py-3 sm:px-8 lg:min-h-[86px] lg:py-0 lg:pl-20 lg:pr-12">
+          <Link href="/dashboard" className="flex min-h-11 items-center gap-3.5 text-2xl font-bold">
+            <Image src="/icons/leaf-logo.svg" alt="" width={36} height={32} unoptimized />
+            LeaveTrack
           </Link>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="text-sm">{userName}</span>
-            <Badge>{ROLE_LABEL[role]}</Badge>
-            <form action={signOutAction}>
-              <Button type="submit" variant="inverse">
-                Sign out
-              </Button>
-            </form>
-          </div>
+          <HeaderMenu>
+            <MainNav items={items} />
+            <div className="flex flex-col gap-3 pb-2 lg:flex-row lg:items-center lg:gap-5 lg:pb-0">
+              <div className="flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className="flex size-[46px] shrink-0 items-center justify-center rounded-full bg-avatar text-[17px] font-semibold"
+                >
+                  {initialsOf(userName)}
+                </span>
+                <div className="leading-tight">
+                  <p className="text-[17px] font-semibold">{userName}</p>
+                  <p className="mt-1 text-sm text-nav-muted">{ROLE_LABEL[role]}</p>
+                </div>
+              </div>
+              <form action={signOutAction}>
+                <button
+                  type="submit"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-nav-border px-3.5 py-2.5 text-[15px] lg:w-auto font-medium text-nav-muted transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <Image src="/icons/log-out.svg" alt="" width={20} height={20} unoptimized />
+                  Sign out
+                </button>
+              </form>
+            </div>
+          </HeaderMenu>
         </div>
-        <nav aria-label="Main" className="border-t border-white/10">
-          <ul className="mx-auto flex max-w-5xl flex-wrap gap-1 px-2 py-1">
-            {items.map((item) => (
-              <li key={item.key}>
-                {item.available ? (
-                  <Link href={item.href} className={`${NAV_ITEM} text-white hover:bg-white/10`}>
-                    {item.label}
-                  </Link>
-                ) : (
-                  <span aria-disabled="true" className={`${NAV_ITEM} gap-1.5 text-white/60`}>
-                    {item.label}
-                    <span className="text-xs">(soon)</span>
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </nav>
       </header>
       <main id="main" tabIndex={-1} className="mx-auto max-w-5xl px-4 py-6 sm:py-8">
         {children}
