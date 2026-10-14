@@ -20,7 +20,7 @@ describe("navItemsFor", () => {
     const linked = navItemsFor("hr_admin")
       .filter((i) => i.available)
       .map((i) => i.key);
-    expect(linked).toEqual(["dashboard"]);
+    expect(linked).toEqual(["dashboard", "request", "balance"]);
   });
 
   it("gives every item a unique key and an absolute href", () => {

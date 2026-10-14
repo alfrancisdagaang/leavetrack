@@ -1,4 +1,9 @@
-import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import type {
+  InputHTMLAttributes,
+  ReactNode,
+  SelectHTMLAttributes,
+  TextareaHTMLAttributes,
+} from "react";
 
 const CONTROL =
   "block min-h-11 w-full rounded-lg border border-grey-500 bg-white px-3 py-2 text-base text-grey-900 placeholder:text-grey-500 aria-[invalid=true]:border-rejected-fg";
@@ -41,4 +46,8 @@ export function Input({ className, ...rest }: InputHTMLAttributes<HTMLInputEleme
 
 export function Select({ className, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select className={className ? `${CONTROL} ${className}` : CONTROL} {...rest} />;
+}
+
+export function Textarea({ className, ...rest }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea className={className ? `${CONTROL} ${className}` : CONTROL} {...rest} />;
 }

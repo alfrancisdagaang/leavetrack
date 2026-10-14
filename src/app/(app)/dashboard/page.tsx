@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";
+import { ButtonLink } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { navItemsFor } from "@/components/ui/nav";
 import { PageHeader } from "@/components/ui/page-header";
@@ -19,7 +20,13 @@ export default async function DashboardPage() {
         {cards.map((item) => (
           <Card key={item.key} title={item.label}>
             <p className="mb-3 text-grey-500">{item.description}</p>
-            {item.available ? null : <Badge>Coming soon</Badge>}
+            {item.available ? (
+              <ButtonLink href={item.href} variant="secondary">
+                Open
+              </ButtonLink>
+            ) : (
+              <Badge>Coming soon</Badge>
+            )}
           </Card>
         ))}
       </div>

@@ -22,7 +22,7 @@ const REQUEST: NavItem = {
   label: "Request leave",
   href: "/requests/new",
   description: "Submit a leave request for your manager to review.",
-  available: false,
+  available: true,
 };
 
 const BALANCE: NavItem = {
@@ -30,7 +30,7 @@ const BALANCE: NavItem = {
   label: "My balance",
   href: "/balance",
   description: "See your confirmed and pending leave days.",
-  available: false,
+  available: true,
 };
 
 const APPROVALS: NavItem = {
