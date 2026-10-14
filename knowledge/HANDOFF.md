@@ -1,11 +1,11 @@
 # LeaveTrack — Session Handoff
 
-Last updated: Wednesday 2026-10-14 · Code state: `main` @ `279a73e` (leave-types fix + UI foundation + handoff, all merged by
-fast-forward and pushed; the branch `feat/ui-foundation` was deleted locally and on GitHub). Edits to this file may be uncommitted.
+Last updated: Wednesday 2026-10-14, evening · Code state: `main` @ `ae16ed6` (pushed; working tree clean; `main` matches
+`origin/main`). Edits to this file may be uncommitted.
 
 A living note for starting a new session without chat history. Update it at the end of each session.
-Everything below is either **verified** (checked on the date above) or explicitly marked as a
-**decision**, **lean** (a recommendation, not agreed), or **unknown**.
+Everything below is either **verified** (checked by me on the date above), **reported** (the user told me; I did not see it),
+or explicitly marked as a **decision**, **lean** (a recommendation, not agreed), or **unknown**.
 
 **Suggested opening prompt for the next session:**
 
@@ -22,91 +22,95 @@ Everything below is either **verified** (checked on the date above) or explicitl
 
 ## 0. Deadline and demo plan (read this first)
 
-- **Demo: Monday 2026-10-19.** The user must show their supervisor an **online** system. Work resumes Wednesday 2026-10-14.
-  The user can work weekends and is working alone as far as we know (unconfirmed).
+- **Demo: Monday 2026-10-19.** The user must show their supervisor an **online** system. The user works alone as far as we
+  know (unconfirmed) and can work weekends. Days left after today: Thu 10-15 to Mon 10-19 morning.
 - **Supervisor's expected scope:** all user stories in the PRD, US-01 to US-08, which is all of EPIC-1 (tasks 010-018).
-  The supervisor also said extra ideas can be added later; that is a future decision and is parked.
-- **UI approach for the demo (DONE as a prototype, 2026-10-14):** Claude-generated prototype UI on a small shared foundation.
-  The user chose **Navy Blue + Light Grey, clean corporate, light-only**, and the brand is the plain lowercase text
-  **"leavetrack"** (no logo). Built: Tailwind v4 tokens in `src/app/globals.css`, 7 shared components in `src/components/ui/`,
-  a role-aware app shell, restyled login / dashboard / error / 404. `AGENTS.md` and `coding-standards.md` were updated to
-  match (the old "unstyled until a design export" rule is gone). The user viewed it locally and called it "a good prototype,
-  not polished, a good start". It was merged to `main` on 2026-10-14 after the user opened the Vercel preview and said it was okay.
-- **"Online" means GitHub + Supabase (staging) + Vercel.** The demo uses the **mock login with fake data only**, must be
-  described to the supervisor as a demo login (the login page now says so), and the URL is access-restricted.
-- **Accounts and deployment (verified with the user 2026-10-14):**
-  - GitHub: private repo `alfrancisdagaang/leavetrack`. `main` and the UI branch are pushed. CI on `main` was green.
-  - Supabase: project named `staging`, region **ap-south-1 (Mumbai)**. Both migrations were applied by the CI `db-push` job
-    and the user confirmed 6 tables and **3 `leave_types` rows** in the Table Editor. `users` is empty (no seed on staging).
-  - GitHub secret `SUPABASE_DB_URL` is set as a **`production` Environment secret** (the `db-push` job reads that environment)
-    and uses the **Session pooler** string (host `aws-0-ap-south-1.pooler.supabase.com`, user `postgres.<ref>`, port 5432).
-    The direct `db.<ref>.supabase.co` host is IPv6-only and GitHub runners are IPv4-only (my understanding, not tested).
-    The first attempt failed with `password authentication failed`; the cause was a wrong password, fixed by resetting it.
-  - Vercel: project created from the GitHub repo, **deployed and working**, deployment protection turned on. Env vars:
-    `APP_ENV=staging`, `DATABASE_URL` (Transaction pooler, port 6543), `CRON_SECRET`. `DIRECT_URL` is deliberately unset.
-    `/api/health` reports `db: "ok"`. The first request after idle returned `db: "error"` (cold start vs the 1s ping limit);
-    a reload returned `ok`.
+  Extra ideas the supervisor mentioned are a future decision and are parked. The user said they will bring **fixes and
+  polish** after the tasks are done; treat those as new work, not as reopening `Done` tasks.
+- **Ahead of schedule:** the plan had 011/012 on Thursday, 013/014 on Friday and 015/017 on Saturday. All of them, plus the
+  UI foundation, were finished on Wednesday. Remaining EPIC-1 work: **TASK-018** and **TASK-016**, then polish and demo prep.
+- **UI approach (done, prototype):** Claude-generated UI on a shared foundation: Tailwind v4 tokens in `src/app/globals.css`
+  (navy + light grey, light-only), components in `src/components/ui/`, a role-aware app shell, brand text "leavetrack".
+  The user called the first version "a good prototype, not polished". Page-specific **loading skeletons** now mirror each page.
+- **"Online" means GitHub + Supabase (staging) + Vercel.** The demo uses the **mock login with fake data only** (the login page
+  says so) and the URL is access-restricted (Vercel Deployment Protection).
+- **Accounts and deployment:**
+  - GitHub: private repo `alfrancisdagaang/leavetrack`. Everything is pushed to `main`. `gh` is not installed, so **I cannot see
+    CI runs**; the user checks GitHub Actions on the website. I have not seen a report for the latest commits (unknown).
+  - Supabase: project `staging`, region **ap-south-1 (Mumbai)** (the user confirmed this on 2026-10-14). All migrations reach it
+    through the CI `db-push` job (GitHub **`production` Environment** secret `SUPABASE_DB_URL`, Session pooler string).
+  - **Staging was seeded by the user** with `supabase/seed.sql` through the Supabase SQL Editor (7 fake users, balances,
+    3 demo pending requests). **Reported**, not verified by me (I have no staging access and must not).
+  - **Accrual on staging:** the user ran the job once manually and reported Elena's Vacation went **10 to 11.25**. **Reported.**
+  - Vercel: Hobby plan, project from the GitHub repo, Deployment Protection on. Env vars: `APP_ENV=staging`, `DATABASE_URL`
+    (Transaction pooler, port 6543), `CRON_SECRET`. `DIRECT_URL` deliberately unset.
+  - **Function region:** the first Vercel log showed functions running in **Washington (iad1)**, the default, while the database
+    is in Mumbai, which made every page slow. `vercel.json` now sets `"regions": ["bom1"]` (it overrides the dashboard setting,
+    which showed "Overridden"). The user says the redeploy is "okay now". **Unverified by me:** I have not seen a runtime log
+    line saying "Routed to ... Mumbai (bom1)". The build log saying "Running build in Washington" is the _build machine_ and
+    is normal, not the function region.
   - Passwords and connection strings were never committed. Never paste them into chat.
 
-### Plan (6 days, almost no slack)
+### Plan (remaining)
 
-**The days below are targets, not a rigid timetable.** The user works whenever they have free time on a given day, so the
-amount done per day will vary. Track progress by tasks finished (and the cut order below), not by the calendar day. Whenever
-a session starts, recompute what is left and how many days remain until Monday, and say plainly if the plan has slipped.
+| Day               | Work                                                                                                                |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **Thu 10-15**     | Check CI and the Vercel deploy; `/plan` + build TASK-018; evaluate + build TASK-016 (mobile pass on every page)     |
+| **Fri 10-16**     | Browser pass on every page as every role (nothing has been clicked through by me); fixes and polish the user brings |
+| **Sat-Sun 10-18** | Demo prep: walkthrough script, reset/prepare staging data, rehearse; buffer for bugs                                |
+| **Mon 10-19 am**  | Rehearse, then demo                                                                                                 |
 
-| Day                   | Work                                                                                                          |
-| --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **Wed 10-14**         | Confirm defaults; push; leave-types fix; **put the current app online early**; UI foundation (Tailwind + kit) |
-| **Thu 10-15**         | TASK-011 submit + TASK-012 balance; role-aware navigation and dashboard                                       |
-| **Fri 10-16**         | TASK-013 team queue + TASK-014 approve/reject                                                                 |
-| **Sat 10-17**         | TASK-015 HR audit + TASK-017 accrual                                                                          |
-| **Sun 10-18**         | TASK-016 mobile pass, TASK-018 leave-type checks, bug fixes, demo data                                        |
-| **Mon 10-19 morning** | Rehearse, then demo                                                                                           |
+If time runs short, cut in this order: polish, the optional real-database test wiring, extra features. The core loop
+(US-01 to US-05) and accrual are done.
 
-If time runs short, cut in this order: polish on 018, then mobile polish, then extra accrual features. The core loop
-(US-01 to US-05) stays. A demo shortcut for accrual (seeded balances and a manual run) is acceptable if openly stated.
-Check progress each evening and adjust. Deploying early (Wednesday) is deliberate: first-deployment surprises are the biggest unknown.
+### Progress at the end of Wednesday 2026-10-14
 
-### Progress at the end of Wednesday 2026-10-14 (on plan; the Wednesday row is essentially done)
-
-- [x] Defaults confirmed by the user (see below)
-- [x] Pushed to GitHub; CI green on `main`
-- [x] Leave-types fix (TASK-010 follow-up), commit `46c8e2a`, applied to staging
-- [x] Put the app online early: Supabase staging + Vercel, protected, DB connected
-- [x] UI foundation built, validated and committed (`6e14843`); the user checked the Vercel preview ("okay")
-- [x] Merged to `main` by fast-forward and pushed (`main` @ `279a73e`); the feature branch was deleted
-- [ ] **Not checked yet:** the GitHub Actions run and the Vercel **production** deployment for `279a73e`, and the live
-      (non-preview) URL. I could not check CI myself (`gh` is not installed) and had no report back when this was written.
-- Days left to the Monday demo: 5 (Thu 10-15 to Mon 10-19 morning). Nothing has slipped yet.
+- [x] TASK-010 schema + leave types · [x] UI foundation · [x] TASK-011 submit · [x] TASK-012 balance
+- [x] TASK-013 team queue · [x] TASK-014 approve/reject · [x] TASK-017 monthly accrual · [x] TASK-015 HR audit
+- [x] Vercel function region set to Mumbai; loading skeletons shipped (per page)
+- [ ] **TASK-018** leave-type checks: **evaluated**, waiting for `/plan` (see "Next session")
+- [ ] **TASK-016** mobile pass: not evaluated yet
+- Task statuses in `docs/dev-tasks/epic-1-leave-request-tasks.csv`: **Done** for 010, 011, 012, 013, 014, 015, 017;
+  **Open** for 016, 018 and EPIC-1 (verified).
 
 ### Next session: do these in order
 
-1. Check the GitHub Actions run for `279a73e` on `main` (all green; `db-push` should find nothing to apply), then open the
-   live Vercel URL (not a preview) and sign in as each role, check `/api/health`, and confirm protection is still on.
-2. Decide the `next dev` agent-rules block (see Open items).
-3. Decide how to get demo users into staging (it has no users, and the pages need them). Lean: run the fake seed once on
-   staging, clearly labelled as demo data; **needs the user's OK first**.
-4. Then the normal cycle for the **TASK-011 + TASK-012 batch**: `/evaluate`, then `/plan`, wait for approval. Each later task
-   flips its `available` flag in `src/components/ui/nav.ts` so its nav link and dashboard card go live.
+1. Check GitHub Actions for `ae16ed6` (all green) and the Vercel production deploy. Then open a **runtime log entry for a real
+   page request** (not an `_rsc` prefetch) on the newest deployment and confirm "Routed to ... Mumbai (bom1)".
+2. `/plan` for **TASK-018** (already evaluated). It is test-only: the behaviour already exists (approve touches only the
+   request's own leave type; Unpaid never reads or writes balances; submit never blocks). The gap is **committed proof**: no
+   test shows submitting Unpaid succeeds, and nothing guards who may write `leave_balances`. Lean: fake-SQL tests in the gate
+   (`service.test.ts` for `createLeaveRequest`, a "who writes `leave_balances`" guard) plus a **gated real-database test**
+   (skipped unless `TEST_DATABASE_URL` is set), without touching CI yet. If a test exposes a real defect, flag it first.
+3. `/evaluate` then `/plan` for **TASK-016**: re-measure every page at 375 and 320 px (balance and request form were measured
+   on 2026-10-14; approvals, audit and the skeletons were not), the nav wraps to three rows at 375 px (UI retro backlog).
+4. Do a **browser pass as each role** (Elena, Marco, Hana): submit, over-balance warning, reversed dates, approve/reject,
+   audit with the soft-delete toggle, accrual line. Everything built after the UI foundation was verified through the real
+   SQL and routes, but not clicked through.
+5. Demo prep (see section 3, "Say plainly to the supervisor").
 
-### Working style for this week
+### Working style
 
-- Flexible hours: sessions can be short or long and happen at any time. End every session with a clean, committed or
-  clearly described state and an up-to-date note, so the next session can resume from wherever the last one stopped.
-- Batch the cycle: one evaluate and plan per slice (011 with 012, 013 with 014) instead of one per task. The user still
-  approves each plan; commits still happen only on request after reviewing the diff.
-- Open decisions use the defaults below unless the user objects.
+- Flexible hours: sessions can be short or long. End each session with a clean, committed or clearly described state and an
+  updated note.
+- **The user now commits straight to `main`** (no feature branch or PR): after `/validate` passes, they ask to commit and push.
+  Commits only happen on request. Conventional Commits, enforced by commitlint: the **subject must start lowercase**
+  (`docs: ADR-E002 ...` was rejected). Task ids go in the body, not the subject. Attribution line as the environment states.
+- The user runs **`next start`** (production build) for manual testing, not `npm run dev`. It does **not** pick up code
+  changes: stop it, `npm run build`, `npm start`, hard refresh. **Never rebuild while their server is running** (it replaces
+  `.next` underneath it).
+- **Do not start or stop dev servers unless necessary; check what is listening first** (saved as a memory). Use vitest and
+  `psql` against a throwaway database for verification.
+- One evaluate and plan per task unless the tasks are genuinely coupled (011+012 and 013+014 were; 015 and 017 were done
+  separately). The user approves each plan.
+- Do not assume when the requirements are silent (the user corrected this): list the open decision and its impact first.
 
-### Defaults for the demo (proposed by the tutor, **CONFIRMED by the user on 2026-10-14**)
+### Defaults for the demo (**CONFIRMED by the user on 2026-10-14**, all implemented)
 
-1. Roles stack up: managers and HR admins can also request leave.
-2. Rejection note stored in a new nullable `decision_note` column on `leave_requests`.
-3. Manager "notification" = pending items shown in their approvals queue (no email).
-4. Leave days counted as working days (Mon-Fri); holidays out of scope.
-5. Mock login for the demo, clearly labelled, fake data only.
-6. The top person's leave is approved by a second `hr_admin`.
-7. The `reason` field is optional.
-8. The over-balance warning is returned in a `warnings` field of the success payload.
+1. Roles stack: managers and HR admins can also request leave. 2. Rejection note in `leave_requests.decision_note`.
+2. Manager "notification" = the pending item in their approvals queue (no email). 4. Leave days are working days (Mon-Fri), no
+   holidays. 5. Mock login, clearly labelled, fake data only. 6. The top person's leave is approved by a second `hr_admin`
+   (Sam Okafor in the seed). 7. `reason` is optional. 8. The over-balance warning is a `warnings` field in the success payload.
 
 ---
 
@@ -114,187 +118,163 @@ Check progress each evening and adjust. Deploying early (Wednesday) is deliberat
 
 ### Source control
 
-- `main` @ `46c8e2a`: `b5ae414` day 0 scaffold, `6eca3a1`, `e3c8e1e`, `7705cce` (handoff notes), `ea4f0a6` + `45fc0e8` (graphify rule and
-  hook), `46c8e2a fix: ship leave types via migration`. All pushed; CI on `main` is green, including `db-push` to staging.
-- `6e14843 feat: ui foundation with navy theme and app shell` and `279a73e docs: update handoff for 2026-10-14` are on `main`
-  (fast-forward merge). `main` is the only branch. Working tree was clean when this note was drafted.
-- `gh` (GitHub CLI) is not installed, so CI runs can only be checked on the GitHub website.
-- Package manager is **npm only**. A stray `pnpm install` once added pnpm files; they were deleted.
+- `main` @ `ae16ed6`, pushed. Feature commits, newest first: `ae16ed6` page-specific skeletons, `b23f3df` first skeleton,
+  `6947590` Vercel region bom1, `893654e` HR audit, `4f9391d` accrual, `42937a9` approvals + decisions, `b63b0b0` submit +
+  balance, `7458a75` disable `next dev` agent rules, then the earlier UI foundation, leave-types migration and Day 0 scaffold.
+  Docs and CSV-status commits sit between them. `main` is the only branch.
+- `gh` is not installed: CI can only be checked on the GitHub website.
+- Package manager is **npm only**.
 
-### Quality gate (all green on 2026-10-14, run on the branch before it was merged; unchanged code since)
+### Quality gate (verified 2026-10-14 evening, on `ae16ed6`)
 
-`lint`, `typecheck`, `format:check`, **53 tests (7 files)**, `next build`, and `npm audit --omit=dev` = 0 vulnerabilities.
-Dev-only audit findings (5 high, `braces` via `eslint-config-next`) are documented in the retro. Database checks for the
-leave-types migration were run on a throwaway PG 18 (migrations only = 3 rows; re-apply idempotent; full path; negative test).
+`lint`, `format:check`, `typecheck`, **201 tests (19 files)** and `next build` all pass. The build lists `/api/audit/[userId]`,
+`/api/jobs/accrual`, `/api/leave-requests`, `/api/leave-requests/[id]/decision`, `/approvals`, `/audit`, `/balance`,
+`/dashboard`, `/login`, `/requests/new`. Real-database behaviour was verified per task on throwaway PG 18 databases (the
+harnesses were deleted afterwards; see the retros).
 
-### Built
+### Built (all EPIC-1 features except TASK-016/018 closing work)
 
-- **Day 0 (infrastructure and mock auth):**
-- Next.js 16 app: route guard `src/proxy.ts`, mock login/logout, `/api/health`, error pages.
-- Shared toolbox in `src/lib/`: `env`, `logger`, `errors` (standard response envelope), `auth` (session, guards, cron secret, safe redirect), `db` (pooled client + row types), `mock/users`.
-- Database migration `20261013000000_init_leave_domain.sql`: 6 tables, enums, constraints, approved indexes, triggers that block hard deletes and audit-log edits, RLS enabled with no policies.
-- `supabase/seed.sql` (dev only, idempotent) and `supabase/tests/verify_schema.sql`.
-- Docs: `AGENTS.md`, `CLAUDE.md` (imports AGENTS.md), README, `knowledge/` rules, prompts, patterns, retro.
-- **2026-10-14, on `main`:** migration `20261014000000_seed_leave_types.sql` (Vacation/Sick/Unpaid with fixed IDs,
-  `on conflict do nothing`); the insert was removed from `seed.sql`; a CI step in `db-verify` now asserts 3 leave types
-  **after migrations and before the seed**; `verify_schema.sql` also checks the ids/names/`tracks_balance`.
-- **2026-10-14, UI foundation (now on `main`):** Tailwind v4 (`tailwindcss` and `@tailwindcss/postcss`, both
-  pinned 4.3.3, devDependencies), tokens in `src/app/globals.css`, `src/components/ui/` (button, field, card, badge, alert,
-  page-header, app-shell, plus `nav.ts` with `navItemsFor(role)` and tests), and a `src/app/(app)/` route group whose layout
-  renders the shell (URLs unchanged; `/dashboard` moved into it). Light-only; system font stack (CSP-safe).
-  Nav items for pages that do not exist yet show as "(soon)" until each task sets its `available` flag to true.
-  Retro: `knowledge/retros/2026-10-14-ui-foundation.md`.
+- **Infrastructure and mock auth (Day 0):** route guard `src/proxy.ts`, mock login/logout (cookie `mock-role`, one fixed user
+  per role: employee = Elena, manager = Marco, hr_admin = Hana), `/api/health`, shared toolbox in `src/lib/` (`env`, `logger`,
+  `errors`, `auth`, `db`, `mock`).
+- **Schema:** migrations `20261013000000_init_leave_domain`, `20261014000000_seed_leave_types`,
+  `20261014120000_add_decision_note`, `20261015000000_accrual_ledger`. 7 tables, RLS on, append-only triggers on `audit_log`
+  and `accrual_ledger`, no hard deletes on `leave_requests`.
+- **TASK-011/012 (submit + balance):** `POST/GET /api/leave-requests`, `/requests/new`, `/balance`. Working-day counting,
+  over-balance warning (never for Unpaid), pending days shown separately from the confirmed balance. Reversed dates disable the
+  submit button and show an inline error.
+- **TASK-013/014 (queue + decisions):** `GET /api/leave-requests?scope=team`, `POST /api/leave-requests/:id/decision`,
+  `/approvals` (pending queue + a small "recently decided" list). Scope is in SQL (`u.manager_id = $caller`). One transaction:
+  scoped `FOR UPDATE` lookup, guarded balance decrement, guarded status update, audit row. Other-team, missing and deleted
+  requests all return the same 403.
+- **TASK-017 (accrual):** `GET`/`POST /api/jobs/accrual` behind the `CRON_SECRET` bearer check (proxy + handler), `vercel.json`
+  cron `0 0 1 * *` (00:00 UTC on the 1st). `accrual_ledger` unique per (employee, leave type, UTC month); one SQL statement;
+  catch-up of missed months; first run accrues the current month only; Unpaid never accrues. ADR-LeaveTrack-E002 written.
+  The balance page shows the month of the last accrual.
+- **TASK-015 (HR audit):** `GET /api/audit/:userId`, `/audit` (HR only, any employee, optional UTC date range, include-soft-deleted
+  toggle, per-request event timeline). Excludes soft-deleted requests by default; never selects the employee's free-text `reason`.
+- **UI:** app shell, role-aware nav (all five items live), per-page loading skeletons, `Textarea` and `Skeleton*` components.
+- **Seed (`supabase/seed.sql`, idempotent):** 7 fake users (Sam Okafor, second hr_admin, is Hana's manager), Vacation 10 / Sick 5
+  demo balances for every user, 3 demo pending requests (Jun, Leo, Marco), each with a `submitted` audit row.
+  `verify_schema.sql` checks the schema, the seed counts and the new constraints.
 
 ### Not built or not connected
 
-- **No leave feature exists** (submit, balance, team queue, decide, audit, accrual). All of EPIC-1 beyond the schema is unstarted.
-- **No real design.** `docs/designs/` does not exist; the UI is a prototype on tokens that a real design can later replace.
-- **No real authentication.** Login accepts anything and trusts a role cookie. Must never ship (ADR-LeaveTrack-E001).
-- **No persistent local dev database.** Throwaway Postgres instances used for verification were stopped.
-- **Staging has no users** (the seed is dev-only). The mock login picks a session role, but the pages that will read data
-  need users in the database, so a decision on demo data is open (see "Next session").
-- No `vercel.json` (cron schedule, needed for TASK-017), no `.env.local`, no notification mechanism.
-- Only `/api/health` touches the database client. On Vercel it now reaches the staging DB (`db: "ok"` after the first request).
+- **No real authentication.** Login accepts anything and trusts a role cookie. Must never ship (ADR-LeaveTrack-E001). The mock
+  login can only act as Elena, Marco or Hana, so **Sam, Jun, Leo and Priya cannot log in**; Hana's own requests (approver:
+  Sam) cannot be decided in the demo UI.
+- **No HR override** for over-balance requests (see decisions). **No pro-rating, no ledger screen, no export.**
+- No real design (`docs/designs/` does not exist); the UI is a prototype on tokens.
+- No monitoring or alerting; a missed cron run is repaired by the next but nobody is told.
 
 ### Machine and tooling notes
 
-- Node 22.19, Windows 11, shells: Git Bash and PowerShell.
-- PostgreSQL 18 client tools are on PATH (`C:\Program Files\PostgreSQL\18\bin`). Docker is installed but was **not running** when last checked.
-- `pg_ctl ... start` keeps the calling shell open on Windows; run it in the background.
-- **Local dev database (set up 2026-10-14):** Postgres 18 on port **54329**, database `leavetrack`, data in
-  `C:\Users\user\leavetrack-pgdata` (outside the repo). Migrations and `supabase/seed.sql` are applied (6 users, 3 leave
-  types, 6 balances). `.env.local` (git-ignored) holds `APP_ENV=development` and
-  `DATABASE_URL=postgres://postgres@localhost:54329/leavetrack`. It stops when the machine restarts. Start it again
-  (run in the background) with:
+- Node 22.19, Windows 11, shells: Git Bash and PowerShell. **In one Bash call, avoid several heredocs with quotes; it failed
+  twice with "unexpected EOF". Use the Write tool for files.** Files written with Python's default newline come out CRLF on
+  Windows; `prettier --write` (also run by lint-staged) normalises them.
+- PostgreSQL 18 client tools are on PATH (`C:\Program Files\PostgreSQL\18\bin`).
+- **Local dev database:** Postgres 18 on port **54329**, database `leavetrack`, data in `C:\Users\user\leavetrack-pgdata`
+  (outside the repo). Migrations and the seed are applied (verified: 7 users, empty `accrual_ledger`, plus the user's own test
+  requests). `.env.local` (git-ignored) holds `APP_ENV=development` and
+  `DATABASE_URL=postgres://postgres@localhost:54329/leavetrack`. It stops when the machine restarts. Start it (in the
+  background) with
   `"C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe" -D C:\Users\user\leavetrack-pgdata -o "-p 54329" start`
-  and stop it with the same command ending in `stop`. After starting it, restart `npm run dev`. Without this database the
-  `/balance` and `/requests/new` pages show the error page ("The database is not configured" / connection refused); that
-  is expected, not a bug. Test requests are soft-deleted only (hard deletes are blocked by triggers), so to reset the data
-  drop and recreate the `leavetrack` database, then re-apply the migrations and seed.
-- graphify 0.9.88 is installed in Python 3.13 with the `[sql]` extra. `graphify-out/` is git-ignored; a PostToolUse hook rebuilds it. Re-run `/graphify . --update` after doc changes to refresh semantic nodes.
-- `.mcp.json` holds a live API key. It is git-ignored; never commit it, and consider rotating the key.
-- The `resolve_package_versions` MCP tool fails on Windows (`WinError 2`). Versions were resolved from the npm registry instead. Check `npm view <pkg> dist-tags` before pinning.
-- Pins held below latest for compatibility: eslint 9.39.5, TypeScript 6.0.3, lint-staged 16.4.0 (see the retro for the reasons).
-- `next dev` may pick port 3001 (something unknown holds 3000 on this machine). **`next dev` also appends a "This is NOT the
-  Next.js you know" block to `AGENTS.md`** (tracked file) every time it runs; I kept it out of the UI commit. Open decision.
-- After moving or renaming routes, delete the git-ignored `.next/` folder; stale generated types broke `typecheck` and `build` once.
-- Headless Chrome (`C:\Program Files\Google\Chrome\Application\chrome.exe`) was driven through the DevTools protocol to take
-  real 375/320/1280px screenshots and measure horizontal overflow. The script lived in the session scratchpad and is not in the repo.
-- `claude.exe` auto-update failed because another Claude Code session was open (a Windows file lock). Harmless; run `claude doctor`
-  and `claude update` after closing all sessions. I did not run them.
+  and stop it with the same command ending in `stop`; restart the app afterwards. Without the database, `/balance` and the
+  other data pages show the error page; that is expected. Test requests can only be soft-deleted (triggers block hard
+  deletes); to reset, drop and recreate the database and re-apply the migrations and seed. Verification databases are named
+  `leavetrack_test` and dropped afterwards, never the user's `leavetrack`.
+- graphify 0.9.88 (Python 3.13, `[sql]` extra); `graphify-out/` is git-ignored and refreshed by a PostToolUse hook.
+- `.mcp.json` holds a live API key (git-ignored; consider rotating). The `resolve_package_versions` MCP tool fails on Windows;
+  check `npm view <pkg> dist-tags` before pinning. Pins held below latest: eslint 9.39.5, TypeScript 6.0.3, lint-staged 16.4.0.
+- `next dev` is no longer allowed to edit `AGENTS.md` (`agentRules: false` in `next.config.ts`, verified in the installed types).
+- After moving or renaming routes delete the git-ignored `.next/`.
+- postgres.js returns `date` columns as JS `Date` objects although `types.ts` says `string`: cast to `::text` in queries.
+- `generate_series(date, date, interval)` returns `timestamptz`: cast the inputs to `timestamp` (done in the accrual SQL).
+- Headless Chrome was driven through the DevTools protocol for 375/320/1280 px checks (scripts were in the session scratchpad).
+- `claude.exe` auto-update failed once because another session held a file lock; harmless.
 
 ### Choices the user already made
 
-- Option B scaffold (originally "no UI shell until a design export exists"; superseded on 2026-10-14 by the prototype UI).
-- npm; raw SQL migrations in Supabase layout; `postgres.js` for the database client.
-- Indexes and the cron-secret guard approved as planned.
-- Commits are made only on request, after the diff has been reviewed.
+- npm; raw SQL migrations in Supabase layout; `postgres.js`; indexes and the cron-secret guard approved.
+- Commits only on request, after the work is validated; straight to `main`; subjects lowercase.
+- Route handlers for every leave-data write (AGENTS.md rule 11); server actions only for login/logout.
+- Option A for over-balance approval, `Done` as the task status word.
 
 ---
 
-## 2. TASK-010 gap and fix (FIXED 2026-10-14, commit `46c8e2a`; kept as history)
+## 2. History: the TASK-010 leave-types gap (fixed 2026-10-14, commit `46c8e2a`)
 
-**Status: resolved.** The migration `20261014000000_seed_leave_types.sql` ships the 3 leave types, CI asserts them before
-the seed, and the user confirmed 3 rows on the staging database. The CSV status is still `Open` (the user has not asked to
-change it). Below is what was found on 2026-10-13; every "Fail" is now a pass.
-
-**TASK-010 was mostly done, not complete.** Verified against a fresh empty Postgres:
-
-| Acceptance criterion                                | Result                           |
-| --------------------------------------------------- | -------------------------------- |
-| Migration runs clean on empty DB                    | Pass                             |
-| 6 tables exist, FKs match the arch doc              | Pass (10 FKs, all columns match) |
-| `leave_types` seeded with exactly 3 rows            | **Fail on the deployment path**  |
-| `is_deleted` defaults to false, no hard-delete path | Pass                             |
-
-**The gap:** after applying the migration alone, `leave_types` has **0 rows**. The 3 rows exist only in
-`supabase/seed.sql`, and `supabase db push` skips the seed unless `--include-seed` is passed. CI's deploy
-step does not pass it. A real database would have no leave types, so no request could ever be created.
-CI hides this because its check applies migration **and** seed before counting.
-
-`seed.sql` cannot simply be pushed to production: it also creates six fake people.
-
-### The fix that was implemented
-
-1. New forward-only migration inserting the 3 reference rows with the **same fixed IDs** that `seed.sql` used
-   (`10000000-0000-4000-8000-00000000000{1,2,3}`: Vacation/true, Sick/true, Unpaid/false) using `ON CONFLICT (id) DO NOTHING`.
-   (The leave-type IDs live only in SQL; `mock/users.ts` holds users, not leave types.)
-2. The leave-type insert was removed from `seed.sql`; the migration is the source of truth.
-3. CI asserts **3 leave types after the migration, before the seed runs**; `verify_schema.sql` checks ids/names/flags.
-   The "3 rows" expectation now lives in three places (migration, CI step, `verify_schema.sql`): update all if a type is added.
-4. The existing migration was not edited.
-
-### Related hardening (backlog)
-
-- `verify_schema.sql` does not assert foreign keys, constraints, or that RLS actually denies an unprivileged role. All three were checked by hand and passed.
-- A privileged role can bypass the guard triggers (`session_replication_role = replica`). Verified on local Postgres as superuser; **unverified** for Supabase's `postgres` role.
-- Fake people exist twice (`seed.sql` and `src/lib/mock/users.ts`) and must be kept in sync by hand.
+`supabase db push` skips `seed.sql`, so a deployed database had **0 leave types**. Fixed by a forward-only migration with the same
+fixed ids (Vacation/Sick tracked, Unpaid not), CI asserting 3 leave types after migrations and before the seed, and
+`verify_schema.sql` checking ids and flags. The "3 rows" expectation lives in the migration, the CI step and `verify_schema.sql`.
 
 ---
 
-## 3. Unresolved decisions
+## 3. Decisions
 
-"Lean" is a recommendation only. **On 2026-10-14 the user confirmed the 8 demo defaults in section 0**, which settles
-decisions 1, 2, 3, 4, 6, 7 and 8 for the demo (stacked roles, `decision_note` column, in-app queue as the notification,
-working days, second `hr_admin` approves the top person, optional `reason`, `warnings` field). Their "Lean" text below is
-now the chosen approach; they are not yet implemented. Decisions 5, 9, 10, 11 and 14 are still open. Decision 12 (design
-export) is superseded for the demo by the prototype UI, and decision 13 is implemented as the role-aware shell.
+### Decided
 
-| #   | Decision                                                 | Options / lean                                                                                                                                                                      | Blocks                                                              |
-| --- | -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| 1   | Can a manager or HR admin also request leave?            | Lean: **stacked roles** (employee < manager < hr_admin, cumulative). Alternatives: multiple roles per user; separate accounts (not recommended: splits balances, needs two emails). | TASK-011 role check; seed policies and balances for managers and HR |
-| 2   | Where is a rejection reason stored? (US-03 AC2)          | Lean: add nullable `decision_note` to `leave_requests` (new migration). Today no column exists; `reason` is the employee's own.                                                     | TASK-014                                                            |
-| 3   | How is the manager "notified"? (US-01 AC1)               | In-app queue only / notifications table / email provider. Day 0 forbids external calls.                                                                                             | TASK-011                                                            |
-| 4   | How are leave days counted?                              | Calendar days vs working days (Mon-Fri). Holidays are out of scope. Lean: working days.                                                                                             | 011, 012, 014, 018                                                  |
-| 5   | Which real login provider?                               | Supabase Auth is the natural fit but is not chosen. Needed before go-live, not before features.                                                                                     | Go-live                                                             |
-| 6   | Who approves the top person's leave?                     | Lean: assign a second `hr_admin` as their manager (data only).                                                                                                                      | Seed and real data                                                  |
-| 7   | Is `reason` required on a request?                       | Schema default is an empty string.                                                                                                                                                  | TASK-011                                                            |
-| 8   | How does the API return the over-balance warning?        | Propose a `warnings` field in the success payload.                                                                                                                                  | TASK-011                                                            |
-| 9   | Accrual idempotency design                               | `ADR-LeaveTrack-E002` is cited but **does not exist**. Lean: `accrual_runs(period)` with a unique constraint.                                                                       | TASK-017                                                            |
-| 10  | Cron HTTP method                                         | Arch doc says `POST /api/jobs/accrual`; Vercel Cron may send `GET`. **Verify against Vercel docs.**                                                                                 | TASK-017                                                            |
-| 11  | HR policy configuration                                  | PRD says HR configures policies; **no EPIC-1 task builds it**. Could defer to a script or SQL for the MVP.                                                                          | HR experience                                                       |
-| 12  | Design export                                            | `docs/designs/` missing, so no UI shell, tokens or component spec.                                                                                                                  | All UI work                                                         |
-| 13  | Landing pages                                            | Lean: one role-aware dashboard with navigation, not three separate apps. Role checks on pages and APIs are the real enforcement.                                                    | UI shell                                                            |
-| 14  | Where does "pending days" on the balance page come from? | Not stored; probably derived from pending requests. Unconfirmed.                                                                                                                    | TASK-012                                                            |
+| #        | Decision                                | Outcome                                                                                         |
+| -------- | --------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| 1-4, 6-8 | The 8 demo defaults (section 0)         | Confirmed 2026-10-14 and implemented.                                                           |
+| 9        | Accrual idempotency design              | Per-employee, per-type, per-UTC-month ledger with a unique key; ADR-LeaveTrack-E002.            |
+| 10       | Cron HTTP method                        | Vercel Cron sends **GET**; the route answers GET and POST. Docs updated.                        |
+| 13       | Landing pages                           | One role-aware dashboard and shell.                                                             |
+| 14       | Source of "pending days"                | Derived from the user's own pending, non-deleted requests (never stored).                       |
+| -        | Approving beyond the balance (option A) | Refused with 409; the manager can still reject. No negative balances, no invented balance rows. |
+| -        | Missing balance row on approval         | 409 and nothing created. (On **accrual** it is created holding exactly the accrued amount.)     |
+| -        | Accrual catch-up                        | Missed months are accrued by the next run; the first run accrues the current month only.        |
+| -        | Audit report and soft-deleted rows      | Excluded by default, shown flagged with `include_deleted=true`, never purged. Docs reconciled.  |
+| -        | Other team / missing / deleted request  | Same 403 for all (no existence leak).                                                           |
 
-Also open in tooling: the `/create-pr` gate may never block (it waits for `blocked: true`, but the
-`code-reviewer` agent reports via `ReportFindings`). Details in the retro.
+### Still open
 
-### Other open items (2026-10-14)
+| #   | Decision                                 | Notes                                                                                                                             |
+| --- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| 5   | Real login provider                      | Supabase Auth is the natural fit, not chosen. Needed before go-live, not before features.                                         |
+| 11  | HR policy configuration                  | The PRD says HR configures policies; no EPIC-1 task builds it. Policies come from the seed/SQL for now.                           |
+| -   | **HR override** of over-balance requests | PRD US-01 AC3 mentions it but never defines who overrides or whether the balance may go negative. Raise with the supervisor.      |
+| -   | Real-database tests in CI                | Five one-off harnesses were deleted after use. Promote them to a gated integration test (`TEST_DATABASE_URL`) run in `db-verify`. |
 
-- **`next dev` agent-rules block in `AGENTS.md`:** keep and commit it, or set `agentRules: false` in `next.config.ts` and
-  leave it out. My lean is to turn it off. Undecided; the block is currently absent from the committed `AGENTS.md`.
-- **Demo data on staging:** it has no users. Lean: run the fake seed once, labelled as demo data. Needs the user's OK.
-- **Unverified after the UI work:** the white focus ring on the navy header was not looked at in a real browser (contrast is
-  14.6:1 by calculation); the login form was not submitted in a browser by me (the user did open the Vercel preview and said it was okay).
-- **Vercel function region** (lean: Mumbai, to sit next to Supabase) and the **1s health-check ping limit** (cold-start
-  `db: "error"`): both are in the UI retro's backlog.
-- **`.env.example`** `DIRECT_URL` example still shows the IPv6-only direct host; CI needs the Session pooler string.
-- **Rotate `.mcp.json` API key** (see machine notes) and consider the `claude.exe` update note above.
-- Retro backlog items from 2026-10-13 and 2026-10-14 are otherwise unchanged and still open.
+### Say plainly to the supervisor in the demo
+
+Login is a **mock** (any input; the role dropdown picks Elena, Marco or Hana); all data is fake; accrual's first scheduled run
+is 1 Nov 00:00 UTC, so it is shown with a manual trigger; HR override of over-balance requests is not defined yet (such a
+request can be submitted but only rejected); HR policy editing and email notifications are out of scope.
+
+### Other open items
+
+- **Vercel Deployment Protection vs the scheduled cron call is unverified.** After a deploy, check Settings → Cron Jobs and
+  the runtime logs. Manual trigger: a GET with `Authorization: Bearer $CRON_SECRET` (plus Vercel's
+  `x-vercel-protection-bypass` header for a protected deployment), from the user's own shell, never pasted into chat.
+- Pages built after the UI foundation (approvals, audit, skeletons, request-form error handling) were not viewed by me in a
+  browser; the user has seen balance, request form and the accrual result.
+- Skeleton heights follow the real controls but were not compared pixel-for-pixel with the loaded pages.
+- Backlog, all in the retros: validation messages show raw zod paths, ISO dates, no overlap detection, no active nav link,
+  three-row mobile nav, no component rendering tests (jsdom), no audit of audit reads, partial `leave_requests` index, no
+  past-date check on approval, `.env.example` `DIRECT_URL` example shows the IPv6-only host, health check 1 s ping limit.
+- **Rotate the `.mcp.json` API key.**
 
 ---
 
 ## 4. Agreed workflow
 
 ```
-"what's next?"  →  I recommend one task from the dependency tree, the retro, and open decisions
+"what's next?"  →  I recommend one task from the dependency tree, the retros, and open decisions
 /evaluate       →  read CSV row, AGENTS.md, arch doc, knowledge/, graph. Summary only. Stop.
 /plan           →  blueprint: files, one test per acceptance criterion, SQL, risks. No code. Stop.
 /apply          →  build exactly the approved plan, nothing extra.
-/validate       →  build, lint, typecheck, tests, real-database checks, each criterion
-                   classed PASS/FAIL; issues classed BLOCKER / FIX NOW / BACKLOG; fix the first two.
-commit          →  only when asked, after the diff has been reviewed.
+/validate       →  gate, real-database checks on a throwaway DB, each criterion PASS/FAIL; issues classed
+                   BLOCKER / FIX NOW / BACKLOG; fix the first two; write the retro.
+commit          →  only when asked, after validation; straight to main; lowercase subject.
 ```
 
 Rules of engagement:
 
-- Each step stops and waits for the user. Do not advance on your own.
-- Settle open decisions **before** `/plan`, not during `/apply`.
-- Show the full diff and `git status` before staging; stage only the reviewed files.
-- Leave CSV task statuses as `Open` unless asked to change them.
-- Commits are conventional (`type: summary`), enforced by commitlint; use the attribution line the environment specifies.
-- Verify with real checks (a throwaway Postgres for anything touching the database). Report failures plainly.
+- Each step stops and waits for the user. Settle open decisions **before** `/plan`.
+- Stage only the reviewed files; leave CSV statuses alone until the user asks (then `Done`).
+- Verify with real checks (a throwaway Postgres for anything touching the database) and report failures plainly, including
+  mistakes in my own tests.
 
 ### Task dependencies (EPIC-1)
 
@@ -306,55 +286,32 @@ Rules of engagement:
      └─ 017        018 needs 011 + 017
 ```
 
-### Recommended order (general; the Monday demo schedule in section 0 overrides it this week)
-
-1. **TASK-010 follow-up**: the leave-types migration (section 2).
-2. **TASK-017** accrual (the BRD's riskiest requirement; needs decisions 9 and 10, and the missing ADR).
-3. **011** submit, then **012** balance.
-4. **013** team queue, then **014** decide.
-5. **015** HR audit.
-6. **016** mobile pass, **018** leave-type checks.
-7. **Real login** before any real data or go-live.
-
-Likely deferred from the MVP: email notifications, an HR policy editor, multiple roles per person,
-mid-year policy changes, holiday calendars.
+Done: 010-015, 017. Left: 016, 018. Likely deferred beyond the MVP: email notifications, an HR policy editor, multiple roles per
+person, mid-year policy changes, holiday calendars, real login.
 
 ---
 
 ## 5. Learning progress (tutor session, 2026-10-13)
 
-The user is a beginner to this project's architecture and asked for an interactive, one-section-at-a-time tutor
-with analogies, diagrams, and clear labels for built / planned / unknown.
-
-| Section | Topic                                                    | Status    |
-| ------- | -------------------------------------------------------- | --------- |
-| 1       | Big picture: problem, roles, the 7 business requirements | Delivered |
-| 2       | Architecture: security desk, pages and API, pooler       | Delivered |
-| 3       | Database tables and relationships                        | Delivered |
-| 4       | Feature flows, click to database (only login is real)    | Delivered |
-| 5       | Auth, Supabase, migrations, seed data, what is connected | Delivered |
-| 6       | Codebase tour and task dependency tree                   | Delivered |
-
-Questions the user raised, all answered: why manager scoping matters; why the audit trail is strict; what "Day 0"
-means; what the mock covers; how to inspect the database; how a manager can also be an employee; what the MVP
-should look like; role-based dashboards; when to use Docker versus deploying; design options (Figma versus images versus
-prototyping the UI in code); what to name the GitHub repo and Supabase project; what "user stories" means.
-
-Understanding checks:
-
-- **Correct:** `proxy.ts` is what stops an unauthenticated call to `/api/leave-requests` (the 401 response format was supplied by the tutor).
-- **Partly correct:** `audit_log` links to `users` to record who acted (right); its link to `leave_requests` is a pointer to the request, not a copy of its details (corrected).
-- **Not yet answered:** why approve writes status, balance and audit row in one transaction; the biggest risk of deploying the current state.
-
-Concepts worth revisiting if the user wants: authentication versus authorization, foreign keys as pointers,
-transactions, and the connection pooler.
+The user is a beginner to this project's architecture and asked for an interactive, one-section-at-a-time tutor with analogies,
+diagrams, and clear labels for built / planned / unknown. Sections 1-6 (big picture, architecture, tables, feature flows, auth and
+migrations, codebase tour) were delivered; the tutor format was not continued after the build started. Understanding checks:
+correct on what stops an unauthenticated API call (`proxy.ts`); partly correct on how `audit_log` relates to `leave_requests`
+(a pointer, not a copy); not yet answered: why approve writes status, balance and audit in one transaction (now implemented and
+tested: atomic, concurrent-safe), and the biggest risk of deploying the current state. Questions worth revisiting if asked:
+authentication vs authorization, foreign keys as pointers, transactions, the connection pooler, and why the function region
+should sit next to the database.
 
 ---
 
 ## 6. Where the rest is recorded
 
-- `knowledge/retros/2026-10-13-day0-scaffold.md`: fixes made, full backlog, dependency pin reasons.
-- `knowledge/retros/2026-10-14-ui-foundation.md`: UI fixes (focus ring, input border contrast) and its backlog.
-- `knowledge/rules/coding-standards.md` and `AGENTS.md`: the rules every task follows.
-- `knowledge/patterns/implement-and-test.md`: the canonical scoping and retention tests (Leo Garcia must never appear in Marco's queue).
-- `docs/dev-tasks/epic-1-leave-request-tasks.csv`: the task source of truth.
+- `knowledge/retros/2026-10-13-day0-scaffold.md`: Day 0 fixes, backlog, dependency pin reasons.
+- `knowledge/retros/2026-10-14-ui-foundation.md`: UI fixes and backlog.
+- `knowledge/retros/2026-10-14-task-011-012-submit-and-balance.md`, `...-task-013-014-team-approvals.md`,
+  `...-task-017-accrual.md`, `...-task-015-hr-audit.md`: per-task validation results, decisions and backlog.
+- `docs/arch-docs/ADR-LeaveTrack-E001-Auth-Session-Strategy.md` and `ADR-LeaveTrack-E002-Accrual-Idempotency.md`.
+- `knowledge/rules/coding-standards.md` and `AGENTS.md`: the rules every task follows (AGENTS.md has 11 backend rules).
+- `knowledge/patterns/implement-and-test.md`: the canonical scoping and retention tests (Leo Garcia must never appear in
+  Marco's queue; soft-deleted rows are hidden from the HR audit unless asked for).
+- `docs/dev-tasks/epic-1-leave-request-tasks.csv`: the task source of truth (statuses updated to `Done`).
