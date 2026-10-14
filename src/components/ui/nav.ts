@@ -46,7 +46,7 @@ const AUDIT: NavItem = {
   label: "Audit log",
   href: "/audit",
   description: "Browse the decision record for the last three years.",
-  available: false,
+  available: true,
 };
 
 /**

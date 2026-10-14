@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  auditQuerySchema,
   createLeaveRequestSchema,
   decisionSchema,
   listQuerySchema,
@@ -108,5 +109,36 @@ describe("requestIdSchema", () => {
   it("accepts a uuid and rejects anything else", () => {
     expect(requestIdSchema.safeParse(TYPE_ID).success).toBe(true);
     expect(requestIdSchema.safeParse("1; drop table").success).toBe(false);
+  });
+});
+
+describe("auditQuerySchema", () => {
+  it("accepts no filters and defaults to hiding soft-deleted requests", () => {
+    expect(auditQuerySchema.parse({})).toEqual({ include_deleted: false });
+  });
+
+  it("accepts a range and the include_deleted toggle", () => {
+    expect(
+      auditQuerySchema.parse({ from: "2026-10-01", to: "2026-10-31", include_deleted: "true" }),
+    ).toEqual({ from: "2026-10-01", to: "2026-10-31", include_deleted: true });
+    expect(auditQuerySchema.parse({ include_deleted: "false" }).include_deleted).toBe(false);
+  });
+
+  it("treats empty form fields as not set", () => {
+    expect(auditQuerySchema.parse({ from: "", to: "", include_deleted: "" })).toEqual({
+      include_deleted: false,
+    });
+  });
+
+  it("accepts a single-day range", () => {
+    expect(auditQuerySchema.safeParse({ from: "2026-10-14", to: "2026-10-14" }).success).toBe(true);
+  });
+
+  it("rejects a reversed range, impossible dates and an unknown toggle value", () => {
+    expect(auditQuerySchema.safeParse({ from: "2026-10-31", to: "2026-10-01" }).success).toBe(
+      false,
+    );
+    expect(auditQuerySchema.safeParse({ from: "2026-02-30" }).success).toBe(false);
+    expect(auditQuerySchema.safeParse({ include_deleted: "yes" }).success).toBe(false);
   });
 });

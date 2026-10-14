@@ -52,3 +52,27 @@ export const decisionSchema = z.discriminatedUnion("decision", [
 export type DecisionInput = z.infer<typeof decisionSchema>;
 
 export const requestIdSchema = z.uuid();
+
+/** An optional YYYY-MM-DD query value; an empty form field counts as "not set". */
+const optionalDate = z.preprocess((v) => (v === "" ? undefined : v), isoDate.optional());
+
+/**
+ * GET /api/audit/:userId query (US-05). `from`/`to` are UTC calendar days (inclusive); a request
+ * matches when any of its audit events falls inside the range. Soft-deleted requests are hidden
+ * unless `include_deleted=true`.
+ */
+export const auditQuerySchema = z
+  .object({
+    from: optionalDate,
+    to: optionalDate,
+    include_deleted: z
+      .preprocess((v) => (v === "" ? undefined : v), z.enum(["true", "false"]).optional())
+      .transform((v) => v === "true"),
+  })
+  .superRefine((value, ctx) => {
+    if (value.from && value.to && value.to < value.from) {
+      ctx.addIssue({ code: "custom", path: ["to"], message: "must not be before the from date" });
+    }
+  });
+
+export type AuditQuery = z.infer<typeof auditQuerySchema>;
