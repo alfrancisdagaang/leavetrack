@@ -37,6 +37,8 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  // Stop `next dev` from appending its managed block to the tracked AGENTS.md.
+  agentRules: false,
   // pino uses worker threads for transports; keep it out of the server bundle.
   serverExternalPackages: ["pino", "pino-pretty"],
   // No CORS headers: the API is same-origin only and not meant for third-party callers.
