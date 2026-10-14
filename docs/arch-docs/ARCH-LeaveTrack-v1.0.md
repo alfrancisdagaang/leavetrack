@@ -21,6 +21,8 @@ leave_requests   (id, user_id FK, leave_type_id FK, start_date, end_date, reason
                   status[pending|approved|rejected], decided_by FK -> users.id nullable,
                   decided_at nullable, is_deleted boolean default false, created_at)
 audit_log        (id, leave_request_id FK, actor_id FK, action, occurred_at)
+accrual_ledger   (id, user_id FK, leave_type_id FK, period date [first of a UTC month], amount, created_at)
+                 -- UNIQUE (user_id, leave_type_id, period); append-only; the accrual idempotency guard
 ```
 
 - `leave_requests.is_deleted` — **soft delete only**, per BR-04 (3-year retention). No hard-delete path exists anywhere in the codebase.
@@ -34,7 +36,7 @@ audit_log        (id, leave_request_id FK, actor_id FK, action, occurred_at)
 | GET | /api/leave-requests?scope=team | Manager | US-04 — server-side filter on `manager_id`, never client-side. |
 | POST | /api/leave-requests/:id/decision | Manager | US-03. 403 if requester is not a direct report (AC3). |
 | GET | /api/audit/:userId | HR Admin | US-05. Reads soft-deleted-excluded, never hard-deleted, rows. |
-| POST | /api/jobs/accrual | System (cron) | US-07. Idempotent — see ADR-LeaveTrack-E002. |
+| GET, POST | /api/jobs/accrual | System (cron) | US-07. Vercel Cron sends GET; POST for manual runs. Idempotent — see ADR-LeaveTrack-E002. |
 
 Error format: `{ success: false, error: { code, message } }` on every non-2xx response, per AGENTS.md convention.
 
@@ -44,7 +46,7 @@ Error format: `{ success: false, error: { code, message } }` on every non-2xx re
 
 ## Deployment Topology
 - Single Next.js app on Vercel, single Supabase Postgres instance (pooled connection, not direct).
-- Monthly accrual job (US-07) runs as a scheduled Vercel Cron hitting `/api/jobs/accrual`.
+- Monthly accrual job (US-07) runs as a scheduled Vercel Cron (GET, 00:00 UTC on the 1st, `vercel.json`) hitting `/api/jobs/accrual`.
 
 ## Open Questions
 - Should `leave_policies` support mid-year policy changes (e.g., a promotion changing accrual rate)? Flagged for Sprint 2 — not required for Q3 launch (BRD scope).
