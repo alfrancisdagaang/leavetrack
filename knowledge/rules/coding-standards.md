@@ -47,7 +47,7 @@ export const POST = withErrorHandling(async (request) => {
 - Multi-statement writes (decision + balance + audit) use `sql.begin(async (tx) => { ... })`.
 - Money-like quantities (days) are `numeric(6,2)`; postgres.js returns them as strings — convert
   deliberately, never with float arithmetic on accrual totals.
-- Always exclude `is_deleted = true` from active views; audit views include them.
+- Always exclude `is_deleted = true` from active views; the HR audit view excludes them by default and includes them, flagged, only when HR asks.
 
 ## Migrations
 

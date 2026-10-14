@@ -84,7 +84,7 @@ accrual_ledger   (id, user_id FK, leave_type_id FK, period date [first of a UTC 
 | GET | /api/leave-requests?scope=mine | Employee | US-02 balance context. |
 | GET | /api/leave-requests?scope=team | Manager | US-04 — server-side filter on `manager_id`, never client-side. |
 | POST | /api/leave-requests/:id/decision | Manager | US-03. 403 if requester is not a direct report (AC3). |
-| GET | /api/audit/:userId | HR Admin | US-05. Reads soft-deleted-excluded, never hard-deleted, rows. |
+| GET | /api/audit/:userId | HR Admin | US-05. Any employee; optional `from`/`to`. Soft-deleted requests are excluded by default and shown, flagged, with `include_deleted=true`; rows are never purged. |
 | GET, POST | /api/jobs/accrual | System (cron) | US-07. Vercel Cron sends GET; POST for manual runs. Idempotent — see ADR-LeaveTrack-E002. |
 
 Error format: `{ success: false, error: { code, message } }` on every non-2xx response, per AGENTS.md convention.

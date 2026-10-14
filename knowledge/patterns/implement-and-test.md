@@ -31,8 +31,8 @@ The seed's org chart exists to make this test trivial — use it for every manag
 
 ## Canonical retention test
 
-| Action                            | Expected                                                |
-| --------------------------------- | ------------------------------------------------------- |
-| `DELETE FROM leave_requests`      | DB raises `restrict_violation`                          |
-| `UPDATE audit_log`                | DB raises `restrict_violation`                          |
-| soft delete (`is_deleted = true`) | excluded from active views, present in HR audit (US-05) |
+| Action                            | Expected                                                                                                                                                       |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DELETE FROM leave_requests`      | DB raises `restrict_violation`                                                                                                                                 |
+| `UPDATE audit_log`                | DB raises `restrict_violation`                                                                                                                                 |
+| soft delete (`is_deleted = true`) | excluded from active views and from the HR audit by default; shown (flagged) in the HR audit only with `include_deleted=true`; the row is never purged (US-05) |
