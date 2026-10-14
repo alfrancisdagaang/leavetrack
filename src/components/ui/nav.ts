@@ -38,7 +38,7 @@ const APPROVALS: NavItem = {
   label: "Team approvals",
   href: "/approvals",
   description: "Review leave requests from your direct reports.",
-  available: false,
+  available: true,
 };
 
 const AUDIT: NavItem = {

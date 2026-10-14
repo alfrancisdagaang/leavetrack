@@ -19,7 +19,15 @@ import { countWorkingDays } from "@/lib/leave/working-days";
 
 export type LeaveRequestView = Pick<
   LeaveRequest,
-  "id" | "leave_type_id" | "start_date" | "end_date" | "reason" | "status" | "created_at"
+  | "id"
+  | "leave_type_id"
+  | "start_date"
+  | "end_date"
+  | "reason"
+  | "status"
+  | "created_at"
+  | "decided_at"
+  | "decision_note"
 > & { working_days: number };
 
 export type CreatedLeaveRequest = { request: LeaveRequestView; warnings: LeaveWarning[] };
@@ -93,7 +101,7 @@ export async function createLeaveRequest(
       insert into public.leave_requests (user_id, leave_type_id, start_date, end_date, reason)
       values (${userId}, ${input.leave_type_id}, ${input.start_date}, ${input.end_date}, ${input.reason})
       returning id, leave_type_id, start_date::text as start_date, end_date::text as end_date,
-                reason, status, created_at`;
+                reason, status, created_at, decided_at, decision_note`;
     if (!row) throw new AppError("INTERNAL", "The request could not be saved.");
 
     await tx`
@@ -109,7 +117,7 @@ export async function getMySummary(sql: Sql, userId: string): Promise<MySummary>
   const [rows, balances] = await Promise.all([
     sql<RequestRow[]>`
       select id, leave_type_id, start_date::text as start_date, end_date::text as end_date,
-             reason, status, created_at
+             reason, status, created_at, decided_at, decision_note
       from public.leave_requests
       where user_id = ${userId} and is_deleted = false
       order by created_at desc

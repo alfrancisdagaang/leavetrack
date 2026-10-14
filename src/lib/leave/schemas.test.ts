@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createLeaveRequestSchema, listQuerySchema } from "@/lib/leave/schemas";
+import {
+  createLeaveRequestSchema,
+  decisionSchema,
+  listQuerySchema,
+  requestIdSchema,
+} from "@/lib/leave/schemas";
 
 const TYPE_ID = "10000000-0000-4000-8000-000000000001";
 const valid = { leave_type_id: TYPE_ID, start_date: "2026-10-20", end_date: "2026-10-22" };
@@ -61,8 +66,47 @@ describe("createLeaveRequestSchema", () => {
 });
 
 describe("listQuerySchema", () => {
-  it("defaults to scope=mine and rejects other scopes for now", () => {
+  it("defaults to scope=mine, accepts team, and rejects anything else", () => {
     expect(listQuerySchema.parse({}).scope).toBe("mine");
-    expect(listQuerySchema.safeParse({ scope: "team" }).success).toBe(false);
+    expect(listQuerySchema.parse({ scope: "team" }).scope).toBe("team");
+    expect(listQuerySchema.safeParse({ scope: "all" }).success).toBe(false);
+  });
+});
+
+describe("decisionSchema", () => {
+  it("accepts an approval without a note", () => {
+    expect(decisionSchema.parse({ decision: "approve" })).toEqual({ decision: "approve" });
+  });
+
+  it("US-03 AC2: a rejection requires a non-blank reason", () => {
+    expect(decisionSchema.safeParse({ decision: "reject" }).success).toBe(false);
+    expect(decisionSchema.safeParse({ decision: "reject", note: "   " }).success).toBe(false);
+    expect(decisionSchema.parse({ decision: "reject", note: " Team is short " })).toEqual({
+      decision: "reject",
+      note: "Team is short",
+    });
+  });
+
+  it("caps the note at 500 characters and rejects unknown decisions", () => {
+    expect(decisionSchema.safeParse({ decision: "reject", note: "x".repeat(501) }).success).toBe(
+      false,
+    );
+    expect(decisionSchema.safeParse({ decision: "delete" }).success).toBe(false);
+  });
+
+  it("strips fields a client must not control (decided_by, status)", () => {
+    const parsed = decisionSchema.parse({
+      decision: "approve",
+      decided_by: "x",
+      status: "approved",
+    });
+    expect(parsed).toEqual({ decision: "approve" });
+  });
+});
+
+describe("requestIdSchema", () => {
+  it("accepts a uuid and rejects anything else", () => {
+    expect(requestIdSchema.safeParse(TYPE_ID).success).toBe(true);
+    expect(requestIdSchema.safeParse("1; drop table").success).toBe(false);
   });
 });

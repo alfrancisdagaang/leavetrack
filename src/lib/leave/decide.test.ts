@@ -1,0 +1,209 @@
+import type { Sql } from "postgres";
+import { describe, expect, it } from "vitest";
+import { decideLeaveRequest } from "@/lib/leave/decide";
+
+const MANAGER = "00000000-0000-4000-8000-000000000002";
+const ELENA = "00000000-0000-4000-8000-000000000003";
+const REQ = "30000000-0000-4000-8000-000000000001";
+const VAC = "10000000-0000-4000-8000-000000000001";
+const SICK = "10000000-0000-4000-8000-000000000002";
+const UNPAID = "10000000-0000-4000-8000-000000000003";
+
+type Call = { text: string; values: unknown[] };
+type Script = {
+  /** Rows the scoped, locking lookup returns; [] = not a direct report / not found. */
+  lookup: unknown[];
+  /** Rows the balance UPDATE returns; [] = nothing updated. */
+  balanceUpdate?: unknown[];
+  /** Rows the follow-up balance SELECT returns. */
+  balanceRow?: unknown[];
+  /** Rows the request UPDATE returns. */
+  requestUpdate?: unknown[];
+};
+
+const DECIDED = {
+  id: REQ,
+  leave_type_id: VAC,
+  start_date: "2026-11-02",
+  end_date: "2026-11-04",
+  reason: "",
+  status: "approved",
+  decided_by: MANAGER,
+  decided_at: new Date(),
+  decision_note: null,
+};
+
+/** A fake postgres.js client: records every statement and answers from a script. */
+function fakeSql(script: Script) {
+  const calls: Call[] = [];
+  const tx = (strings: TemplateStringsArray, ...values: unknown[]) => {
+    const text = strings.join("?").replace(/\s+/g, " ").trim();
+    calls.push({ text, values });
+    let rows: unknown[] = [];
+    if (/from public\.leave_requests r join public\.users u/.test(text)) rows = script.lookup;
+    else if (/^update public\.leave_balances/.test(text)) rows = script.balanceUpdate ?? [];
+    else if (/^select balance from public\.leave_balances/.test(text)) {
+      rows = script.balanceRow ?? [];
+    } else if (/^update public\.leave_requests/.test(text)) {
+      rows = script.requestUpdate ?? [DECIDED];
+    }
+    return Promise.resolve(rows);
+  };
+  const sql = { begin: (cb: (t: typeof tx) => Promise<unknown>) => cb(tx) } as unknown as Sql;
+  const touched = (re: RegExp) => calls.filter((c) => re.test(c.text));
+  return { sql, calls, touched };
+}
+
+const pending = (over: Record<string, unknown> = {}) => ({
+  id: REQ,
+  user_id: ELENA,
+  leave_type_id: VAC,
+  status: "pending",
+  start_date: "2026-11-02", // Mon
+  end_date: "2026-11-04", // Wed: 3 working days
+  tracks_balance: true,
+  ...over,
+});
+
+const approve = { decision: "approve" } as const;
+
+describe("decideLeaveRequest", () => {
+  it("US-03 AC1: approve decrements only the owner's balance for the request's own type, then audits", async () => {
+    const { sql, calls, touched } = fakeSql({
+      lookup: [pending()],
+      balanceUpdate: [{ balance: "7.00" }],
+    });
+
+    const result = await decideLeaveRequest(sql, MANAGER, REQ, approve);
+
+    expect(result.balance).toEqual({ leaveTypeId: VAC, balance: 7 });
+    const [dec] = touched(/^update public\.leave_balances/);
+    expect(dec?.values).toEqual([3, ELENA, VAC, 3]); // days, owner, request's own type, guard
+    const [upd] = touched(/^update public\.leave_requests/);
+    expect(upd?.values).toEqual(["approved", MANAGER, null, REQ]);
+    const [audit] = touched(/^insert into public\.audit_log/);
+    expect(audit?.values).toEqual([REQ, MANAGER, "approved"]);
+    // Order matters: lookup, balance, request, audit, all inside the one transaction.
+    expect(calls.map((c) => c.text.split(" ").slice(0, 2).join(" "))).toEqual([
+      "select r.id,",
+      "update public.leave_balances",
+      "update public.leave_requests",
+      "insert into",
+    ]);
+  });
+
+  it("the lookup is scoped in SQL to the caller's direct reports and locks the row", async () => {
+    const { sql, calls } = fakeSql({ lookup: [pending()], balanceUpdate: [{ balance: "7" }] });
+    await decideLeaveRequest(sql, MANAGER, REQ, approve);
+    expect(calls[0]?.text).toContain("u.manager_id = ?");
+    expect(calls[0]?.text).toContain("for update of r");
+    expect(calls[0]?.values).toEqual([REQ, MANAGER]);
+  });
+
+  it("US-03 AC2: reject stores the note, leaves every balance alone and audits", async () => {
+    const { sql, touched } = fakeSql({
+      lookup: [pending()],
+      requestUpdate: [{ ...DECIDED, status: "rejected", decision_note: "Team is short" }],
+    });
+
+    const result = await decideLeaveRequest(sql, MANAGER, REQ, {
+      decision: "reject",
+      note: "Team is short",
+    });
+
+    expect(result.balance).toBeNull();
+    expect(touched(/leave_balances/)).toHaveLength(0);
+    expect(touched(/^update public\.leave_requests/)[0]?.values).toEqual([
+      "rejected",
+      MANAGER,
+      "Team is short",
+      REQ,
+    ]);
+    expect(touched(/^insert into public\.audit_log/)[0]?.values).toEqual([
+      REQ,
+      MANAGER,
+      "rejected",
+    ]);
+  });
+
+  it("US-03 AC3: a request outside the caller's team is a 403 and nothing is written", async () => {
+    const { sql, calls } = fakeSql({ lookup: [] });
+    await expect(decideLeaveRequest(sql, MANAGER, REQ, approve)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      status: 403,
+    });
+    expect(calls).toHaveLength(1); // only the lookup ran
+  });
+
+  it("a manager cannot decide their own request (the owner's manager is someone else)", async () => {
+    // Same path as AC3: the scoped lookup finds nothing because users.manager_id is not the caller.
+    const { sql } = fakeSql({ lookup: [] });
+    await expect(decideLeaveRequest(sql, MANAGER, REQ, approve)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  it("Unpaid: approving never reads or writes leave_balances (PRD US-08)", async () => {
+    const { sql, touched } = fakeSql({
+      lookup: [pending({ leave_type_id: UNPAID, tracks_balance: false })],
+    });
+    const result = await decideLeaveRequest(sql, MANAGER, REQ, approve);
+    expect(result.balance).toBeNull();
+    expect(touched(/leave_balances/)).toHaveLength(0);
+    expect(touched(/^insert into public\.audit_log/)).toHaveLength(1);
+  });
+
+  it("only ever references the request's own leave type, never a sibling", async () => {
+    const { sql, touched } = fakeSql({
+      lookup: [pending({ leave_type_id: SICK })],
+      balanceUpdate: [{ balance: "2" }],
+    });
+    await decideLeaveRequest(sql, MANAGER, REQ, approve);
+    const [dec] = touched(/^update public\.leave_balances/);
+    expect(dec?.values).toContain(SICK);
+    expect(dec?.values).not.toContain(VAC);
+    expect(dec?.text).toContain("leave_type_id = ?");
+  });
+
+  it("option A: insufficient balance is a 409 and no request update or audit row happens", async () => {
+    const { sql, touched } = fakeSql({
+      lookup: [pending()],
+      balanceUpdate: [],
+      balanceRow: [{ balance: "2.00" }],
+    });
+    const err = await decideLeaveRequest(sql, MANAGER, REQ, approve).catch((e) => e);
+    expect(err).toMatchObject({ code: "CONFLICT", status: 409 });
+    expect(err.message).toContain("only 2 are available");
+    expect(err.message).toContain("HR override");
+    expect(touched(/^update public\.leave_requests/)).toHaveLength(0);
+    expect(touched(/^insert into public\.audit_log/)).toHaveLength(0);
+  });
+
+  it("a missing balance row on a tracked type is a 409 and nothing is created", async () => {
+    const { sql, touched } = fakeSql({ lookup: [pending()], balanceUpdate: [], balanceRow: [] });
+    const err = await decideLeaveRequest(sql, MANAGER, REQ, approve).catch((e) => e);
+    expect(err).toMatchObject({ code: "CONFLICT" });
+    expect(err.message).toContain("no balance record");
+    expect(touched(/^insert into public\.leave_balances/)).toHaveLength(0);
+    expect(touched(/^update public\.leave_requests/)).toHaveLength(0);
+  });
+
+  it("rejecting needs no balance at all, so an over-balance request can still be rejected", async () => {
+    const { sql, touched } = fakeSql({
+      lookup: [pending()],
+      requestUpdate: [{ ...DECIDED, status: "rejected", decision_note: "x" }],
+    });
+    await expect(
+      decideLeaveRequest(sql, MANAGER, REQ, { decision: "reject", note: "x" }),
+    ).resolves.toBeDefined();
+    expect(touched(/leave_balances/)).toHaveLength(0);
+  });
+
+  it("an already-decided request is a 409 and nothing is written", async () => {
+    const { sql, calls } = fakeSql({ lookup: [pending({ status: "approved" })] });
+    await expect(decideLeaveRequest(sql, MANAGER, REQ, approve)).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
+    expect(calls).toHaveLength(1);
+  });
+});

@@ -14,7 +14,11 @@ vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 
 const createLeaveRequest = vi.fn();
 const getMySummary = vi.fn();
+const getTeamQueue = vi.fn();
 const FAKE_SQL = { fake: true };
+vi.mock("@/lib/leave/team", () => ({
+  getTeamQueue: (...args: unknown[]) => getTeamQueue(...args),
+}));
 vi.mock("@/lib/leave/service", () => ({
   requireDb: () => FAKE_SQL,
   createLeaveRequest: (...args: unknown[]) => createLeaveRequest(...args),
@@ -24,6 +28,7 @@ vi.mock("@/lib/leave/service", () => ({
 const { GET, POST } = await import("@/app/api/leave-requests/route");
 
 const TYPE_ID = "10000000-0000-4000-8000-000000000001";
+const PRIYA = "00000000-0000-4000-8000-000000000004";
 const body = { leave_type_id: TYPE_ID, start_date: "2026-10-20", end_date: "2026-10-22" };
 
 const asEmployee = () =>
@@ -47,6 +52,7 @@ beforeEach(() => {
   getSession.mockReset();
   createLeaveRequest.mockReset();
   getMySummary.mockReset();
+  getTeamQueue.mockReset();
 });
 
 describe("POST /api/leave-requests", () => {
@@ -154,12 +160,51 @@ describe("GET /api/leave-requests?scope=mine", () => {
     expect(getMySummary).toHaveBeenCalledWith(FAKE_SQL, MOCK_USERS.employee.id);
   });
 
-  it("defaults to scope=mine and rejects scope=team until TASK-013", async () => {
+  it("defaults to scope=mine and rejects an unknown scope", async () => {
     asEmployee();
     getMySummary.mockResolvedValue({ requests: [], balances: [] });
     expect((await get()).status).toBe(200);
-    const res = await get("?scope=team");
+    const res = await get("?scope=all");
     expect(res.status).toBe(400);
     expect((await res.json()).error.code).toBe("VALIDATION_ERROR");
+  });
+});
+
+describe("GET /api/leave-requests?scope=team", () => {
+  const asManager = () =>
+    getSession.mockResolvedValue({ role: "manager", user: MOCK_USERS.manager });
+
+  it("returns 401 without a session", async () => {
+    getSession.mockResolvedValue(null);
+    expect((await get("?scope=team")).status).toBe(401);
+    expect(getTeamQueue).not.toHaveBeenCalled();
+  });
+
+  it("US-04: an employee gets 403 and the queue is never queried", async () => {
+    asEmployee();
+    const res = await get("?scope=team");
+    expect(res.status).toBe(403);
+    expect((await res.json()).error.code).toBe("FORBIDDEN");
+    expect(getTeamQueue).not.toHaveBeenCalled();
+  });
+
+  it("US-04 AC1: a manager gets their own team's queue, scoped by the session user id", async () => {
+    asManager();
+    const queue = [{ id: "r1", employee_name: "Elena Cruz" }];
+    getTeamQueue.mockResolvedValue(queue);
+
+    // A client-supplied manager id must have no effect.
+    const res = await get(`?scope=team&manager_id=${PRIYA}`);
+
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ success: true, data: { requests: queue } });
+    expect(getTeamQueue).toHaveBeenCalledWith(FAKE_SQL, MOCK_USERS.manager.id);
+  });
+
+  it("HR admins also get a queue, for their own direct reports", async () => {
+    getSession.mockResolvedValue({ role: "hr_admin", user: MOCK_USERS.hrAdmin });
+    getTeamQueue.mockResolvedValue([]);
+    expect((await get("?scope=team")).status).toBe(200);
+    expect(getTeamQueue).toHaveBeenCalledWith(FAKE_SQL, MOCK_USERS.hrAdmin.id);
   });
 });

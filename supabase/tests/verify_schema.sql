@@ -13,7 +13,7 @@ begin
     and table_name in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log');
   if n <> 6 then raise exception 'expected 6 tables, found %', n; end if;
 
-  -- Seed idempotent: exactly 3 leave types, 6 users
+  -- Seed idempotent: exactly 3 leave types, 7 users
   select count(*) into n from public.leave_types;
   if n <> 3 then raise exception 'expected 3 leave_types, found %', n; end if;
   select count(*) into n from public.leave_types
@@ -23,7 +23,13 @@ begin
     ('10000000-0000-4000-8000-000000000003'::uuid, 'Unpaid',   false));
   if n <> 3 then raise exception 'leave_types ids/names/tracks_balance do not match the spec'; end if;
   select count(*) into n from public.users;
-  if n <> 6 then raise exception 'expected 6 users, found %', n; end if;
+  if n <> 7 then raise exception 'expected 7 users, found %', n; end if;
+
+  -- Hana (top of the org chart) has an approver: a second hr_admin, never herself
+  select count(*) into n from public.users h
+  join public.users s on s.id = h.manager_id
+  where h.id = '00000000-0000-4000-8000-000000000001' and s.role = 'hr_admin';
+  if n <> 1 then raise exception 'Hana must have a second hr_admin as her manager'; end if;
 
   -- RLS enabled everywhere
   select count(*) into n from pg_tables
@@ -64,6 +70,22 @@ begin
     raise exception 'audit_log update was not blocked';
   exception when restrict_violation then null;
   end;
+
+  -- decision_note: a rejection must carry a reason (US-03 AC2); approvals need none
+  begin
+    update public.leave_requests
+    set status = 'rejected', decided_by = '00000000-0000-4000-8000-000000000002', decided_at = now()
+    where id = req_id;
+    raise exception 'rejection without a decision_note was not blocked';
+  exception when check_violation then null;
+  end;
+  update public.leave_requests
+  set status = 'rejected', decided_by = '00000000-0000-4000-8000-000000000002', decided_at = now(),
+      decision_note = 'Team is short'
+  where id = req_id;
+  if (select decision_note from public.leave_requests where id = req_id) <> 'Team is short' then
+    raise exception 'decision_note was not stored';
+  end if;
 
   -- Undo probe rows (aborts the whole DO block's writes)
   raise exception using errcode = 'P0001', message = 'VERIFY_OK';

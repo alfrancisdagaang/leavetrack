@@ -10,7 +10,8 @@ export const MOCK_USERS = {
     name: "Hana Reyes",
     email: "hana.reyes@leavetrack.example",
     role: "hr_admin",
-    manager_id: null,
+    // Sam Okafor, a second hr_admin (seed.sql only; not a mock login) approves Hana's own leave.
+    manager_id: "00000000-0000-4000-8000-000000000007",
   },
   manager: {
     id: "00000000-0000-4000-8000-000000000002",

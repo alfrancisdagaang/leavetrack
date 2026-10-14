@@ -35,7 +35,20 @@ export const createLeaveRequestSchema = z
 
 export type CreateLeaveRequestInput = z.infer<typeof createLeaveRequestSchema>;
 
-/** GET /api/leave-requests query. Only `mine` exists until the team queue ships (TASK-013). */
+/** GET /api/leave-requests query. `team` is the manager queue (TASK-013). */
 export const listQuerySchema = z.object({
-  scope: z.enum(["mine"]).default("mine"),
+  scope: z.enum(["mine", "team"]).default("mine"),
 });
+
+/** POST /api/leave-requests/:id/decision body. A rejection must carry a reason (US-03 AC2). */
+export const decisionSchema = z.discriminatedUnion("decision", [
+  z.object({ decision: z.literal("approve") }),
+  z.object({
+    decision: z.literal("reject"),
+    note: z.string().trim().min(1, "a reason is required to reject").max(500),
+  }),
+]);
+
+export type DecisionInput = z.infer<typeof decisionSchema>;
+
+export const requestIdSchema = z.uuid();

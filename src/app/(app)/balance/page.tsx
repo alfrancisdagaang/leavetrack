@@ -87,6 +87,9 @@ export default async function BalancePage() {
                   <p className="text-sm text-grey-500">
                     {r.start_date} to {r.end_date}
                   </p>
+                  {r.status === "rejected" && r.decision_note ? (
+                    <p className="mt-1 text-sm text-rejected-fg">Reason: {r.decision_note}</p>
+                  ) : null}
                 </div>
                 <Badge variant={badge.variant}>{badge.label}</Badge>
               </li>

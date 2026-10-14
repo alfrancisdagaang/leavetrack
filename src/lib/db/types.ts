@@ -52,6 +52,8 @@ export type LeaveRequest = {
   status: LeaveStatus;
   decided_by: string | null;
   decided_at: Date | null;
+  /** Required when rejected (enforced by leave_requests_rejection_note); null for approvals. */
+  decision_note: string | null;
   is_deleted: boolean;
   created_at: Date;
 };
