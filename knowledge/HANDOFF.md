@@ -1,7 +1,7 @@
 # LeaveTrack — Session Handoff
 
-Last updated: Wednesday 2026-10-14 · Code state: `main` @ `46c8e2a` (leave-types fix, deployed to staging) and branch
-`feat/ui-foundation` @ `6e14843` (UI foundation, **pushed but NOT merged to `main`**). Edits to this file may be uncommitted.
+Last updated: Wednesday 2026-10-14 · Code state: `main` @ `279a73e` (leave-types fix + UI foundation + handoff, all merged by
+fast-forward and pushed; the branch `feat/ui-foundation` was deleted locally and on GitHub). Edits to this file may be uncommitted.
 
 A living note for starting a new session without chat history. Update it at the end of each session.
 Everything below is either **verified** (checked on the date above) or explicitly marked as a
@@ -31,7 +31,7 @@ Everything below is either **verified** (checked on the date above) or explicitl
   **"leavetrack"** (no logo). Built: Tailwind v4 tokens in `src/app/globals.css`, 7 shared components in `src/components/ui/`,
   a role-aware app shell, restyled login / dashboard / error / 404. `AGENTS.md` and `coding-standards.md` were updated to
   match (the old "unstyled until a design export" rule is gone). The user viewed it locally and called it "a good prototype,
-  not polished, a good start". It is on the branch `feat/ui-foundation` and **not yet merged to `main`**.
+  not polished, a good start". It was merged to `main` on 2026-10-14 after the user opened the Vercel preview and said it was okay.
 - **"Online" means GitHub + Supabase (staging) + Vercel.** The demo uses the **mock login with fake data only**, must be
   described to the supervisor as a demo login (the login page now says so), and the URL is access-restricted.
 - **Accounts and deployment (verified with the user 2026-10-14):**
@@ -73,19 +73,20 @@ Check progress each evening and adjust. Deploying early (Wednesday) is deliberat
 - [x] Pushed to GitHub; CI green on `main`
 - [x] Leave-types fix (TASK-010 follow-up), commit `46c8e2a`, applied to staging
 - [x] Put the app online early: Supabase staging + Vercel, protected, DB connected
-- [x] UI foundation built, validated and committed on `feat/ui-foundation` (`6e14843`), pushed
-- [ ] **Not done:** GitHub CI result for the UI branch not checked; Vercel **preview** of the branch not opened on a phone;
-      branch **not merged to `main`**, so the live staging site still shows the old unstyled UI.
+- [x] UI foundation built, validated and committed (`6e14843`); the user checked the Vercel preview ("okay")
+- [x] Merged to `main` by fast-forward and pushed (`main` @ `279a73e`); the feature branch was deleted
+- [ ] **Not checked yet:** the GitHub Actions run and the Vercel **production** deployment for `279a73e`, and the live
+      (non-preview) URL. I could not check CI myself (`gh` is not installed) and had no report back when this was written.
 - Days left to the Monday demo: 5 (Thu 10-15 to Mon 10-19 morning). Nothing has slipped yet.
 
 ### Next session: do these in order
 
-1. Check the CI run for `feat/ui-foundation` on GitHub, and open the Vercel preview on a phone.
-2. Merge the branch to `main` (the user decides: PR or a direct merge) so Vercel deploys it. `db-push` will find nothing new.
-3. Decide the `next dev` agent-rules block (see Open items).
-4. Decide how to get demo users into staging (it has no users, and the pages need them). Lean: run the fake seed once on
+1. Check the GitHub Actions run for `279a73e` on `main` (all green; `db-push` should find nothing to apply), then open the
+   live Vercel URL (not a preview) and sign in as each role, check `/api/health`, and confirm protection is still on.
+2. Decide the `next dev` agent-rules block (see Open items).
+3. Decide how to get demo users into staging (it has no users, and the pages need them). Lean: run the fake seed once on
    staging, clearly labelled as demo data; **needs the user's OK first**.
-5. Then the normal cycle for the **TASK-011 + TASK-012 batch**: `/evaluate`, then `/plan`, wait for approval. Each later task
+4. Then the normal cycle for the **TASK-011 + TASK-012 batch**: `/evaluate`, then `/plan`, wait for approval. Each later task
    flips its `available` flag in `src/components/ui/nav.ts` so its nav link and dashboard card go live.
 
 ### Working style for this week
@@ -115,12 +116,12 @@ Check progress each evening and adjust. Deploying early (Wednesday) is deliberat
 
 - `main` @ `46c8e2a`: `b5ae414` day 0 scaffold, `6eca3a1`, `e3c8e1e`, `7705cce` (handoff notes), `ea4f0a6` + `45fc0e8` (graphify rule and
   hook), `46c8e2a fix: ship leave types via migration`. All pushed; CI on `main` is green, including `db-push` to staging.
-- Branch `feat/ui-foundation` @ `6e14843 feat: ui foundation with navy theme and app shell`: pushed, tracking `origin`,
-  **not merged**. Working tree was clean when this note was drafted.
+- `6e14843 feat: ui foundation with navy theme and app shell` and `279a73e docs: update handoff for 2026-10-14` are on `main`
+  (fast-forward merge). `main` is the only branch. Working tree was clean when this note was drafted.
 - `gh` (GitHub CLI) is not installed, so CI runs can only be checked on the GitHub website.
 - Package manager is **npm only**. A stray `pnpm install` once added pnpm files; they were deleted.
 
-### Quality gate (all green on 2026-10-14, on `feat/ui-foundation`)
+### Quality gate (all green on 2026-10-14, run on the branch before it was merged; unchanged code since)
 
 `lint`, `typecheck`, `format:check`, **53 tests (7 files)**, `next build`, and `npm audit --omit=dev` = 0 vulnerabilities.
 Dev-only audit findings (5 high, `braces` via `eslint-config-next`) are documented in the retro. Database checks for the
@@ -137,7 +138,7 @@ leave-types migration were run on a throwaway PG 18 (migrations only = 3 rows; r
 - **2026-10-14, on `main`:** migration `20261014000000_seed_leave_types.sql` (Vacation/Sick/Unpaid with fixed IDs,
   `on conflict do nothing`); the insert was removed from `seed.sql`; a CI step in `db-verify` now asserts 3 leave types
   **after migrations and before the seed**; `verify_schema.sql` also checks the ids/names/`tracks_balance`.
-- **2026-10-14, on `feat/ui-foundation` only (not merged):** Tailwind v4 (`tailwindcss` and `@tailwindcss/postcss`, both
+- **2026-10-14, UI foundation (now on `main`):** Tailwind v4 (`tailwindcss` and `@tailwindcss/postcss`, both
   pinned 4.3.3, devDependencies), tokens in `src/app/globals.css`, `src/components/ui/` (button, field, card, badge, alert,
   page-header, app-shell, plus `nav.ts` with `navItemsFor(role)` and tests), and a `src/app/(app)/` route group whose layout
   renders the shell (URLs unchanged; `/dashboard` moved into it). Light-only; system font stack (CSP-safe).
@@ -255,7 +256,7 @@ Also open in tooling: the `/create-pr` gate may never block (it waits for `block
   leave it out. My lean is to turn it off. Undecided; the block is currently absent from the committed `AGENTS.md`.
 - **Demo data on staging:** it has no users. Lean: run the fake seed once, labelled as demo data. Needs the user's OK.
 - **Unverified after the UI work:** the white focus ring on the navy header was not looked at in a real browser (contrast is
-  14.6:1 by calculation); the login form was not submitted in a browser; the Vercel preview was not opened.
+  14.6:1 by calculation); the login form was not submitted in a browser by me (the user did open the Vercel preview and said it was okay).
 - **Vercel function region** (lean: Mumbai, to sit next to Supabase) and the **1s health-check ping limit** (cold-start
   `db: "error"`): both are in the UI retro's backlog.
 - **`.env.example`** `DIRECT_URL` example still shows the IPv6-only direct host; CI needs the Session pooler string.
@@ -343,8 +344,7 @@ transactions, and the connection pooler.
 ## 6. Where the rest is recorded
 
 - `knowledge/retros/2026-10-13-day0-scaffold.md`: fixes made, full backlog, dependency pin reasons.
-- `knowledge/retros/2026-10-14-ui-foundation.md`: UI fixes (focus ring, input border contrast) and its backlog. It exists
-  only on `feat/ui-foundation` until that branch is merged.
+- `knowledge/retros/2026-10-14-ui-foundation.md`: UI fixes (focus ring, input border contrast) and its backlog.
 - `knowledge/rules/coding-standards.md` and `AGENTS.md`: the rules every task follows.
 - `knowledge/patterns/implement-and-test.md`: the canonical scoping and retention tests (Leo Garcia must never appear in Marco's queue).
 - `docs/dev-tasks/epic-1-leave-request-tasks.csv`: the task source of truth.
