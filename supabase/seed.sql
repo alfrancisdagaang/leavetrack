@@ -9,11 +9,8 @@
 --   └── Priya Nair (manager)
 --       └── Leo Garcia (employee)   ← OTHER team: must never appear in Marco's queue
 
-insert into public.leave_types (id, name, tracks_balance) values
-  ('10000000-0000-4000-8000-000000000001', 'Vacation', true),
-  ('10000000-0000-4000-8000-000000000002', 'Sick',     true),
-  ('10000000-0000-4000-8000-000000000003', 'Unpaid',   false)
-on conflict (id) do nothing;
+-- Leave types (Vacation/Sick/Unpaid) are reference data: they ship in
+-- migrations/20261014000000_seed_leave_types.sql, not here.
 
 -- Insert parents before children (manager_id FK).
 insert into public.users (id, name, email, role, manager_id) values

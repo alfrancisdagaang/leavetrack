@@ -57,6 +57,22 @@ jobs:
             echo "Applying $f"
             psql -v ON_ERROR_STOP=1 -f "$f"
           done
+      - name: Reference data ships with migrations (before seed)
+        run: |
+          psql -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare n int;
+          begin
+            select count(*) into n from public.leave_types
+            where (id, name, tracks_balance) in (
+              ('10000000-0000-4000-8000-000000000001'::uuid, 'Vacation', true),
+              ('10000000-0000-4000-8000-000000000002'::uuid, 'Sick',     true),
+              ('10000000-0000-4000-8000-000000000003'::uuid, 'Unpaid',   false));
+            if n <> 3 or (select count(*) from public.leave_types) <> 3 then
+              raise exception 'leave_types must be seeded by migrations alone (db push skips seed.sql)';
+            end if;
+          end $$;
+          SQL
       - name: Seed twice (proves idempotency)
         run: |
           psql -v ON_ERROR_STOP=1 -f supabase/seed.sql

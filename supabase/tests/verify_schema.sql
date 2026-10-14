@@ -16,6 +16,12 @@ begin
   -- Seed idempotent: exactly 3 leave types, 6 users
   select count(*) into n from public.leave_types;
   if n <> 3 then raise exception 'expected 3 leave_types, found %', n; end if;
+  select count(*) into n from public.leave_types
+  where (id, name, tracks_balance) in (
+    ('10000000-0000-4000-8000-000000000001'::uuid, 'Vacation', true),
+    ('10000000-0000-4000-8000-000000000002'::uuid, 'Sick',     true),
+    ('10000000-0000-4000-8000-000000000003'::uuid, 'Unpaid',   false));
+  if n <> 3 then raise exception 'leave_types ids/names/tracks_balance do not match the spec'; end if;
   select count(*) into n from public.users;
   if n <> 6 then raise exception 'expected 6 users, found %', n; end if;
 
