@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireSession } from "@/lib/auth/guards";
 import type { LeaveStatus } from "@/lib/db/types";
+import { getLastAccrualPeriod } from "@/lib/leave/accrual";
 import { getMySummary, requireDb } from "@/lib/leave/service";
 
 export const metadata: Metadata = { title: "My balance" };
@@ -19,10 +20,24 @@ const STATUS_BADGE: Record<LeaveStatus, { variant: BadgeVariant; label: string }
 
 const days = (n: number) => `${n} day${n === 1 ? "" : "s"}`;
 
+/** "2026-10" → "October 2026" (the accrual months are UTC). */
+function monthLabel(period: string): string {
+  const [year, month] = period.split("-").map(Number);
+  return new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, 1)).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 /** US-02. Confirmed balance and pending amounts are shown separately; pending is never deducted. */
 export default async function BalancePage() {
   const { user } = await requireSession();
-  const { balances, requests } = await getMySummary(requireDb(), user.id);
+  const sql = requireDb();
+  const [{ balances, requests }, lastAccrual] = await Promise.all([
+    getMySummary(sql, user.id),
+    getLastAccrualPeriod(sql),
+  ]);
   const typeName = new Map(balances.map((b) => [b.leaveTypeId, b.leaveTypeName]));
   const hasAnyBalance = balances.some((b) => b.tracksBalance && (b.confirmed ?? 0) > 0);
 
@@ -30,7 +45,11 @@ export default async function BalancePage() {
     <>
       <PageHeader
         title="My balance"
-        description="Balances are as of the last accrual run. Pending requests are not deducted until approved."
+        description={`${
+          lastAccrual
+            ? `Balances are as of the last monthly accrual (${monthLabel(lastAccrual)}).`
+            : "No monthly accrual has run yet; balances are the opening amounts."
+        } Pending requests are not deducted until approved.`}
         action={<ButtonLink href="/requests/new">Request leave</ButtonLink>}
       />
 

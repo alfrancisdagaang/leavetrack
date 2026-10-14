@@ -65,3 +65,13 @@ export type AuditLogEntry = {
   action: AuditAction;
   occurred_at: Date;
 };
+
+export type AccrualLedgerEntry = {
+  id: string;
+  user_id: string;
+  leave_type_id: string;
+  /** First day of the accrued month (UTC), as YYYY-MM-DD. */
+  period: string;
+  amount: string;
+  created_at: Date;
+};

@@ -7,11 +7,11 @@ declare
   n int;
   req_id uuid;
 begin
-  -- 6 domain tables exist
+  -- 7 domain tables exist
   select count(*) into n from information_schema.tables
   where table_schema = 'public'
-    and table_name in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log');
-  if n <> 6 then raise exception 'expected 6 tables, found %', n; end if;
+    and table_name in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log','accrual_ledger');
+  if n <> 7 then raise exception 'expected 7 tables, found %', n; end if;
 
   -- Seed idempotent: exactly 3 leave types, 7 users
   select count(*) into n from public.leave_types;
@@ -34,8 +34,8 @@ begin
   -- RLS enabled everywhere
   select count(*) into n from pg_tables
   where schemaname = 'public' and rowsecurity
-    and tablename in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log');
-  if n <> 6 then raise exception 'expected RLS on 6 tables, found %', n; end if;
+    and tablename in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log','accrual_ledger');
+  if n <> 7 then raise exception 'expected RLS on 7 tables, found %', n; end if;
 
   -- is_deleted defaults to false
   insert into public.leave_requests (user_id, leave_type_id, start_date, end_date, reason)
@@ -86,6 +86,37 @@ begin
   if (select decision_note from public.leave_requests where id = req_id) <> 'Team is short' then
     raise exception 'decision_note was not stored';
   end if;
+
+  -- accrual_ledger (ADR-LeaveTrack-E002): first-of-month only, one row per user/type/month, append-only
+  insert into public.accrual_ledger (user_id, leave_type_id, period, amount)
+  values ('00000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001',
+          date '2026-11-01', 1.25);
+  begin
+    insert into public.accrual_ledger (user_id, leave_type_id, period, amount)
+    values ('00000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001',
+            date '2026-11-01', 1.25);
+    raise exception 'a second accrual for the same month was not blocked';
+  exception when unique_violation then null;
+  end;
+  begin
+    insert into public.accrual_ledger (user_id, leave_type_id, period, amount)
+    values ('00000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000002',
+            date '2026-11-15', 1.00);
+    raise exception 'a mid-month accrual period was not blocked';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.accrual_ledger set amount = 99
+    where user_id = '00000000-0000-4000-8000-000000000003';
+    raise exception 'accrual_ledger update was not blocked';
+  exception when restrict_violation then null;
+  end;
+  begin
+    delete from public.accrual_ledger
+    where user_id = '00000000-0000-4000-8000-000000000003';
+    raise exception 'accrual_ledger delete was not blocked';
+  exception when restrict_violation then null;
+  end;
 
   -- Undo probe rows (aborts the whole DO block's writes)
   raise exception using errcode = 'P0001', message = 'VERIFY_OK';
