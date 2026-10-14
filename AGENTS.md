@@ -81,6 +81,9 @@ knowledge/              standards, prompts, patterns
    `.env.example` with a comment.
 10. `/api/jobs/*` is protected by the `CRON_SECRET` bearer check in `proxy.ts`; job handlers must be
     idempotent (US-07 AC2).
+11. **Leave data is changed only through route handlers** (`withErrorHandling`, rule 1). Server actions are
+    for session handling only (login/logout). Server components read through `src/lib/leave/*` directly.
+    One entry point per write keeps the session check, zod validation, SQL scoping and audit row in one place.
 
 ## Frontend rules
 
