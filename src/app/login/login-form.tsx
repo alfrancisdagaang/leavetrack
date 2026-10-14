@@ -2,6 +2,9 @@
 
 import { useActionState } from "react";
 import { loginAction, type LoginState } from "@/app/login/actions";
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Field, Input, Select } from "@/components/ui/field";
 
 const ROLE_OPTIONS = [
   { value: "employee", label: "Employee" },
@@ -11,42 +14,39 @@ const ROLE_OPTIONS = [
 
 const initialState: LoginState = { error: null };
 
-/** Unstyled until the design export lands; semantics and a11y are final. */
 export function LoginForm({ next }: { next?: string }) {
   const [state, formAction, pending] = useActionState(loginAction, initialState);
 
   return (
-    <form action={formAction} aria-describedby={state.error ? "login-error" : undefined}>
+    <form
+      action={formAction}
+      aria-describedby={state.error ? "login-error" : undefined}
+      className="space-y-4"
+    >
       {next ? <input type="hidden" name="next" value={next} /> : null}
-      <p>
-        <label htmlFor="name">Name</label>
-        <br />
-        <input id="name" name="name" type="text" autoComplete="name" />
-      </p>
-      <p>
-        <label htmlFor="email">Email</label>
-        <br />
-        <input id="email" name="email" type="email" autoComplete="email" />
-      </p>
-      <p>
-        <label htmlFor="role">Role</label>
-        <br />
-        <select id="role" name="role" defaultValue="employee" required>
+      <Field id="name" label="Name">
+        <Input id="name" name="name" type="text" autoComplete="name" />
+      </Field>
+      <Field id="email" label="Email">
+        <Input id="email" name="email" type="email" autoComplete="email" />
+      </Field>
+      <Field id="role" label="Role">
+        <Select id="role" name="role" defaultValue="employee" required>
           {ROLE_OPTIONS.map((o) => (
             <option key={o.value} value={o.value}>
               {o.label}
             </option>
           ))}
-        </select>
-      </p>
+        </Select>
+      </Field>
       {state.error ? (
-        <p id="login-error" role="alert">
+        <Alert variant="error" id="login-error">
           {state.error}
-        </p>
+        </Alert>
       ) : null}
-      <button type="submit" disabled={pending} aria-busy={pending}>
+      <Button type="submit" pending={pending} className="w-full">
         {pending ? "Signing in…" : "Sign in"}
-      </button>
+      </Button>
     </form>
   );
 }

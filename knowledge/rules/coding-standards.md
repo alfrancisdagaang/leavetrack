@@ -76,7 +76,9 @@ export const POST = withErrorHandling(async (request) => {
 - Server components by default; client components are leaves.
 - Props interfaces are explicit and serializable so Day 1 can swap mock data for real data.
 - Every input has a `<label>`; errors use `role="alert"`; buttons show pending state.
-- Unstyled until the design export arrives — don't invent a design system.
+- Prototype UI: style with the tokens in `src/app/globals.css` and the shared components in
+  `src/components/ui/` (Tailwind v4). No hard-coded colors; reuse a component before writing a new one.
+  A real design export, when it arrives, restyles the tokens rather than every page.
 
 ## Environment-derived behavior (learned in Day 0 VALIDATE)
 

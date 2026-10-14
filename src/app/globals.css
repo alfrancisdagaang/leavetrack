@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+/*
+ * LeaveTrack design tokens — prototype look: navy blue + light grey, clean corporate, light only.
+ * Components use these tokens (bg-navy-700, text-grey-500, ...) and never hard-coded colors, so a
+ * real design can restyle everything from this one block. Text/background pairs below meet WCAG AA.
+ */
+@theme {
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  /* Navy: brand, header, primary actions */
+  --color-navy-50: #f0f4fa;
+  --color-navy-100: #e1e9f5;
+  --color-navy-600: #2b5aa0;
+  --color-navy-700: #1f4480;
+  --color-navy-800: #193669;
+  --color-navy-900: #14284b;
+
+  /* Grey: page, surfaces, borders, text */
+  --color-grey-50: #f4f6f8;
+  --color-grey-100: #eceff3;
+  --color-grey-200: #d9dee5;
+  --color-grey-300: #c3cad4;
+  --color-grey-500: #5b6676;
+  --color-grey-700: #343c49;
+  --color-grey-900: #1a202b;
+
+  /* Status (badges and alerts) */
+  --color-pending-bg: #fdf3d6;
+  --color-pending-fg: #7a4b00;
+  --color-approved-bg: #dff3e4;
+  --color-approved-fg: #17612f;
+  --color-rejected-bg: #fbe3e3;
+  --color-rejected-fg: #8f1d1d;
+
+  --radius-card: 0.75rem;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--color-grey-50);
+    color: var(--color-grey-900);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Keyboard users must always see where focus is. */
+  :focus-visible {
+    outline: 3px solid var(--color-navy-600);
+    outline-offset: 2px;
+  }
+
+  /* The navy ring has too little contrast on the navy header (2.1:1), so it flips to white. */
+  header :focus-visible {
+    outline-color: var(--color-white);
+  }
+}

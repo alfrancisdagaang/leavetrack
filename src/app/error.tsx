@@ -1,5 +1,9 @@
 "use client";
 
+import { Alert } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+
 /** Route-level error boundary. Never renders error details (digest only, for log correlation). */
 export default function ErrorBoundary({
   error,
@@ -9,13 +13,19 @@ export default function ErrorBoundary({
   reset: () => void;
 }) {
   return (
-    <main>
-      <h1>Something went wrong</h1>
-      <p role="alert">An unexpected error occurred. Please try again.</p>
-      {error.digest ? <p>Reference: {error.digest}</p> : null}
-      <button type="button" onClick={reset}>
-        Try again
-      </button>
+    <main className="mx-auto flex min-h-dvh max-w-md items-center px-4 py-8">
+      <Card>
+        <h1 className="mb-4 text-xl font-semibold text-navy-900">Something went wrong</h1>
+        <div className="mb-4">
+          <Alert variant="error">An unexpected error occurred. Please try again.</Alert>
+        </div>
+        {error.digest ? (
+          <p className="mb-4 text-sm text-grey-500">Reference: {error.digest}</p>
+        ) : null}
+        <Button type="button" onClick={reset}>
+          Try again
+        </Button>
+      </Card>
     </main>
   );
 }

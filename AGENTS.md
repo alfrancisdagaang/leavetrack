@@ -88,8 +88,11 @@ knowledge/              standards, prompts, patterns
 - Read the session in server components with `getSession()` / `requireSession()` / `requireRole()` —
   no auth Context provider.
 - Components take typed props; no data fetching inside presentational components.
-- **No UI shell yet.** The design export hasn't been delivered. Keep markup semantic and unstyled;
-  the design system (tokens, Tailwind, components) is added in a dedicated scaffold pass.
+- **Prototype UI, no design export yet.** Tailwind v4 with tokens in `src/app/globals.css` (navy +
+  light grey, light-only); shared components in `src/components/ui/`. Style with tokens
+  (`bg-navy-700`), never hard-coded colors, so a real design can restyle everything in one place.
+  Signed-in pages live in `src/app/(app)/`; the layout there is not a security boundary, so every
+  page still calls `requireSession()` / `requireRole()`.
 - Accessibility is not deferred: labels on every input, `role="alert"` for errors, keyboard-usable.
 - Mobile first: 30% of staff are mobile-only (BR-05). Nothing may require horizontal scroll at 375px.
 

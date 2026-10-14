@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { LoginForm } from "@/app/login/login-form";
+import { Alert } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -11,13 +13,22 @@ export default async function LoginPage({
   const { next } = await searchParams;
 
   return (
-    <main>
-      <h1>Sign in to LeaveTrack</h1>
-      <p role="note">
-        <strong>Development mock sign-in.</strong> Any name and email are accepted; the role you
-        pick decides what you can see. Real authentication replaces this before launch.
-      </p>
-      <LoginForm next={typeof next === "string" ? next : undefined} />
+    <main className="flex min-h-dvh items-center justify-center px-4 py-8">
+      <div className="w-full max-w-md space-y-6">
+        <p className="text-center text-3xl font-semibold tracking-tight text-navy-900">
+          leavetrack
+        </p>
+        <Card>
+          <h1 className="mb-4 text-xl font-semibold text-navy-900">Sign in</h1>
+          <div className="mb-5">
+            <Alert variant="warning" title="Demo sign-in">
+              Fake data only. Any name and email are accepted; the role you pick decides what you
+              can see. Real authentication replaces this before launch.
+            </Alert>
+          </div>
+          <LoginForm next={typeof next === "string" ? next : undefined} />
+        </Card>
+      </div>
     </main>
   );
 }
