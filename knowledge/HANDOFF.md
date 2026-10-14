@@ -161,6 +161,16 @@ leave-types migration were run on a throwaway PG 18 (migrations only = 3 rows; r
 - Node 22.19, Windows 11, shells: Git Bash and PowerShell.
 - PostgreSQL 18 client tools are on PATH (`C:\Program Files\PostgreSQL\18\bin`). Docker is installed but was **not running** when last checked.
 - `pg_ctl ... start` keeps the calling shell open on Windows; run it in the background.
+- **Local dev database (set up 2026-10-14):** Postgres 18 on port **54329**, database `leavetrack`, data in
+  `C:\Users\user\leavetrack-pgdata` (outside the repo). Migrations and `supabase/seed.sql` are applied (6 users, 3 leave
+  types, 6 balances). `.env.local` (git-ignored) holds `APP_ENV=development` and
+  `DATABASE_URL=postgres://postgres@localhost:54329/leavetrack`. It stops when the machine restarts. Start it again
+  (run in the background) with:
+  `"C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe" -D C:\Users\user\leavetrack-pgdata -o "-p 54329" start`
+  and stop it with the same command ending in `stop`. After starting it, restart `npm run dev`. Without this database the
+  `/balance` and `/requests/new` pages show the error page ("The database is not configured" / connection refused); that
+  is expected, not a bug. Test requests are soft-deleted only (hard deletes are blocked by triggers), so to reset the data
+  drop and recreate the `leavetrack` database, then re-apply the migrations and seed.
 - graphify 0.9.88 is installed in Python 3.13 with the `[sql]` extra. `graphify-out/` is git-ignored; a PostToolUse hook rebuilds it. Re-run `/graphify . --update` after doc changes to refresh semantic nodes.
 - `.mcp.json` holds a live API key. It is git-ignored; never commit it, and consider rotating the key.
 - The `resolve_package_versions` MCP tool fails on Windows (`WinError 2`). Versions were resolved from the npm registry instead. Check `npm view <pkg> dist-tags` before pinning.
