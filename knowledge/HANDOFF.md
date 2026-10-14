@@ -1,7 +1,7 @@
 # LeaveTrack — Session Handoff
 
-Last updated: Wednesday 2026-10-14, evening · Code state: `main` @ `ae16ed6` (pushed; working tree clean; `main` matches
-`origin/main`). Edits to this file may be uncommitted.
+Last updated: Wednesday 2026-10-14, late evening · Code state: `main` has **four local commits that are NOT pushed**
+(`fd1e912` and `ce5b5c5` handoff docs, `5afddfb` Figma dashboard, then this handoff update); `origin/main` is at `ae16ed6`. **The user will push tomorrow.**
 
 A living note for starting a new session without chat history. Update it at the end of each session.
 Everything below is either **verified** (checked by me on the date above), **reported** (the user told me; I did not see it),
@@ -29,7 +29,7 @@ or explicitly marked as a **decision**, **lean** (a recommendation, not agreed),
   polish** after the tasks are done; treat those as new work, not as reopening `Done` tasks.
 - **Ahead of schedule:** the plan had 011/012 on Thursday, 013/014 on Friday and 015/017 on Saturday. All of them, plus the
   UI foundation, were finished on Wednesday. Remaining EPIC-1 work: **TASK-018** and **TASK-016**, then polish and demo prep.
-- **UI approach (done, prototype):** Claude-generated UI on a shared foundation: Tailwind v4 tokens in `src/app/globals.css`
+- **UI approach (done, prototype; the dashboard now follows a Figma design, see "Figma dashboard" below):** Claude-generated UI on a shared foundation: Tailwind v4 tokens in `src/app/globals.css`
   (navy + light grey, light-only), components in `src/components/ui/`, a role-aware app shell, brand text "leavetrack".
   The user called the first version "a good prototype, not polished". Page-specific **loading skeletons** now mirror each page.
 - **"Online" means GitHub + Supabase (staging) + Vercel.** The demo uses the **mock login with fake data only** (the login page
@@ -63,18 +63,49 @@ or explicitly marked as a **decision**, **lean** (a recommendation, not agreed),
 If time runs short, cut in this order: polish, the optional real-database test wiring, extra features. The core loop
 (US-01 to US-05) and accrual are done.
 
+### Figma dashboard (done late on 2026-10-14, commit `5afddfb`, not pushed)
+
+The user supplied a Figma file (`GrKk5YyfJcDRdPBr7xXTF9`, frame "LeaveTrack — Dashboard", node `2:302`; the Figma plugin is
+connected in Claude Code). It contains **only the dashboard (manager view, desktop 1672 px)**. Applied through the EPAV cycle:
+
+- **Shared (affects every signed-in page, intended):** `AppShell` header (86 px navy bar, leaf logo, nav with icons and an
+  **active-link underline**, avatar initials + name + role, bordered Sign out), the page tint, Inter (loaded with `next/font` in
+  `app-shell.tsx`, so the login page is unchanged), and additive tokens in `globals.css`: `brand-*`, `nav-*`, `page`, `ink`,
+  `ink-muted`, `warn-*`, `shadow-tile`, `rounded-tile`. Icons are the Figma SVGs in `public/icons/` (used unedited via
+  `next/image unoptimized`; they sit behind the auth proxy, so they only load with a session).
+- **Mobile (below `lg`, 1024 px):** the nav and account controls collapse behind a **Menu** button
+  (`src/components/ui/header-menu.tsx`: disclosure with `aria-expanded`, closes on navigation and Escape; panel dissolves with
+  `lg:contents` on desktop). Nav items are 48 px rows. Mobile was **designed by me**, the Figma file has no mobile frame.
+- **Dashboard only:** welcome block, cards from `navItemsFor(role)` (role-based cards unchanged, Audit card kept for HR even
+  though it is not in the design), the pending-approvals pill (count from the existing SQL-scoped `getTeamQueue`; omitted if
+  the query fails; in-flow on mobile, top-right from `sm`). Cards are one column until `xl`, two columns from 1280 px.
+- **Deliberately not built:** notification bell and profile chevron (no feature behind them), the empty grid slot, the design's
+  card copy (kept `nav.ts` descriptions). Warning text colour darkened to `#9a4f00` for contrast (design had a lower-contrast orange).
+- **Not yet restyled (still the old navy/grey look):** `Card`, `Button`, `PageHeader`, form fields and the bodies of balance,
+  approvals, audit and the request form. They inherit the new header, font and tint only.
+- **Verified:** `lint`, `format:check`, `typecheck`, `test` (203/203) and `build` pass. In headless Chrome (CDP script against a
+  dev server) as employee, manager and HR: **no horizontal overflow at 320, 375, 390, 768, 1024, 1280 and 1672 px**; menu
+  opens/closes (button and Escape); all taps >= 44 px except the visually hidden skip link; screenshots reviewed by eye.
+  **Not verified:** pixel comparison against Figma, real touch devices, the other pages at mobile widths.
+- **Backlog items this closes:** the UI-foundation retro's "active nav link" and "three-row mobile nav". TASK-016 still has to
+  re-measure the other pages at 375/320 px.
+- **Decision for tomorrow:** will the user design the other pages in Figma as the basis, or should I extend the dashboard's
+  look to the other pages from the shared tokens? Lean: restyle the shared primitives (`Card`, `Button`, `PageHeader`, fields)
+  to the new tokens first, since that changes every page at once; confirm with the user before doing it.
+
 ### Progress at the end of Wednesday 2026-10-14
 
 - [x] TASK-010 schema + leave types · [x] UI foundation · [x] TASK-011 submit · [x] TASK-012 balance
 - [x] TASK-013 team queue · [x] TASK-014 approve/reject · [x] TASK-017 monthly accrual · [x] TASK-015 HR audit
 - [x] Vercel function region set to Mumbai; loading skeletons shipped (per page)
 - [ ] **TASK-018** leave-type checks: **evaluated**, waiting for `/plan` (see "Next session")
-- [ ] **TASK-016** mobile pass: not evaluated yet
+- [ ] **TASK-016** mobile pass: not evaluated yet (the shell and dashboard are done, see "Figma dashboard"; other pages still to measure)
 - Task statuses in `docs/dev-tasks/epic-1-leave-request-tasks.csv`: **Done** for 010, 011, 012, 013, 014, 015, 017;
   **Open** for 016, 018 and EPIC-1 (verified).
 
 ### Next session: do these in order
 
+0. **Push the four local commits** (the user said they will do it tomorrow), then check GitHub Actions for the newest commit.
 1. Check GitHub Actions for `ae16ed6` (all green) and the Vercel production deploy. Then open a **runtime log entry for a real
    page request** (not an `_rsc` prefetch) on the newest deployment and confirm "Routed to ... Mumbai (bom1)".
 2. `/plan` for **TASK-018** (already evaluated). It is test-only: the behaviour already exists (approve touches only the
@@ -83,7 +114,8 @@ If time runs short, cut in this order: polish, the optional real-database test w
    (`service.test.ts` for `createLeaveRequest`, a "who writes `leave_balances`" guard) plus a **gated real-database test**
    (skipped unless `TEST_DATABASE_URL` is set), without touching CI yet. If a test exposes a real defect, flag it first.
 3. `/evaluate` then `/plan` for **TASK-016**: re-measure every page at 375 and 320 px (balance and request form were measured
-   on 2026-10-14; approvals, audit and the skeletons were not), the nav wraps to three rows at 375 px (UI retro backlog).
+   on 2026-10-14; approvals, audit and the skeletons were not). The three-row nav is gone (header menu). First settle the Figma
+   question above, since restyling the shared primitives changes what has to be measured.
 4. Do a **browser pass as each role** (Elena, Marco, Hana): submit, over-balance warning, reversed dates, approve/reject,
    audit with the soft-delete toggle, accrual line. Everything built after the UI foundation was verified through the real
    SQL and routes, but not clicked through.
@@ -146,6 +178,9 @@ prioritised list) waits until after the polish and the new requirements.
 - The user runs **`next start`** (production build) for manual testing, not `npm run dev`. It does **not** pick up code
   changes: stop it, `npm run build`, `npm start`, hard refresh. **Never rebuild while their server is running** (it replaces
   `.next` underneath it).
+- **Slip on 2026-10-14:** `npm run build` ran while the user's `next start` was listening on port 3000, which replaces `.next`
+  under it (it was also serving a stale build). The user should stop it, run `npm run build`, then `npm start` to see the new UI.
+  Use a different port (I used 3001 with `next dev`) for any check of mine, and stop only what I started.
 - **Do not start or stop dev servers unless necessary; check what is listening first** (saved as a memory). Use vitest and
   `psql` against a throwaway database for verification.
 - One evaluate and plan per task unless the tasks are genuinely coupled (011+012 and 013+014 were; 015 and 017 were done
@@ -165,14 +200,17 @@ prioritised list) waits until after the polish and the new requirements.
 
 ### Source control
 
-- `main` @ `ae16ed6`, pushed. Feature commits, newest first: `ae16ed6` page-specific skeletons, `b23f3df` first skeleton,
+- `main` has four **unpushed** local commits (`fd1e912`, `ce5b5c5` handoff docs; `5afddfb` feat: Figma dashboard + mobile header
+  menu; then the handoff update); `origin/main` is `ae16ed6`. Feature commits, newest first: `5afddfb` Figma dashboard, `ae16ed6` page-specific skeletons, `b23f3df` first skeleton,
   `6947590` Vercel region bom1, `893654e` HR audit, `4f9391d` accrual, `42937a9` approvals + decisions, `b63b0b0` submit +
   balance, `7458a75` disable `next dev` agent rules, then the earlier UI foundation, leave-types migration and Day 0 scaffold.
   Docs and CSV-status commits sit between them. `main` is the only branch.
 - `gh` is not installed: CI can only be checked on the GitHub website.
 - Package manager is **npm only**.
 
-### Quality gate (verified 2026-10-14 evening, on `ae16ed6`)
+### Quality gate (verified 2026-10-14 late evening on the Figma dashboard work, `5afddfb`: lint, format, typecheck, 203 tests, build all pass)
+
+(The older record below is for `ae16ed6`.)
 
 `lint`, `format:check`, `typecheck`, **201 tests (19 files)** and `next build` all pass. The build lists `/api/audit/[userId]`,
 `/api/jobs/accrual`, `/api/leave-requests`, `/api/leave-requests/[id]/decision`, `/approvals`, `/audit`, `/balance`,
