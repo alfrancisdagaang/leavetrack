@@ -14,6 +14,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
   return (
     <AppShell
       userName={user.name}
+      email={user.email}
       role={role}
       items={navItemsFor(role)}
       signOutAction={logoutAction}

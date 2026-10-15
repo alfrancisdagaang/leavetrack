@@ -112,7 +112,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
   }
 
   return (
-    <>
+    <div className="max-w-5xl">
       <PageHeader
         title="Audit log"
         description="The decision record for any employee. Records are never purged."
@@ -197,6 +197,6 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
           )}
         </section>
       ) : null}
-    </>
+    </div>
   );
 }

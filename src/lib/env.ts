@@ -11,6 +11,21 @@ const EnvSchema = z
     ),
     DATABASE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
     CRON_SECRET: z.preprocess(emptyToUndefined, z.string().min(32).optional()),
+    /** IANA time zone used to decide which day "today" is (default UTC when unset). */
+    APP_TIMEZONE: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .refine((zone) => {
+          try {
+            new Intl.DateTimeFormat("en-US", { timeZone: zone });
+            return true;
+          } catch {
+            return false;
+          }
+        }, "must be a valid IANA time zone, e.g. Asia/Manila")
+        .optional(),
+    ),
   })
   .superRefine((env, ctx) => {
     if (env.APP_ENV !== "production") return;

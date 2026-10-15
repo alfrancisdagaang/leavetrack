@@ -80,10 +80,12 @@ describe("loading states mirror their pages", () => {
     expect(html).toContain("max-w-xl");
   });
 
-  it("dashboard: a welcome block and a grid of icon cards each with a button", () => {
+  it("dashboard: a welcome block, four summary cards and a calendar of five week rows", () => {
     const html = render(DashboardLoading);
-    expect(html).toContain("h-9 w-64"); // the user's name
-    expect(count(html, "shadow-tile")).toBe(3);
-    expect(count(html, "h-[54px] w-28")).toBe(3);
+    expect(html).toContain("h-9 w-64"); // the welcome heading
+    expect(html).toContain("h-11 w-36"); // the Request Leave action
+    expect(count(html, "min-h-[148px]")).toBe(4);
+    expect(count(html, "shadow-tile")).toBe(5); // four cards and the calendar card
+    expect(count(html, "h-[86px]")).toBe(5); // one placeholder per week row
   });
 });

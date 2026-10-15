@@ -42,7 +42,7 @@ export default async function BalancePage() {
   const hasAnyBalance = balances.some((b) => b.tracksBalance && (b.confirmed ?? 0) > 0);
 
   return (
-    <>
+    <div className="max-w-5xl">
       <PageHeader
         title="My balance"
         description={`${
@@ -116,6 +116,6 @@ export default async function BalancePage() {
           })}
         </ul>
       )}
-    </>
+    </div>
   );
 }

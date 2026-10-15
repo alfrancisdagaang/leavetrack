@@ -15,7 +15,7 @@ export default async function NewRequestPage() {
   const { balances } = await getMySummary(requireDb(), user.id);
 
   return (
-    <>
+    <div className="max-w-5xl">
       <PageHeader
         title="Request leave"
         description="Submit a request for your manager to review."
@@ -29,6 +29,6 @@ export default async function NewRequestPage() {
           )}
         </Card>
       </div>
-    </>
+    </div>
   );
 }

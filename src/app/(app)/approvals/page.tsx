@@ -33,7 +33,7 @@ export default async function ApprovalsPage() {
   ]);
 
   return (
-    <>
+    <div className="max-w-5xl">
       <PageHeader
         title="Team approvals"
         description="Pending leave requests from your direct reports."
@@ -102,6 +102,6 @@ export default async function ApprovalsPage() {
           </ul>
         </>
       ) : null}
-    </>
+    </div>
   );
 }

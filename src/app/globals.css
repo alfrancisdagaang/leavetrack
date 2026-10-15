@@ -46,13 +46,21 @@
   --color-nav-text: #edf3fc;
   --color-nav-muted: #b9c9e1;
   --color-nav-active: #68a4ff;
+  --color-nav-item-active: #244c80;
   --color-avatar: #5c8dcd;
   --color-page: #f1f6fc;
   --color-ink: #152e55;
+  --color-line: #dee7f2;
   --color-ink-muted: #5b6c86;
   --color-warn-bg: #fff0d9;
   --color-warn-fg: #9a4f00;
   --color-warn-dot: #f59605;
+
+  /* Leave calendar: one colour per leave type, and the faint cell tint from the design */
+  --color-leave-vacation: #2162ff;
+  --color-leave-sick: #166846;
+  --color-leave-unpaid: #7040a0;
+  --color-calendar-cell: #fafcff;
 
   --shadow-tile: 0 3px 12px 0 rgb(36 77 119 / 0.06);
   --radius-tile: 0.875rem;
@@ -76,8 +84,19 @@
     outline-offset: 2px;
   }
 
-  /* The navy ring has too little contrast on the navy header (2.1:1), so it flips to white. */
-  header :focus-visible {
+  /* The brand-blue ring has too little contrast on the navy sidebar and drawer, so it flips to white. */
+  [data-on-dark] :focus-visible {
     outline-color: var(--color-white);
+  }
+}
+
+@layer components {
+  /* Pending leave: diagonal stripes in the bar's own colour (set --leave-color on the element). */
+  .leave-stripes {
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--leave-color) 22%, white) 0 6px,
+      white 6px 12px
+    );
   }
 }

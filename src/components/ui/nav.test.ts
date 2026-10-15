@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { navItemsFor } from "@/components/ui/nav";
+import { navItemsFor, workspaceLabel } from "@/components/ui/nav";
 
 const keys = (role: Parameters<typeof navItemsFor>[0]) => navItemsFor(role).map((i) => i.key);
 
@@ -27,5 +27,21 @@ describe("navItemsFor", () => {
     const items = navItemsFor("hr_admin");
     expect(new Set(items.map((i) => i.key)).size).toBe(items.length);
     for (const i of items) expect(i.href.startsWith("/")).toBe(true);
+  });
+
+  it("labels the items as in the design", () => {
+    expect(navItemsFor("hr_admin").map((i) => i.label)).toEqual([
+      "Dashboard",
+      "Request Leave",
+      "My Balance",
+      "Team Approvals",
+      "Audit History",
+    ]);
+  });
+
+  it("names the workspace per role", () => {
+    expect(workspaceLabel("employee")).toBe("Employee workspace");
+    expect(workspaceLabel("manager")).toBe("Manager workspace");
+    expect(workspaceLabel("hr_admin")).toBe("HR Admin workspace");
   });
 });

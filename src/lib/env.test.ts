@@ -28,4 +28,10 @@ describe("parseEnv", () => {
   it("rejects a short CRON_SECRET", () => {
     expect(() => parseEnv({ CRON_SECRET: "short" })).toThrow(/CRON_SECRET/);
   });
+
+  it("accepts a real IANA time zone and rejects a made-up one", () => {
+    expect(parseEnv({ APP_TIMEZONE: "Asia/Manila" }).APP_TIMEZONE).toBe("Asia/Manila");
+    expect(parseEnv({ APP_TIMEZONE: "" }).APP_TIMEZONE).toBeUndefined();
+    expect(() => parseEnv({ APP_TIMEZONE: "Mars/Olympus" })).toThrow(/APP_TIMEZONE/);
+  });
 });
