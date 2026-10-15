@@ -165,6 +165,23 @@ describe("decideLeaveRequest", () => {
     expect(dec?.text).toContain("leave_type_id = ?");
   });
 
+  it("US-08 AC1: approving a Sick request writes one balance update, for Sick only", async () => {
+    const { sql, touched } = fakeSql({
+      lookup: [pending({ leave_type_id: SICK })],
+      balanceUpdate: [{ balance: "2.00" }],
+    });
+    const result = await decideLeaveRequest(sql, MANAGER, REQ, approve);
+
+    expect(result.balance).toEqual({ leaveTypeId: SICK, balance: 2 });
+    const writes = touched(/leave_balances/).filter((c) => /^update/.test(c.text));
+    expect(writes).toHaveLength(1);
+    expect(writes[0]?.values).toEqual([3, ELENA, SICK, 3]);
+    for (const c of touched(/leave_balances/)) {
+      expect(c.values).not.toContain(VAC);
+      expect(c.values).not.toContain(UNPAID);
+    }
+  });
+
   it("option A: insufficient balance is a 409 and no request update or audit row happens", async () => {
     const { sql, touched } = fakeSql({
       lookup: [pending()],
