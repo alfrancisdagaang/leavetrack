@@ -1,8 +1,8 @@
 # LeaveTrack — Session Handoff
 
-Last updated: Thursday 2026-10-15, evening · Code state: `main` is at `d97baa7`, **3 local commits NOT pushed** (`18e2efb`
-tests, `0e9200c` shared-UI restyle, `d97baa7` sign-in docs) and **53 uncommitted paths** (the sidebar shell, dashboard cards,
-the calendar, docs and retros; see section 1). `origin/main` is at `3c787a9` (pushed this session).
+Last updated: Thursday 2026-10-15, evening · Code state: `main` is at `1b0eb06`, **5 local commits NOT pushed** (`18e2efb`,
+`0e9200c`, `d97baa7`, `4c7cc9f` sidebar shell, cards and calendar, `1b0eb06` docs, retros and this handoff). The working tree
+is clean. `origin/main` is at `3c787a9` (pushed this session). **The user said not to push yet.**
 
 A living note for starting a new session without chat history. Update it at the end of each session.
 Everything below is either **verified** (checked by me on the date above), **reported** (the user told me; I did not see it),
@@ -69,12 +69,12 @@ The core loop (US-01 to US-05), accrual, the sidebar shell, the cards and the ca
   the dashboard tokens; `ink-muted` darkened to `#5b6c86` for 4.5:1. Retro `2026-10-15-shared-ui-restyle.md`.
 - **Sign-in docs** (committed, `d97baa7`): PRD **US-09**, **ADR-LeaveTrack-E003** (Supabase Auth, email and password), ARCH auth
   update, and `docs/dev-tasks/epic-2-authentication-tasks.csv` (EPIC-2, TASK-020 to TASK-027, all `Open`). **No sign-in code exists yet.**
-- **Sidebar shell + dashboard cards** (**uncommitted**): left sidebar (collapsible on desktop, drawer below `lg`), slim top bar,
+- **Sidebar shell + dashboard cards** (committed, `4c7cc9f`): left sidebar (collapsible on desktop, drawer below `lg`), slim top bar,
   account dropdown (name, role, email, Sign out), welcome block and four summary cards. This is the reworded **TASK-023**
   (still `Open` in the CSV; the user has not asked to mark it `Done`). Retro `2026-10-15-sidebar-shell-dashboard-cards.md`.
-- **Dashboard calendar** (**uncommitted**): month calendar scoped by role, from Figma. This is **TASK-030 / US-10** in the new
+- **Dashboard calendar** (committed, `4c7cc9f`): month calendar scoped by role, from Figma. This is **TASK-030 / US-10** in the new
   `docs/dev-tasks/epic-3-dashboard-tasks.csv` (`Open`). Retro `2026-10-15-dashboard-calendar.md`.
-- Docs also uncommitted: PRD **US-10**, `epic-3-dashboard-tasks.csv`, the reworded TASK-023 row.
+- Docs committed in `1b0eb06`: PRD **US-10**, `epic-3-dashboard-tasks.csv`, the reworded TASK-023 row, retros.
 - **Slip, 2026-10-15 (late):** I ran `npm run build` while the user's `next start` was listening on port 3000 (PID 24012), without
   gating the command on the port check. The build passed, but it replaced `.next` under the user's server. The user must stop
   it and run `npm start` again. (Same mistake as 2026-10-14; the memory note about dev servers is the rule to follow: **check
@@ -84,7 +84,7 @@ The core loop (US-01 to US-05), accrual, the sidebar shell, the cards and the ca
 
 - [x] EPIC-1: TASK-010 to TASK-015, TASK-017, TASK-018 (`Done`) · [ ] **TASK-016** mobile pass (`Open`: the dashboard, request
       form and balance were measured; approvals and audit were not)
-- [x] UI foundation, restyle, sidebar shell and cards (uncommitted), calendar (uncommitted)
+- [x] UI foundation, restyle, sidebar shell and cards, calendar (all committed, not pushed)
 - [ ] **EPIC-2 sign-in:** TASK-020 (Supabase clients, env, session resolution), 021 (`proxy.ts`), 022 (login form and actions),
       023 (sidebar shell, built but not marked), 024 (script to create Auth users), 025 (CSP and security review), 026
       (voluntary change-password page, first to cut), 027 (staging rollout). All `Open` in the CSV.
@@ -93,10 +93,9 @@ The core loop (US-01 to US-05), accrual, the sidebar shell, the cards and the ca
 
 ### Next session: do these in order
 
-0. **Servers and commits.** Tell the user their `next start` must be restarted (`npm run build` is already done on the
-   current code, then `npm start`; hard refresh). Offer commits: (a) docs: PRD US-10, epic-3 CSV, TASK-023 reword and the
-   retros; (b) `feat:` sidebar shell and dashboard cards; (c) `feat:` dashboard calendar. Commit only when asked. The user
-   pushes (or asks me to). Then check GitHub Actions.
+0. **Servers and push.** The user's `next start` must be restarted (the build on the current code is done: `npm start`, then a
+   hard refresh); check the port before any build. Everything is committed; the user said **not to push yet**, so ask before
+   pushing. After a push, check GitHub Actions (the user checks it on the website).
 1. **Sign-in (EPIC-2), the user's Monday requirement.** The user does these steps (I cannot, and no secret goes in chat):
    disable sign-ups and set the Site URL in the Supabase dashboard; put the project URL and anon key into Vercel; keep the
    service-role key local, for the seeding script only; choose the demo password. Then `/evaluate TASK-020`, `/plan`, `/apply`,
@@ -187,21 +186,20 @@ mock fallback  only when ALLOW_MOCK_LOGIN is true, clearly labelled; with it off
 
 ### Source control
 
-- `main` is at `d97baa7`, **3 commits ahead** of `origin/main` (`3c787a9`): `18e2efb` test: prove leave types are independent;
-  `0e9200c` feat: restyle shared ui to the dashboard tokens; `d97baa7` docs: add us-09 real sign-in, adr-e003 and epic-2 tasks.
-- **Uncommitted (53 paths, verified by `git status`):** the sidebar shell and dashboard cards (`app-shell.tsx`, new
-  `app-frame.tsx`, `account-menu.tsx`, `summary-card.tsx`, `src/lib/leave/dashboard.ts`, nav and skeleton changes, 8 new icon SVGs,
-  `main-nav.tsx` and `header-menu.tsx` deleted), the calendar (`calendar.ts`, `calendar-layout.ts`, `leave-calendar.tsx`,
-  `rejected-toggle.tsx`, their tests, `env.ts` and `.env.example` for `APP_TIMEZONE`, tokens in `globals.css`), the reworded
-  TASK-023 row, PRD US-10, `epic-3-dashboard-tasks.csv`, and four retros.
-- Feature commits, newest first: `0e9200c` restyle, `18e2efb` TASK-018 tests, `5afddfb` Figma dashboard header, `ae16ed6`
-  page-specific skeletons, `6947590` Vercel region bom1, `893654e` HR audit, `4f9391d` accrual, `42937a9` approvals and decisions,
-  `b63b0b0` submit and balance, then the UI foundation, leave-types migration and Day 0 scaffold. `main` is the only branch.
+- `main` is at `1b0eb06`, **5 commits ahead** of `origin/main` (`3c787a9`), working tree clean (verified): `18e2efb` test: prove
+  leave types are independent; `0e9200c` feat: restyle shared ui to the dashboard tokens; `d97baa7` docs: add us-09 real
+  sign-in, adr-e003 and epic-2 tasks; `4c7cc9f` feat: sidebar shell, dashboard cards and leave calendar; `1b0eb06` docs: add
+  us-10 calendar, epic-3 tasks, retros and update the handoff. The sidebar and the calendar share `dashboard/page.tsx`, so
+  they are one commit.
+- Feature commits, newest first: `4c7cc9f` sidebar and calendar, `0e9200c` restyle, `18e2efb` TASK-018 tests, `5afddfb` Figma
+  dashboard header, `ae16ed6` page-specific skeletons, `6947590` Vercel region bom1, `893654e` HR audit, `4f9391d` accrual,
+  `42937a9` approvals and decisions, `b63b0b0` submit and balance, then the UI foundation, leave-types migration and Day 0
+  scaffold. `main` is the only branch.
 - `gh` is not installed: CI can only be checked on the GitHub website.
 - Package manager is **npm only**.
 - Git prints "CRLF will be replaced by LF" warnings on Windows; harmless (lint-staged runs prettier).
 
-### Quality gate (verified 2026-10-15 evening on the working tree, including the uncommitted calendar work)
+### Quality gate (verified 2026-10-15 evening on the working tree; it is what was committed in `4c7cc9f`)
 
 `lint`, `format:check`, `typecheck`, **262 tests passed and 10 skipped** (27 files; the skipped ones are the gated real-database
 tests) and `npm run build` all pass. The build lists `/api/audit/[userId]`, `/api/health`, `/api/jobs/accrual`,
@@ -223,12 +221,12 @@ verified per task and deleted (see the retros). Headless Chrome checks (sidebar,
 - **TASK-011/012 (submit + balance), TASK-013/014 (queue + decisions), TASK-017 (accrual), TASK-015 (HR audit), TASK-018
   (leave-type independence, tests):** unchanged behaviour; see the retros. Routes: `POST/GET /api/leave-requests`,
   `POST /api/leave-requests/:id/decision`, `GET/POST /api/jobs/accrual`, `GET /api/audit/:userId`.
-- **UI shell (uncommitted):** left sidebar from Figma (232px, collapses to 72px; below `lg` a modal drawer with focus trap),
+- **UI shell (committed):** left sidebar from Figma (232px, collapses to 72px; below `lg` a modal drawer with focus trap),
   slim top bar with the page title and an account dropdown (name, role, email, Sign out; Escape and outside click close it),
   role-aware items from `navItemsFor(role)`, workspace label per role.
-- **Dashboard (cards uncommitted):** welcome block with a role-aware subtitle and "Request Leave"; summary cards from
+- **Dashboard:** welcome block with a role-aware subtitle and "Request Leave"; summary cards from
   `src/lib/leave/dashboard.ts` (Vacation, Sick, Unpaid "Untracked", and Pending approvals for managers and HR).
-- **Calendar (uncommitted):** `src/lib/leave/calendar.ts` (role-scoped month query: employee `r.user_id`, manager
+- **Calendar:** `src/lib/leave/calendar.ts` (role-scoped month query: employee `r.user_id`, manager
   `(r.user_id or u.manager_id)`, HR everyone; soft-deleted never; rejected only with the flag), `calendar-layout.ts` (pure grid,
   lanes, today in `APP_TIMEZONE`, owners text), `leave-calendar.tsx`, `rejected-toggle.tsx`. Month and switch live in the URL
   (`?month=YYYY-MM`, `?rejected=1`); bars are `aria-hidden` and every request is also listed as text.
