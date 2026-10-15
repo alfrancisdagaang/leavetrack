@@ -62,6 +62,17 @@ As an Employee, Manager or HR Admin, I want to sign in with my own email and pas
 
 Sign-up is disabled: only emails HR has added can sign in. Forced password change at first sign-in, emailed invites and an HR screen for creating users are out of scope for this story (see ADR-LeaveTrack-E003).
 
+**US-10 — See Leave on a Calendar** *(BR-02, BR-03, BR-05)*
+As an Employee, Manager or HR Admin, I want a month calendar of leave on my dashboard, so that I can see who is away and when without reading lists.
+- AC1: Given I am an employee, when I open the dashboard, then I see only my own requests as spans over the dates they cover, coloured by leave type, with approved solid and pending striped.
+- AC2: Given I am a manager, when I open the dashboard, then I see my own requests and my direct reports' requests only, and a request from another team never appears.
+- AC3: Given I am an HR Admin, when I open the dashboard, then I see every employee's requests.
+- AC4: Given the calendar is showing, when I have not turned on "Show rejected and cancelled", then rejected requests are hidden; when I turn it on, they are shown.
+- AC5: Given a month is showing, when I choose previous, next or Today, then the calendar moves to that month and today's date is highlighted.
+- AC6: Given a viewport of 375px or 320px, when I open the dashboard, then the calendar is usable without horizontal scrolling, and every request is also available as text (type and status are never shown by colour alone).
+
+Not in this story: opening a request's details from the calendar (a later story), an HR filter by employee, and cancelling a request.
+
 ## Non-Functional Requirements
 - p95 API response time under 500ms for balance and request-list endpoints.
 - All approval-affecting endpoints require an authenticated session; scoped-visibility (US-03 AC3, US-04) is enforced server-side, never client-side only.
