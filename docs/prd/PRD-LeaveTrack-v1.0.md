@@ -51,6 +51,17 @@ As an Employee, I want Vacation, Sick, and Unpaid tracked separately, so that us
 - AC1: Given I request Sick leave, when it's approved, then only my Sick balance is decremented — Vacation and Unpaid are unaffected.
 - AC2: Given Unpaid leave has no balance policy, when I request it, then no balance check blocks the submission.
 
+**US-09 — Sign In With My Own Account** *(BR-02, BR-04)*
+As an Employee, Manager or HR Admin, I want to sign in with my own email and password, so that what I see and what I can do depend on who I really am.
+- AC1: Given an email and password for an account HR has added, when I sign in, then I get a session as that person, with my own role and name.
+- AC2: Given a wrong password or an unknown email, when I try to sign in, then I see one generic error and no session is created.
+- AC3: Given a valid account whose email has no user record, when I sign in, then no session is created and I am told my account is not set up.
+- AC4: Given I am signed in as a manager, when I open my approvals queue, then it is scoped by my own user id, and a request from another team never appears.
+- AC5: Given I sign out, when I open a protected page, then I am sent to the sign-in page.
+- AC6: Given the mock login is switched off, when anyone sends the old mock role cookie, then it grants no access.
+
+Sign-up is disabled: only emails HR has added can sign in. Forced password change at first sign-in, emailed invites and an HR screen for creating users are out of scope for this story (see ADR-LeaveTrack-E003).
+
 ## Non-Functional Requirements
 - p95 API response time under 500ms for balance and request-list endpoints.
 - All approval-affecting endpoints require an authenticated session; scoped-visibility (US-03 AC3, US-04) is enforced server-side, never client-side only.

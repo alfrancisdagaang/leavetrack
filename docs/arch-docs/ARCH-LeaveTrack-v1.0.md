@@ -5,7 +5,7 @@ Traces to: `docs/prd/PRD-LeaveTrack-v1.0.md`
 ## Stack
 - **Frontend/Backend:** Next.js 16 (App Router), TypeScript.
 - **Database:** Postgres via Supabase.
-- **Auth (Day 0):** mock cookie session — see `ADR-LeaveTrack-E001`. Real provider wired in Day 1.
+- **Auth:** Supabase Auth, email and password, sign-up disabled — see `ADR-LeaveTrack-E003` (US-09). The Day 0 mock cookie session (`ADR-LeaveTrack-E001`) remains only as a labelled fallback behind `ALLOW_MOCK_LOGIN`.
 - **Deployment target:** Vercel (app), Supabase (managed Postgres).
 
 Rationale: the team already runs Next.js + Supabase on other projects (fits nexus's Day 0 mock-auth-mock-data pattern directly); no NFR here demands anything heavier.
@@ -42,7 +42,8 @@ Error format: `{ success: false, error: { code, message } }` on every non-2xx re
 
 ## Security
 - Every manager-scoped endpoint enforces the `manager_id` filter in the query itself, not in application logic that could be bypassed — this is the direct implementation of PRD NFR "enforced server-side, never client-side only."
-- Session cookie is httpOnly, 8h expiry (Day 0 mock auth pattern; unchanged shape when real auth replaces it in Day 1).
+- Sign-in is Supabase Auth. The session is a signed Supabase session held in httpOnly cookies; `getSession()` resolves the signed-in email to a `users` row (`lower(email)`) in SQL, so role and manager always come from the database, never from the browser. An account with no `users` row gets no session. See `ADR-LeaveTrack-E003`; the mock cookie (`ADR-LeaveTrack-E001`) only works when `ALLOW_MOCK_LOGIN` is true.
+- New environment variables (validated in `src/lib/env.ts`, documented in `.env.example`): `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `ALLOW_MOCK_LOGIN`. The Supabase service-role key is used only by a local seeding script and is never an app or Vercel variable.
 
 ## Deployment Topology
 - Single Next.js app on Vercel, single Supabase Postgres instance (pooled connection, not direct).
