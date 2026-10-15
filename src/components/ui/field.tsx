@@ -6,7 +6,7 @@ import type {
 } from "react";
 
 const CONTROL =
-  "block min-h-11 w-full rounded-lg border border-grey-500 bg-white px-3 py-2 text-base text-grey-900 placeholder:text-grey-500 aria-[invalid=true]:border-rejected-fg";
+  "block min-h-11 w-full rounded-lg border border-ink-muted bg-white px-3 py-2 text-base text-ink placeholder:text-ink-muted aria-[invalid=true]:border-rejected-fg";
 
 interface FieldProps {
   /** Must match the `id` of the control passed as children. */
@@ -22,12 +22,12 @@ interface FieldProps {
 export function Field({ id, label, hint, error, children }: FieldProps) {
   return (
     <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-sm font-medium text-grey-900">
+      <label htmlFor={id} className="block text-sm font-medium text-ink">
         {label}
       </label>
       {children}
       {hint ? (
-        <p id={`${id}-hint`} className="text-sm text-grey-500">
+        <p id={`${id}-hint`} className="text-sm text-ink-muted">
           {hint}
         </p>
       ) : null}

@@ -57,13 +57,13 @@ describe("loading states mirror their pages", () => {
     const html = render(BalanceLoading);
     expect(html).toContain("h-11 w-32"); // the Request leave action
     expect(count(html, "lg:grid-cols-3")).toBe(1);
-    expect(count(html, "shadow-sm")).toBe(3);
+    expect(count(html, "shadow-tile")).toBe(6); // three balance cards and three request rows
     expect(count(html, "rounded-full")).toBe(3); // a status badge per request row
   });
 
   it("approvals: cards with an Approve and a Reject button placeholder", () => {
     const html = render(ApprovalsLoading);
-    expect(count(html, "shadow-sm")).toBe(2);
+    expect(count(html, "shadow-tile")).toBe(2);
     expect(count(html, "sm:w-28")).toBe(4); // two buttons on each of two cards
   });
 

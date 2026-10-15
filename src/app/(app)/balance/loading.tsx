@@ -29,7 +29,7 @@ export default function Loading() {
         {[0, 1, 2].map((i) => (
           <div
             key={i}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-grey-200 bg-white p-4"
+            className="flex flex-wrap items-center justify-between gap-2 rounded-tile border border-brand-50 bg-white p-4 shadow-tile"
           >
             <div className="space-y-2">
               <Skeleton className="h-5 w-44" />

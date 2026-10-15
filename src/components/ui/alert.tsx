@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 export type AlertVariant = "info" | "warning" | "error";
 
 const VARIANTS: Record<AlertVariant, string> = {
-  info: "border-navy-600/30 bg-navy-50 text-navy-900",
+  info: "border-brand-500/30 bg-brand-50 text-ink",
   warning: "border-pending-fg/30 bg-pending-bg text-pending-fg",
   error: "border-rejected-fg/30 bg-rejected-bg text-rejected-fg",
 };

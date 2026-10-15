@@ -15,11 +15,9 @@ export default async function LoginPage({
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-8">
       <div className="w-full max-w-md space-y-6">
-        <p className="text-center text-3xl font-semibold tracking-tight text-navy-900">
-          leavetrack
-        </p>
+        <p className="text-center text-3xl font-semibold tracking-tight text-ink">leavetrack</p>
         <Card>
-          <h1 className="mb-4 text-xl font-semibold text-navy-900">Sign in</h1>
+          <h1 className="mb-4 text-xl font-semibold text-ink">Sign in</h1>
           <div className="mb-5">
             <Alert variant="warning" title="Demo sign-in">
               Fake data only. Any name and email are accepted; the role you pick decides what you

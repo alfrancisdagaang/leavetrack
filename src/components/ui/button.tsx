@@ -7,9 +7,9 @@ const BASE =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
 
 const VARIANTS: Record<ButtonVariant, string> = {
-  primary: "bg-navy-700 text-white hover:bg-navy-800",
-  secondary: "border border-grey-300 bg-white text-grey-900 hover:bg-grey-100",
-  ghost: "text-navy-700 hover:bg-navy-50",
+  primary: "bg-brand-500 text-white hover:bg-brand-600",
+  secondary: "border border-ink-muted bg-white text-ink hover:bg-brand-50",
+  ghost: "text-brand-600 hover:bg-brand-50",
   // For use on the navy header.
   inverse: "border border-white/40 text-white hover:bg-white/10",
 };

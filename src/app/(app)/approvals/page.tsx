@@ -41,7 +41,7 @@ export default async function ApprovalsPage() {
 
       {queue.length === 0 ? (
         <Card>
-          <p className="text-grey-500">No pending requests from your team.</p>
+          <p className="text-ink-muted">No pending requests from your team.</p>
         </Card>
       ) : (
         <ul className="space-y-4">
@@ -50,13 +50,15 @@ export default async function ApprovalsPage() {
               <Card title={r.employee_name}>
                 <div className="mb-2 flex flex-wrap items-center gap-2">
                   <Badge variant="pending">Pending</Badge>
-                  <span className="font-medium text-grey-900">{r.leave_type_name}</span>
-                  <span className="text-grey-500">· {days(r.working_days)}</span>
+                  <span className="font-medium text-ink">{r.leave_type_name}</span>
+                  <span className="text-ink-muted">· {days(r.working_days)}</span>
                 </div>
-                <p className="text-grey-700">
+                <p className="text-ink">
                   {r.start_date} to {r.end_date}
                 </p>
-                {r.reason ? <p className="mt-1 text-sm text-grey-500">Reason: {r.reason}</p> : null}
+                {r.reason ? (
+                  <p className="mt-1 text-sm text-ink-muted">Reason: {r.reason}</p>
+                ) : null}
                 {r.insufficient ? (
                   <div className="mt-3">
                     <Alert variant="warning" title="Cannot be approved">
@@ -74,22 +76,22 @@ export default async function ApprovalsPage() {
 
       {decided.length > 0 ? (
         <>
-          <h2 className="mb-3 mt-8 text-lg font-semibold text-navy-900">Recently decided</h2>
+          <h2 className="mb-3 mt-8 text-lg font-semibold text-ink">Recently decided</h2>
           <ul className="space-y-3">
             {decided.map((r) => (
               <li
                 key={r.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-grey-200 bg-white p-4"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-tile border border-brand-50 bg-white p-4 shadow-tile"
               >
                 <div>
-                  <p className="font-medium text-grey-900">
+                  <p className="font-medium text-ink">
                     {r.employee_name} · {r.leave_type_name} · {days(r.working_days)}
                   </p>
-                  <p className="text-sm text-grey-500">
+                  <p className="text-sm text-ink-muted">
                     {r.start_date} to {r.end_date}
                   </p>
                   {r.decision_note ? (
-                    <p className="mt-1 text-sm text-grey-500">Reason: {r.decision_note}</p>
+                    <p className="mt-1 text-sm text-ink-muted">Reason: {r.decision_note}</p>
                   ) : null}
                 </div>
                 <Badge variant={r.status === "approved" ? "approved" : "rejected"}>

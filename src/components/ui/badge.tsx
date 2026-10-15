@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 export type BadgeVariant = "neutral" | "pending" | "approved" | "rejected";
 
 const VARIANTS: Record<BadgeVariant, string> = {
-  neutral: "bg-grey-100 text-grey-700",
+  neutral: "bg-brand-50 text-ink",
   pending: "bg-pending-bg text-pending-fg",
   approved: "bg-approved-bg text-approved-fg",
   rejected: "bg-rejected-bg text-rejected-fg",

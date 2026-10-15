@@ -50,18 +50,18 @@ function RequestCard({ r }: { r: AuditRequestView }) {
         <Badge variant={badge.variant}>{badge.label}</Badge>
         {r.is_deleted ? <Badge>Deleted</Badge> : null}
       </div>
-      <p className="text-grey-900">
+      <p className="text-ink">
         {r.start_date} to {r.end_date}
       </p>
-      <p className="mt-1 text-sm text-grey-500">
+      <p className="mt-1 text-sm text-ink-muted">
         {r.decided_at && r.decided_by_name
           ? `Decided by ${r.decided_by_name} on ${utc(r.decided_at)}`
           : "Awaiting decision"}
       </p>
       {r.decision_note ? (
-        <p className="mt-1 break-words text-sm text-grey-700">Reason given: {r.decision_note}</p>
+        <p className="mt-1 break-words text-sm text-ink">Reason given: {r.decision_note}</p>
       ) : null}
-      <ol className="mt-3 space-y-1 border-t border-grey-200 pt-3 text-sm text-grey-700">
+      <ol className="mt-3 space-y-1 border-t border-brand-50 pt-3 text-sm text-ink">
         {r.events.map((e, i) => (
           <li key={`${e.action}-${i}`} className="break-words">
             {ACTION_LABEL[e.action]} by {e.actor_name} · {utc(e.occurred_at)}
@@ -150,7 +150,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
               />
             </Field>
           </div>
-          <label className="flex min-h-11 items-center gap-3 text-sm text-grey-900">
+          <label className="flex min-h-11 items-center gap-3 text-sm text-ink">
             <input
               type="checkbox"
               name="deleted"
@@ -174,17 +174,17 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
 
       {history ? (
         <section className="mt-6" aria-labelledby="audit-results">
-          <h2 id="audit-results" className="mb-1 text-lg font-semibold text-navy-900">
+          <h2 id="audit-results" className="mb-1 text-lg font-semibold text-ink">
             {history.employee.name}
           </h2>
-          <p className="mb-4 text-sm text-grey-500">
+          <p className="mb-4 text-sm text-ink-muted">
             {history.requests.length} request{history.requests.length === 1 ? "" : "s"}
             {includeDeleted ? " (including soft-deleted)" : ""}. Soft-deleted requests are hidden
             unless included; nothing is ever purged.
           </p>
           {history.requests.length === 0 ? (
             <Card>
-              <p className="text-grey-500">No requests found for this employee and range.</p>
+              <p className="text-ink-muted">No requests found for this employee and range.</p>
             </Card>
           ) : (
             <ul className="space-y-4">

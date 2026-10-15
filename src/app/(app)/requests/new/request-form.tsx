@@ -151,7 +151,7 @@ export function RequestForm({ balances }: { balances: BalanceSummaryItem[] }) {
         </Field>
       </div>
       {days > 0 ? (
-        <p className="text-sm text-grey-700">
+        <p className="text-sm text-ink">
           {days} working day{days === 1 ? "" : "s"} (Mon-Fri).
         </p>
       ) : null}

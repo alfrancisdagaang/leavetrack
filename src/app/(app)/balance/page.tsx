@@ -65,20 +65,20 @@ export default async function BalancePage() {
             {b.tracksBalance ? (
               <dl className="space-y-2">
                 <div>
-                  <dt className="text-sm text-grey-500">Confirmed balance</dt>
-                  <dd className="text-2xl font-semibold text-navy-900">{days(b.confirmed ?? 0)}</dd>
+                  <dt className="text-sm text-ink-muted">Confirmed balance</dt>
+                  <dd className="text-2xl font-semibold text-ink">{days(b.confirmed ?? 0)}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <dt className="text-sm text-grey-500">Pending approval</dt>
-                  <dd className="font-medium text-grey-900">{days(b.pending)}</dd>
+                  <dt className="text-sm text-ink-muted">Pending approval</dt>
+                  <dd className="font-medium text-ink">{days(b.pending)}</dd>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <dt className="text-sm text-grey-500">Available after pending</dt>
-                  <dd className="font-medium text-grey-900">{days(b.available ?? 0)}</dd>
+                  <dt className="text-sm text-ink-muted">Available after pending</dt>
+                  <dd className="font-medium text-ink">{days(b.available ?? 0)}</dd>
                 </div>
               </dl>
             ) : (
-              <p className="text-grey-500">
+              <p className="text-ink-muted">
                 No balance is tracked for this leave type.
                 {b.pending > 0 ? ` ${days(b.pending)} pending approval.` : ""}
               </p>
@@ -87,9 +87,9 @@ export default async function BalancePage() {
         ))}
       </div>
 
-      <h2 className="mb-3 mt-8 text-lg font-semibold text-navy-900">My requests</h2>
+      <h2 className="mb-3 mt-8 text-lg font-semibold text-ink">My requests</h2>
       {requests.length === 0 ? (
-        <p className="text-grey-500">You have not submitted any requests yet.</p>
+        <p className="text-ink-muted">You have not submitted any requests yet.</p>
       ) : (
         <ul className="space-y-3">
           {requests.map((r) => {
@@ -97,13 +97,13 @@ export default async function BalancePage() {
             return (
               <li
                 key={r.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-grey-200 bg-white p-4"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-tile border border-brand-50 bg-white p-4 shadow-tile"
               >
                 <div>
-                  <p className="font-medium text-grey-900">
+                  <p className="font-medium text-ink">
                     {typeName.get(r.leave_type_id) ?? "Leave"} · {days(r.working_days)}
                   </p>
-                  <p className="text-sm text-grey-500">
+                  <p className="text-sm text-ink-muted">
                     {r.start_date} to {r.end_date}
                   </p>
                   {r.status === "rejected" && r.decision_note ? (

@@ -51,7 +51,7 @@ export function SkeletonCard({
   return (
     <div
       aria-hidden="true"
-      className={`rounded-card border border-grey-200 bg-white p-5 shadow-sm sm:p-6 ${className}`}
+      className={`rounded-tile border border-brand-50 bg-white p-5 shadow-tile sm:p-6 ${className}`}
     >
       {children}
     </div>

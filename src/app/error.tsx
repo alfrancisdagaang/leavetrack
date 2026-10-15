@@ -15,12 +15,12 @@ export default function ErrorBoundary({
   return (
     <main className="mx-auto flex min-h-dvh max-w-md items-center px-4 py-8">
       <Card>
-        <h1 className="mb-4 text-xl font-semibold text-navy-900">Something went wrong</h1>
+        <h1 className="mb-4 text-xl font-semibold text-ink">Something went wrong</h1>
         <div className="mb-4">
           <Alert variant="error">An unexpected error occurred. Please try again.</Alert>
         </div>
         {error.digest ? (
-          <p className="mb-4 text-sm text-grey-500">Reference: {error.digest}</p>
+          <p className="mb-4 text-sm text-ink-muted">Reference: {error.digest}</p>
         ) : null}
         <Button type="button" onClick={reset}>
           Try again
