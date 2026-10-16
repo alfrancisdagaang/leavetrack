@@ -6,10 +6,13 @@
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { unstable_rethrow } from "next/navigation";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { findUserByEmail } from "@/lib/auth/users";
 import { getDb } from "@/lib/db/client";
+import { timedQuery } from "@/lib/db/timed";
 import { parseRole, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/mock-cookie";
 import type { User, UserRole } from "@/lib/db/types";
+import { AppError } from "@/lib/errors/app-error";
 import { getEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { MOCK_USER_BY_ROLE } from "@/lib/mock/users";
@@ -37,6 +40,8 @@ async function sessionFromSupabase(): Promise<Session | null> {
 
   // getUser() asks the Auth server to validate the token; the cookie contents alone are not trusted.
   const { data, error } = await supabase.auth.getUser();
+  // The Auth server being unreachable is not "signed out": say so instead of bouncing to /login.
+  if (error && isAuthRetryableFetchError(error)) throw error;
   const email = data.user?.email;
   if (error || !email) return null;
 
@@ -45,7 +50,7 @@ async function sessionFromSupabase(): Promise<Session | null> {
     logger.warn("Signed-in account cannot be resolved: database not configured");
     return null;
   }
-  const user = await findUserByEmail(sql, email);
+  const user = await timedQuery("session.find_user", () => findUserByEmail(sql, email));
   if (!user) {
     logger.warn({ authUserId: data.user.id }, "Signed-in account has no users row");
     return null;
@@ -66,8 +71,14 @@ const resolveSession = cache(async (): Promise<Session | null> => {
   } catch (err) {
     // Next signals "this render is dynamic" and redirects by throwing; those must pass through.
     unstable_rethrow(err);
-    logger.error({ err }, "Session resolution failed; treating as signed out");
-    return null;
+    // Could not check (database or Auth outage). Never treated as signed in, and not as signed
+    // out either: the caller shows "unavailable" so a blip does not look like a logout.
+    logger.error({ err }, "Session resolution failed");
+    throw new AppError(
+      "SERVICE_UNAVAILABLE",
+      "Sign-in is temporarily unavailable. Try again shortly.",
+      { cause: err },
+    );
   }
 });
 

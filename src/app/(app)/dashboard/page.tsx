@@ -4,6 +4,7 @@ import { ButtonLink } from "@/components/ui/button";
 import { LeaveCalendar } from "@/components/ui/leave-calendar";
 import { SummaryCard } from "@/components/ui/summary-card";
 import { requireSession } from "@/lib/auth/guards";
+import { timedQuery } from "@/lib/db/timed";
 import { getEnv } from "@/lib/env";
 import type { BalanceSummaryItem } from "@/lib/leave/balance";
 import { getCalendarRequests } from "@/lib/leave/calendar";
@@ -23,7 +24,8 @@ export const metadata: Metadata = { title: "Dashboard" };
 /** The signed-in user's own balances (scoped by their id in SQL). Null if unavailable. */
 async function ownBalances(userId: string): Promise<BalanceSummaryItem[] | null> {
   try {
-    return (await getMySummary(requireDb(), userId)).balances;
+    return (await timedQuery("dashboard.balances", () => getMySummary(requireDb(), userId)))
+      .balances;
   } catch (err) {
     logger.warn({ err }, "dashboard: balances unavailable");
     return null;
@@ -33,7 +35,8 @@ async function ownBalances(userId: string): Promise<BalanceSummaryItem[] | null>
 /** Pending requests from the signed-in manager's own reports (scoped in SQL). Null if unavailable. */
 async function pendingApprovalCount(managerId: string): Promise<number | null> {
   try {
-    return (await getTeamQueue(requireDb(), managerId)).length;
+    return (await timedQuery("dashboard.pending", () => getTeamQueue(requireDb(), managerId)))
+      .length;
   } catch (err) {
     logger.warn({ err }, "dashboard: pending approval count unavailable");
     return null;
@@ -45,7 +48,7 @@ async function calendarRequests(
   query: Parameters<typeof getCalendarRequests>[1],
 ): Promise<CalendarRequest[] | null> {
   try {
-    return await getCalendarRequests(requireDb(), query);
+    return await timedQuery("dashboard.calendar", () => getCalendarRequests(requireDb(), query));
   } catch (err) {
     logger.warn({ err }, "dashboard: calendar unavailable");
     return null;

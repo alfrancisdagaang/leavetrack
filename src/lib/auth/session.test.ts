@@ -5,6 +5,8 @@ import {
   SESSION_MAX_AGE_SECONDS,
   sessionCookieOptions,
 } from "@/lib/auth/session";
+import { AuthRetryableFetchError } from "@supabase/supabase-js";
+import { AppError } from "@/lib/errors/app-error";
 import { MOCK_USERS } from "@/lib/mock/users";
 
 const mocks = vi.hoisted(() => ({
@@ -132,9 +134,42 @@ describe("getSession", () => {
     mocks.supabase = supabaseUser("elena.cruz@leavetrack.example");
     mocks.sql = undefined;
     expect(await getSession()).toBeNull();
+  });
 
-    mocks.sql = fakeSql;
-    mocks.findUserByEmail.mockRejectedValue(new Error("db down"));
+  it("a database failure while resolving the user is 'unavailable', never a session and never a silent sign-out", async () => {
+    mocks.supabase = supabaseUser("elena.cruz@leavetrack.example");
+    mocks.findUserByEmail.mockRejectedValue(
+      Object.assign(new Error("canceling statement due to statement timeout"), { code: "57014" }),
+    );
+    const err = await getSession().catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(AppError);
+    expect((err as AppError).code).toBe("SERVICE_UNAVAILABLE");
+    expect((err as AppError).status).toBe(503);
+    expect((err as AppError).message).not.toContain("statement timeout");
+  });
+
+  it("an unreachable Auth server is 'unavailable', not signed out", async () => {
+    mocks.supabase = {
+      auth: {
+        getUser: async () => ({
+          data: { user: null },
+          error: new AuthRetryableFetchError("fetch failed", 0),
+        }),
+      },
+    };
+    const err = await getSession().catch((e: unknown) => e);
+    expect((err as AppError).code).toBe("SERVICE_UNAVAILABLE");
+  });
+
+  it("an invalid or missing Auth session is still just 'no session'", async () => {
+    mocks.supabase = {
+      auth: {
+        getUser: async () => ({
+          data: { user: null },
+          error: { status: 401, name: "AuthApiError" },
+        }),
+      },
+    };
     expect(await getSession()).toBeNull();
   });
 

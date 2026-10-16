@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { LoginView } from "@/app/login/login-view";
 import { safeNextPath } from "@/lib/auth/redirect";
 import { getSession } from "@/lib/auth/session";
@@ -16,7 +16,12 @@ export default async function LoginPage({
   const nextPath = typeof next === "string" ? next : undefined;
 
   // The proxy lets everyone reach /login; people who are already signed in move on from here.
-  if (await getSession()) redirect(safeNextPath(nextPath));
+  // If the session cannot be checked right now, still show the form rather than an error page.
+  const session = await getSession().catch((err: unknown) => {
+    unstable_rethrow(err);
+    return null;
+  });
+  if (session) redirect(safeNextPath(nextPath));
 
   return <LoginView next={nextPath} allowMock={getEnv().ALLOW_MOCK_LOGIN} />;
 }

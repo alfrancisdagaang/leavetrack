@@ -68,6 +68,7 @@ function NavList({ items, pathname, collapsed = false }: NavListProps) {
               {item.available ? (
                 <Link
                   href={item.href}
+                  prefetch={false}
                   aria-current={current ? "page" : undefined}
                   className={`${ROW} ${
                     current ? "bg-nav-item-active font-semibold" : "font-medium hover:bg-white/10"
