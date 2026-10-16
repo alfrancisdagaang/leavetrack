@@ -1,7 +1,10 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { LoginForm } from "@/app/login/login-form";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
+import { safeNextPath } from "@/lib/auth/redirect";
+import { getSession } from "@/lib/auth/session";
 
 export const metadata: Metadata = { title: "Sign in" };
 
@@ -11,6 +14,9 @@ export default async function LoginPage({
   searchParams: Promise<{ next?: string | string[] }>;
 }) {
   const { next } = await searchParams;
+
+  // The proxy lets everyone reach /login; people who are already signed in move on from here.
+  if (await getSession()) redirect(safeNextPath(typeof next === "string" ? next : undefined));
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-8">

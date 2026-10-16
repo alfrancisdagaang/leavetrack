@@ -26,15 +26,32 @@ const EnvSchema = z
         }, "must be a valid IANA time zone, e.g. Asia/Manila")
         .optional(),
     ),
+    /** Supabase project URL and anon key (both public by design; the service-role key is never an app variable). */
+    NEXT_PUBLIC_SUPABASE_URL: z.preprocess(emptyToUndefined, z.url().optional()),
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: z.preprocess(emptyToUndefined, z.string().optional()),
+    /** Honour the labelled mock-role fallback. Unset: on in development, off everywhere else. */
+    ALLOW_MOCK_LOGIN: z.preprocess(emptyToUndefined, z.enum(["true", "false"]).optional()),
   })
   .superRefine((env, ctx) => {
     if (env.APP_ENV !== "production") return;
-    for (const key of ["DATABASE_URL", "CRON_SECRET"] as const) {
+    for (const key of [
+      "DATABASE_URL",
+      "CRON_SECRET",
+      "NEXT_PUBLIC_SUPABASE_URL",
+      "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+    ] as const) {
       if (!env[key]) {
         ctx.addIssue({ code: "custom", path: [key], message: `${key} is required in production` });
       }
     }
-  });
+  })
+  .transform((env) => ({
+    ...env,
+    ALLOW_MOCK_LOGIN:
+      env.ALLOW_MOCK_LOGIN === undefined
+        ? env.APP_ENV === "development"
+        : env.ALLOW_MOCK_LOGIN === "true",
+  }));
 
 export type Env = z.infer<typeof EnvSchema>;
 

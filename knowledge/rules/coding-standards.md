@@ -87,6 +87,12 @@ export const POST = withErrorHandling(async (request) => {
   devDependencies like pino-pretty at runtime.
 - `APP_ENV` stays the switch for _deployment intent_ (staging vs production config strictness).
 
+## Catching errors around Next request APIs (learned in TASK-021 VALIDATE)
+
+- `cookies()`, `headers()`, `redirect()` and `notFound()` signal "dynamic render" or navigation by **throwing**. A
+  `try/catch` around code that may call them must call `unstable_rethrow(err)` (from `next/navigation`) first, or it
+  swallows the signal (the build logged `DYNAMIC_SERVER_USAGE` as "Session resolution failed").
+
 ## Tooling notes (Windows + npm)
 
 - `.gitattributes` forces LF — husky hooks with CRLF break on Linux CI and macOS.
