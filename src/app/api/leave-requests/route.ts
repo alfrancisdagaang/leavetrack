@@ -1,4 +1,5 @@
 import { assertRole } from "@/lib/auth/guards";
+import { timedQuery } from "@/lib/db/timed";
 import { AppError } from "@/lib/errors/app-error";
 import { ok, withErrorHandling } from "@/lib/errors/respond";
 import { createLeaveRequestSchema, listQuerySchema } from "@/lib/leave/schemas";
@@ -6,6 +7,8 @@ import { createLeaveRequest, getMySummary, requireDb } from "@/lib/leave/service
 import { getTeamQueue } from "@/lib/leave/team";
 
 export const dynamic = "force-dynamic";
+/** No request may run for the platform default of 300 s: a hang fails fast and is logged. */
+export const maxDuration = 30;
 
 /** US-01 — submit a leave request. Roles stack, so every role may request leave for themselves. */
 export const POST = withErrorHandling(async (request) => {
@@ -35,7 +38,11 @@ export const GET = withErrorHandling(async (request) => {
 
   if (scope === "team") {
     await assertRole("manager", "hr_admin");
-    return ok({ requests: await getTeamQueue(requireDb(), session.user.id) });
+    return ok({
+      requests: await timedQuery("api.team_queue", () =>
+        getTeamQueue(requireDb(), session.user.id),
+      ),
+    });
   }
-  return ok(await getMySummary(requireDb(), session.user.id));
+  return ok(await timedQuery("api.my_summary", () => getMySummary(requireDb(), session.user.id)));
 });

@@ -6,6 +6,8 @@ import { decisionSchema, requestIdSchema } from "@/lib/leave/schemas";
 import { requireDb } from "@/lib/leave/service";
 
 export const dynamic = "force-dynamic";
+/** No request may run for the platform default of 300 s: a hang fails fast and is logged. */
+export const maxDuration = 30;
 
 type Context = { params: Promise<{ id: string }> };
 

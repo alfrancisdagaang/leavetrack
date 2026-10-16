@@ -10,6 +10,7 @@ import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { findUserByEmail } from "@/lib/auth/users";
 import { getDb } from "@/lib/db/client";
 import { timedQuery } from "@/lib/db/timed";
+import { withDeadline } from "@/lib/supabase/fetch";
 import { parseRole, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/mock-cookie";
 import type { User, UserRole } from "@/lib/db/types";
 import { AppError } from "@/lib/errors/app-error";
@@ -39,7 +40,7 @@ async function sessionFromSupabase(): Promise<Session | null> {
   if (!supabase) return null;
 
   // getUser() asks the Auth server to validate the token; the cookie contents alone are not trusted.
-  const { data, error } = await supabase.auth.getUser();
+  const { data, error } = await withDeadline("auth.get_user", () => supabase.auth.getUser());
   // The Auth server being unreachable is not "signed out": say so instead of bouncing to /login.
   if (error && isAuthRetryableFetchError(error)) throw error;
   const email = data.user?.email;

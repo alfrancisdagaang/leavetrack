@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { timedQuery } from "@/lib/db/timed";
 import { Alert } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
@@ -12,7 +13,9 @@ export const dynamic = "force-dynamic";
 /** US-01. The session user is the requester; the form never sends a user id. */
 export default async function NewRequestPage() {
   const { user } = await requireSession();
-  const { balances } = await getMySummary(requireDb(), user.id);
+  const { balances } = await timedQuery("requests_new.summary", () =>
+    getMySummary(requireDb(), user.id),
+  );
 
   return (
     <div className="max-w-5xl">

@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { AuthRetryableFetchError } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const SECRET = "c".repeat(64);
@@ -17,6 +18,7 @@ async function run(path: string, init?: { cookie?: string; authorization?: strin
 const supabase = vi.hoisted(() => ({
   claims: null as { sub: string } | null,
   throws: false,
+  retryable: false,
   refreshed: [] as { name: string; value: string }[],
 }));
 
@@ -33,6 +35,9 @@ vi.mock("@supabase/ssr", () => ({
     auth: {
       getClaims: async () => {
         if (supabase.throws) throw new Error("auth server unreachable");
+        if (supabase.retryable) {
+          return { data: null, error: new AuthRetryableFetchError("fetch failed", 0) };
+        }
         if (supabase.refreshed.length) {
           opts.cookies.setAll(
             supabase.refreshed.map((c) => ({ ...c, options: { path: "/", httpOnly: true } })),
@@ -53,6 +58,7 @@ vi.mock("@/lib/logger", () => {
 beforeEach(() => {
   supabase.claims = null;
   supabase.throws = false;
+  supabase.retryable = false;
   supabase.refreshed = [];
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://abc.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
@@ -81,10 +87,31 @@ describe("proxy — pages", () => {
     expect(new URL(res.headers.get("location")!).pathname).toBe("/login");
   });
 
-  it("AC1: fails closed when the session check throws", async () => {
-    supabase.throws = true;
-    const res = await run("/dashboard", { cookie: SB_COOKIE });
-    expect(res.status).toBe(307);
+  it("an Auth outage is not a logout: pages are let through to re-check, and grant nothing themselves", async () => {
+    for (const mode of ["throws", "retryable"] as const) {
+      supabase.throws = mode === "throws";
+      supabase.retryable = mode === "retryable";
+      const res = await run("/dashboard", { cookie: SB_COOKIE });
+      expect(res.status).toBe(200);
+      expect(res.headers.get("x-middleware-next")).toBe("1");
+      expect(res.headers.get("location")).toBeNull();
+    }
+  });
+
+  it("an Auth outage gives API calls a 503 envelope, not a 401", async () => {
+    supabase.retryable = true;
+    const res = await run("/api/leave-requests", { cookie: SB_COOKIE });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({
+      success: false,
+      error: { code: "SERVICE_UNAVAILABLE" },
+    });
+  });
+
+  it("an Auth outage does not change /api/jobs, which uses the cron bearer only", async () => {
+    supabase.retryable = true;
+    const res = await run("/api/jobs/accrual", { cookie: SB_COOKIE });
+    expect(res.status).toBe(401);
   });
 
   it("AC2: lets a valid Supabase session through", async () => {

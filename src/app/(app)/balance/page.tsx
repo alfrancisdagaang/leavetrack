@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { timedQuery } from "@/lib/db/timed";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { ButtonLink } from "@/components/ui/button";
@@ -35,8 +36,8 @@ export default async function BalancePage() {
   const { user } = await requireSession();
   const sql = requireDb();
   const [{ balances, requests }, lastAccrual] = await Promise.all([
-    getMySummary(sql, user.id),
-    getLastAccrualPeriod(sql),
+    timedQuery("balance.summary", () => getMySummary(sql, user.id)),
+    timedQuery("balance.last_accrual", () => getLastAccrualPeriod(sql)),
   ]);
   const typeName = new Map(balances.map((b) => [b.leaveTypeId, b.leaveTypeName]));
   const hasAnyBalance = balances.some((b) => b.tracksBalance && (b.confirmed ?? 0) > 0);

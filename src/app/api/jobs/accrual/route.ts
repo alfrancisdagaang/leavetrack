@@ -6,6 +6,8 @@ import { runAccrual } from "@/lib/leave/accrual";
 import { requireDb } from "@/lib/leave/service";
 
 export const dynamic = "force-dynamic";
+/** No request may run for the platform default of 300 s: a hang fails fast and is logged. */
+export const maxDuration = 60;
 
 /**
  * US-07 — monthly accrual. Vercel Cron calls this with an HTTP GET and

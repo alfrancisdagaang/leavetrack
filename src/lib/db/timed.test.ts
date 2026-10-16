@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SLOW_QUERY_MS, timedQuery } from "@/lib/db/timed";
+import { QUERY_DEADLINE_MS, SLOW_QUERY_MS, timedQuery } from "@/lib/db/timed";
+import { AppError } from "@/lib/errors/app-error";
 
 const log = vi.hoisted(() => ({ warn: vi.fn(), error: vi.fn() }));
 vi.mock("@/lib/logger", () => ({ logger: log }));
@@ -50,5 +51,51 @@ describe("timedQuery", () => {
       throw new Error("select * from users where email = 'a@b.c'");
     }).catch(() => undefined);
     expect(JSON.stringify(log.error.mock.calls)).not.toContain("select");
+  });
+
+  it("abandons a query that never answers: SERVICE_UNAVAILABLE and a log line with its name", async () => {
+    const pending = timedQuery("dashboard.calendar", () => new Promise<never>(() => {}));
+    const settled = pending.catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(QUERY_DEADLINE_MS);
+    const err = await settled;
+    expect(err).toBeInstanceOf(AppError);
+    expect((err as AppError).code).toBe("SERVICE_UNAVAILABLE");
+    expect(log.error).toHaveBeenCalledWith(
+      expect.objectContaining({ query: "dashboard.calendar", deadlineMs: QUERY_DEADLINE_MS }),
+      "Database query hit its deadline",
+    );
+  });
+
+  it("swallows the late failure of an abandoned query instead of leaving it unhandled", async () => {
+    let fail: (e: Error) => void = () => {};
+    const pending = timedQuery(
+      "late",
+      () => new Promise<never>((_r, reject) => (fail = reject)),
+      100,
+    );
+    const settled = pending.catch(() => undefined);
+    await vi.advanceTimersByTimeAsync(100);
+    await settled;
+    const unhandled = vi.fn();
+    process.on("unhandledRejection", unhandled);
+    fail(new Error("canceling statement due to statement timeout"));
+    await vi.advanceTimersByTimeAsync(10);
+    process.off("unhandledRejection", unhandled);
+    expect(unhandled).not.toHaveBeenCalled();
+  });
+
+  it("does not log an expected AppError (such as NOT_FOUND) as a database fault", async () => {
+    const notFound = new AppError("NOT_FOUND", "No such employee.");
+    await expect(
+      timedQuery("audit.history", async () => {
+        throw notFound;
+      }),
+    ).rejects.toBe(notFound);
+    expect(log.error).not.toHaveBeenCalled();
+  });
+
+  it("leaves no timer running after a fast query", async () => {
+    await timedQuery("fast", async () => 1);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });

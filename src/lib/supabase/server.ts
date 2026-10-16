@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getEnv } from "@/lib/env";
+import { fetchWithDeadline } from "@/lib/supabase/fetch";
 
 /**
  * Supabase Auth client bound to the request cookies. Returns null when the project URL or
@@ -12,6 +13,7 @@ export async function createSupabaseServerClient() {
 
   const cookieStore = await cookies();
   return createServerClient(url, anonKey, {
+    global: { fetch: fetchWithDeadline("auth.get_user") },
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (toSet) => {

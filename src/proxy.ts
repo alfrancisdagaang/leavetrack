@@ -42,6 +42,17 @@ export async function proxy(request: NextRequest) {
     return finish(NextResponse.next({ request }));
   }
 
+  // The session check itself failed (timeout or network), so we cannot say "signed out". Grant
+  // nothing: pages are let through to re-check in getSession() (every page calls requireSession),
+  // and API calls get a 503. Redirecting to /login here would make an outage look like a logout.
+  if (supabase?.unavailable) {
+    return pathname.startsWith("/api/")
+      ? finish(
+          failure("SERVICE_UNAVAILABLE", "Sign-in is temporarily unavailable. Try again shortly."),
+        )
+      : finish(NextResponse.next({ request }));
+  }
+
   if (pathname.startsWith("/api/")) {
     return finish(failure("UNAUTHORIZED", "Authentication required."));
   }

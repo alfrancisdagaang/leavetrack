@@ -7,6 +7,9 @@ import { getEnv } from "@/lib/env";
 
 export const metadata: Metadata = { title: "Sign in" };
 
+/** No request may run for the platform default of 300 s: a hang fails fast and is logged. */
+export const maxDuration = 30;
+
 export default async function LoginPage({
   searchParams,
 }: {

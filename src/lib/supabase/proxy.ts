@@ -1,11 +1,15 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import type { NextRequest, NextResponse } from "next/server";
 import { getEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { fetchWithDeadline, withDeadline } from "@/lib/supabase/fetch";
 
 export type ProxySupabaseSession = {
   /** True when the request carries a valid Supabase session (identity only; the users row is checked later). */
   signedIn: boolean;
+  /** True when the check could not be completed (timeout or network failure), as opposed to "no session". */
+  unavailable: boolean;
   /** Copies any refreshed session cookies onto the response the proxy returns. */
   withCookies: <T extends NextResponse>(response: T) => T;
 };
@@ -29,6 +33,7 @@ export async function refreshSupabaseSession(
   const pending: PendingCookie[] = [];
   const pendingHeaders: Record<string, string> = {};
   const supabase = createServerClient(url, anonKey, {
+    global: { fetch: fetchWithDeadline("proxy.get_claims") },
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (toSet, headers) => {
@@ -42,15 +47,20 @@ export async function refreshSupabaseSession(
   });
 
   let signedIn = false;
+  let unavailable = false;
   try {
-    const { data, error } = await supabase.auth.getClaims();
+    const { data, error } = await withDeadline("proxy.get_claims", () => supabase.auth.getClaims());
     signedIn = !error && Boolean(data?.claims?.sub);
+    unavailable = Boolean(error) && isAuthRetryableFetchError(error);
   } catch (err) {
-    logger.warn({ err }, "Supabase session check failed; treating as signed out");
+    unavailable = true;
+    logger.warn({ err }, "Supabase session check failed");
   }
+  if (unavailable) logger.warn("Supabase session check unavailable; the page will re-check");
 
   return {
     signedIn,
+    unavailable,
     withCookies: (response) => {
       for (const { name, value, options } of pending) response.cookies.set(name, value, options);
       for (const [key, value] of Object.entries(pendingHeaders)) response.headers.set(key, value);
