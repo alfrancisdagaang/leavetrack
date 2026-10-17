@@ -1,8 +1,9 @@
 # LeaveTrack — Session Handoff
 
-Last updated: Friday 2026-10-16, evening · Code state: `main` is at `169bbcc` and equals `origin/main` (everything is pushed).
-The only uncommitted change is this file. Five commits this session after `37e5722`: `5f49aaf` (TASK-020 + 021), `35a734b`
-(TASK-022), `50a74d5` (TASK-024), `6cda7f3` (outage handling and query logging), `169bbcc` (deadlines on Auth calls and queries).
+Last updated: Saturday 2026-10-17 · Code state: `main` is at `517ce12` and equals `origin/main` (everything is pushed).
+The only uncommitted change is this file. One commit this session after `c4e8c4e`: `517ce12` (page-load reliability: streamed
+sections and one retry of reads). Last session (2026-10-16): `5f49aaf` (TASK-020 + 021), `35a734b` (TASK-022), `50a74d5`
+(TASK-024), `6cda7f3` (outage handling and query logging), `169bbcc` (deadlines on Auth calls and queries).
 
 A living note for starting a new session without chat history. Update it at the end of each session.
 Everything below is either **verified** (checked by me on the date above), **reported** (the user told me; I did not see it),
@@ -26,9 +27,10 @@ or explicitly marked as a **decision**, **lean** (a recommendation, not agreed),
 - **Demo: Monday 2026-10-19.** The user must show their supervisor an **online** system. The user works alone as far as we
   know (unconfirmed) and can work weekends. Days left after today: Fri 10-16 to Mon 10-19 morning.
 - **The user said real sign-in is expected on Monday** (2026-10-15). It is not in the original PRD; it is now US-09 / EPIC-2.
-  **Status 2026-10-16: real sign-in is built and works** (TASK-020, 021, 022, 024 all validated; live checks below). What is
-  **not** settled is the staging **stall problem** (section 0a): pages sometimes hang. If it is not understood or contained by
-  Saturday evening, demo the labelled mock fallback and say so plainly.
+  **Status 2026-10-16: real sign-in is built and works** (TASK-020, 021, 022, 024 all validated; live checks below).
+  **Status 2026-10-17:** the staging **stall problem** (section 0a) is **mitigated** (page-load reliability, `517ce12`) and the
+  user **reports no stuck loading** on the deployment. The cause is still **unproven**; watch the logs (section 0a). If pages
+  start hanging again, demo the labelled mock fallback and say so plainly.
 - **Supervisor's original scope:** US-01 to US-08 (EPIC-1). All built; TASK-016 (mobile pass) is the only EPIC-1 task still `Open`.
 - **UI approach:** the Figma dashboard design (file `GrKk5YyfJcDRdPBr7xXTF9`, now six frames: Manager desktop 14:8878, Manager
   mobile 14:9401, Account dropdown 14:9931, Mobile drawer 14:9698, Collapsed rail 14:9981, Navigation by role 14:9946) is the
@@ -52,19 +54,50 @@ or explicitly marked as a **decision**, **lean** (a recommendation, not agreed),
     user's own shell; shared demo password chosen by the user, never in chat). **"Allow new users to sign up" was still ON
     at the last check and the Site URL was not confirmed set: both are the user's to do** (Authentication, Sign In / Providers).
   - Passwords, keys and connection strings were never committed. Never paste them into chat.
+  - **Database password changed 2026-10-17 (reported by the user).** A stale copy caused two outages that looked like code bugs:
+    Vercel `DATABASE_URL` (`28P01`, shown to the user as React **#441**) and the GitHub `db-push` job (`SUPABASE_DB_URL`).
+    The user fixed both. The password now lives in **four** places: Vercel `DATABASE_URL` (Transaction pooler, 6543), GitHub
+    `SUPABASE_DB_URL` (Session pooler, 5432; check the **production Environment** secret, it overrides a repo-level one), the
+    local `.env.local`, and any other local copy. Rotate all of them together. URL-encode special characters.
 
 ### Plan (remaining)
 
-| Day               | Work                                                                                                                                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Fri 10-16**     | Done: TASK-020, 021, 022, 024 (real sign-in), stall diagnosis and two resilience fixes (section 0a). Pushed.                                                                                                  |
-| **Sat-Sun 10-18** | Settle the stall problem (dashboard reliability task), TASK-025 security review, TASK-027 staging rollout (sign-ups off, Site URL, mock off), click-through as each role on the live URL, demo script, buffer |
-| **Mon 10-19 am**  | Rehearse (from the network you will demo on), then demo                                                                                                                                                       |
+| Day               | Work                                                                                                                                                                                                                                   |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fri 10-16**     | Done: TASK-020, 021, 022, 024 (real sign-in), stall diagnosis and two resilience fixes (section 0a). Pushed.                                                                                                                           |
+| **Sat-Sun 10-18** | Done Sat: page-load reliability, deployed, user reports no stuck loading. Left: TASK-025 security review, TASK-027 staging rollout (sign-ups off, Site URL, mock off), click-through as each role on the live URL, demo script, buffer |
+| **Mon 10-19 am**  | Rehearse (from the network you will demo on), then demo                                                                                                                                                                                |
 
 If time runs short, cut in this order: change-password page (TASK-026), polish, request detail page and cancel, extra features.
 The core loop (US-01 to US-05), accrual, the sidebar shell, the cards and the calendar are done.
 
-### 0a. Staging stall problem (open, 2026-10-16; the most important unresolved item)
+### 0a. Staging stall problem (mitigated 2026-10-17; cause still unproven)
+
+**Update 2026-10-17.** Evidence and result, newest first:
+
+- **Result (reported by the user):** after `517ce12` deployed, "no stuck loading in pages". I did not see the Vercel logs.
+  **Which change helped is unknown** (the retry, the shorter connection lifetimes, the streaming, or fewer queries).
+- **A new log line (reported):** `query: "balance.last_accrual"`, `ms: 8000`, `deadlineMs: 8000`. That query is
+  `select max(period) from accrual_ledger` on a tiny table, run in parallel with `balance.summary`, which finished. A slow query
+  would not do that; a stuck pooled connection would (candidate 1 below). Still not reproducible locally.
+- **A separate cause, not the stall:** Vercel's `DATABASE_URL` had a stale password (`28P01`, 525 ms), which made Request Leave
+  crash with React #441 ("error in the Server Components render, message omitted in production"; verified in React's
+  `codes.json`). Fixed by the user in the Vercel variable, no code involved.
+- **Found by reading the code:** `getMySummary` runs 4 queries but the dashboard and Request Leave used only the balances
+  (one wasted query and a 50-row fetch each); a manager's dashboard issued up to about 7 queries against a pool of `max: 5`;
+  Request Leave and My balance had no `try/catch`, so any read failure became the error page. (I wrongly said earlier that layout
+  and page make two Auth calls: `getSession()` is wrapped in React `cache`, so it is one.)
+- **Done (`517ce12`, retro `2026-10-17-page-load-reliability.md`):** `timedRead` (3 s first attempt, one retry on a deadline or a
+  lost connection, 8 s total, reads only), `idle_timeout` 10 and `max_lifetime` 300 (pool still `max: 5`), `getBalanceSummary`,
+  dashboard / Request Leave / My balance rendered as a header plus `<Suspense>` sections with per-section failure fallbacks,
+  `prefetch={false}` on the dashboard's links, all read paths (pages, `session.find_user`, read API routes) on `timedRead`.
+  The optional `staleTimes` client cache was **left out** (stale approvals and balances on the demo screens; sign-out risk).
+- **Verified locally:** against a TCP black hole as the database, first byte in 21-79 ms, pages degrade with messages, each read
+  retried once (3 s, then 5 s left), 8 s total. A retry that _succeeds_ is only unit-tested.
+- **How to tell it is working on Vercel:** `Database query hit its deadline` should become rare and `Retrying read query`
+  (with `attempt: 2`) should appear instead. If `balance.last_accrual` still hits 8 s every time, it is not a dead connection.
+
+**Original write-up, 2026-10-16:**
 
 **Symptom (reported by the user, live on `leavetrack-seven.vercel.app`):** the dashboard sometimes stays on its loading skeleton,
 worst after navigating to other pages and back ("other pages are fast, the dashboard sticks; a refresh fixes it"); manager and
@@ -114,7 +147,7 @@ Vercel Logs for a burst of `?_rsc=` requests right after opening the dashboard.
   `max: 5` 0.5 s, `max: 3` 7 s, `max: 1` 40 s, because fewer connections serialise the dashboard's parallel queries. The pool stays
   `max: 5`, `idle_timeout: 20`.
 
-**Proposed next task, "dashboard reliability" (NOT yet evaluated; the user was about to answer):**
+**Proposed next task, "dashboard reliability" (DONE 2026-10-17 as "page-load reliability", `517ce12`; kept for history):**
 
 1. `prefetch={false}` on the dashboard's own links (previous, today, next month, "New request", logo).
 2. Retry a read query once on a fresh connection when it hits its deadline, with a shorter first deadline (about 3 s; healthy queries
@@ -130,6 +163,24 @@ Tests with fake timers; writes stay unwrapped. After deploy, read the logs for `
 **Still unverified:** that the stall is fixed (not reproducible locally); that `npm run build` passes on `6cda7f3` and `169bbcc`
 (port 3000 was held by the user's own server, so I did not build; the Vercel deployment evidently built, since its new log lines
 appeared); GitHub Actions for the last five commits (`gh` is not installed).
+
+### What was done on 2026-10-17 (verified by me unless marked)
+
+- **Machine changed:** this session ran on **macOS** (zsh), not the Windows machine of earlier sessions. `.env.local` did not exist
+  here; the user created and filled it (`DATABASE_URL` and the two `NEXT_PUBLIC_SUPABASE_*` values, **reported**; I only saw
+  which keys were empty, never the values). Presumably it points at the staging pooler; I did not see it. No local Postgres was
+  set up on this Mac.
+- **graphify:** a full `/graphify .` rebuild was started, then **discarded** at the user's choice: graphify's shrink guard refused
+  to overwrite the existing graph (877 new nodes vs 1071; the old graph had about 400 finer-grained document nodes). Installed the
+  SQL extra (`uv tool install "graphifyy[sql]" --force`); the SQL migrations were already in the graph. `graphify-out/` is
+  unchanged. A plain `--update` flagged all 201 files as changed (the manifest did not match), so only the SQL files were
+  re-extracted by hand; they came out identical, and the original `graph.json` was restored.
+- **Page-load reliability** (`517ce12`, pushed): see section 0a. 27 files; `timedRead`, streamed sections, retro and pattern
+  (`knowledge/patterns/implement-and-test.md`, "Canonical data-page pattern"). Tests 352 passed, 14 skipped; `lint`,
+  `format:check`, `typecheck` clean; `npm run build` passed **in a throwaway copy** (the user's `next start` held port 3000).
+- **GitHub Actions `db-push` failed with `28P01`** after the push: the `SUPABASE_DB_URL` secret still had the old database
+  password. The push had no migrations, so nothing was skipped. The user updated the secret (Session pooler, port 5432) and
+  re-ran the job; **reported fixed**.
 
 ### What was done on 2026-10-16 (verified by me unless marked)
 
@@ -179,6 +230,8 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
 
 ### Progress
 
+- [x] **Page-load reliability** (2026-10-17, `517ce12`): streamed sections, `timedRead`, shorter connection lifetimes. The user
+      reports no stuck loading on the deployment; the cause is unproven (section 0a).
 - [x] EPIC-1: TASK-010 to TASK-015, TASK-017, TASK-018 (`Done`) · [ ] **TASK-016** mobile pass (`Open`: the dashboard, request
       form and balance were measured; approvals and audit were not)
 - [x] UI foundation, restyle, sidebar shell and cards, calendar (committed and pushed)
@@ -190,16 +243,20 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
 
 ### Next session: do these in order
 
-0. **Servers and state.** `main` is pushed (`169bbcc`). The user's `next start` on port 3000 was still running an old build at the
-   last check; check the port before any build and never build while it listens. Postgres 18 on port 54329 was started by me this
-   session (`pg_ctl`); it stops on reboot. Ask the user what the Vercel deployment, GitHub Actions and the logs show.
-1. **Stall problem (section 0a), first.** Get the user's answer on the optional `staleTimes` cache, then `/evaluate` the "dashboard
-   reliability" task (prefetch off on the dashboard, one retry of read queries with a 3 s first deadline, shorter idle and max
-   connection lifetime). Ask the user for the Vercel log lines (`Deadline exceeded`, `Database query hit its deadline`) and whether
-   opening the dashboard fires a burst of `?_rsc=` requests. Do not shrink the pool.
+0. **Servers and state.** `main` is pushed (`517ce12`). Check the port before any build and never build while something listens on
+   3000 (the user's `next start` did, PID 10269 at the last check): build in a throwaway copy instead (copy the repo without
+   `node_modules`, `.next`, `.git` and `.env*`, clone `node_modules` with `cp -Rc`, build there). The Postgres 18 on port 54329
+   belonged to the old Windows machine. Ask the user what the Vercel logs and GitHub Actions show.
+1. **Watch the stall (section 0a).** Ask the user for the Vercel log lines after the deploy: `Retrying read query`,
+   `Database query hit its deadline`, `Slow database query`, and whether `?_rsc=` bursts remain. No new code unless it recurs.
+   Do not shrink the pool.
+   **Backlog from this task:** `session.find_user` still runs before the shell (a stalled lookup delays the first byte by up to
+   8 s, about 3 s with the retry); with the database fully down each page still takes about 8 s to finish; approvals and audit
+   only got the retry, not streaming; `28P01` still shows the generic error page (fold into the polish batch, item 5).
 2. **User's own steps before Monday (I cannot do them):** switch off "Allow new users to sign up" and set the Site URL in Supabase;
    remove `ALLOW_MOCK_LOGIN` (or set false) on Vercel and redeploy; rotate the `.mcp.json` key; click through as each of the seven
-   users on the live URL (shared password); optionally set `APP_TIMEZONE`.
+   users on the live URL (shared password); optionally set `APP_TIMEZONE`. Whenever the database password changes, update all four
+   places (section 0, Accounts).
 3. **Remaining live checks not done:** the "not set up" account against real Supabase (an Auth user with a non-seed email), rate-limit
    and `email_not_confirmed` codes, token refresh after about an hour, the 503 path against a real outage.
 4. **TASK-025** (CSP and security review), **TASK-027** (rollout and demo script), **TASK-026** only if time allows.
@@ -296,24 +353,22 @@ mock fallback  only when ALLOW_MOCK_LOGIN is true, clearly labelled; with it off
 
 ### Source control
 
-- `main` is at `169bbcc` and equals `origin/main` (verified with `git fetch` and `rev-parse`). Working tree: only `knowledge/HANDOFF.md`
-  modified. Newest first: `169bbcc` fix: deadlines on auth calls and queries; `6cda7f3` fix: report db and auth outages as unavailable and
-  log slow queries; `50a74d5` feat: script to create supabase auth users (TASK-024); `35a734b` feat: email and password sign-in
-  (TASK-022); `5f49aaf` feat: supabase session resolution and proxy session check (TASK-020 + 021); `37e5722` docs: refresh handoff
-  commit state; `1b0eb06` docs; `4c7cc9f` sidebar shell, cards and calendar; then the earlier feature commits (restyle, TASK-018
-  tests, Figma header, skeletons, region bom1, HR audit, accrual, approvals, submit and balance, UI foundation, scaffold). `main` is the only branch.
+- `main` is at `517ce12` and equals `origin/main` (verified with `rev-parse`). Working tree: only `knowledge/HANDOFF.md` modified.
+  Newest first: `517ce12` fix: stream page sections and retry stalled reads; `c4e8c4e` docs: update handoff for the 2026-10-16
+  session; `169bbcc` fix: deadlines on auth calls and queries; `6cda7f3` fix: report db and auth outages as unavailable and log
+  slow queries; `50a74d5` feat: script to create supabase auth users (TASK-024); `35a734b` feat: email and password sign-in
+  (TASK-022); `5f49aaf` feat: supabase session resolution and proxy session check (TASK-020 + 021); then the earlier
+  commits. `main` is the only branch, and commits go straight to it. commitlint limits body lines to 100 characters.
 - `gh` is not installed: CI can only be checked on the GitHub website.
 - Package manager is **npm only**.
 - Git prints "CRLF will be replaced by LF" warnings on Windows; harmless (lint-staged runs prettier).
 
 ### Quality gate (re-verified 2026-10-16 evening on the committed tree)
 
-`lint` and `typecheck` pass and **330 tests passed, 14 skipped** (32 test files passed, 3 skipped; the skipped ones are the gated
-real-database tests). `format:check` passed when the last change was applied. **`npm run build` was NOT run on `6cda7f3` or `169bbcc`**
-(the user's server held port 3000); it last passed on `35a734b`. Real-Supabase checks were done by the user (TASK-022 on local dev,
-TASK-024 against the staging project). The local hang smoke used a TCP "black hole" as a stand-in for a stalled Auth server. Gated
-tests: `leave-types.integration.test.ts`, `calendar.integration.test.ts`, `users.integration.test.ts` (throwaway database; they
-passed in earlier runs, not re-run this evening).
+Re-verified 2026-10-17 on `517ce12`: `lint`, `format:check` and `typecheck` pass; **352 tests passed, 14 skipped** (35 test files
+passed, 3 skipped; the skipped ones are the gated real-database tests, not re-run). `npm run build` passed in a throwaway copy.
+Real-Supabase checks were done by the user. The black-hole smoke script was a scratchpad file (not kept): a Python socket that
+accepts and never answers, `DATABASE_URL` pointed at it, built copy on port 3002, mock login cookie `mock-role=employee`.
 
 ### Built
 
@@ -344,6 +399,12 @@ passed in earlier runs, not re-run this evening).
 - Real sign-in: `src/lib/supabase/{server,proxy,fetch}.ts`, `src/lib/auth/{session,users,mock-cookie}.ts`, `src/app/login/*`,
   `src/lib/db/timed.ts`, `scripts/seed-auth-users*.ts`, `SERVICE_UNAVAILABLE` (503) in `app-error.ts`, `maxDuration` on routes.
 
+### Built on 2026-10-17
+
+- `timedRead` in `src/lib/db/timed.ts`; `getBalanceSummary` in `src/lib/leave/service.ts`; the dashboard's `sections.tsx` and
+  `skeletons.tsx`; `balance-section.tsx` and `balance-skeleton.tsx`; `request-form-section.tsx` and `request-form-skeleton.tsx`;
+  section tests (`*.test.ts` only: Vitest's include pattern skips `.tsx`).
+
 ### Not built or not connected
 
 - **Mock fallback:** while `ALLOW_MOCK_LOGIN` is true anyone with the URL can pick a role (Elena, Marco or Hana only). Switch it off
@@ -355,6 +416,9 @@ passed in earlier runs, not re-run this evening).
 
 ### Machine and tooling notes
 
+- **2026-10-17, macOS (zsh):** unquoted `--include=*.ts` globs and a lone `=====` argument fail in zsh (quote them); a script run
+  as `zsh file` lost its `PATH` here, so run scratch scripts with `bash`. The notes below about Windows, PowerShell and
+  `C:\...` paths describe the earlier machine.
 - Node 22.19, Windows 11, shells: Git Bash and PowerShell. **In one Bash call, avoid several heredocs with quotes; it failed
   twice with "unexpected EOF". Use the Write tool for files.** Files written with Python's default newline come out CRLF on
   Windows; `prettier --write` (also run by lint-staged) normalises them.
