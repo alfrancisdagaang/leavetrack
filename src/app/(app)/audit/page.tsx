@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { timedQuery } from "@/lib/db/timed";
+import { timedRead } from "@/lib/db/timed";
 import { Alert } from "@/components/ui/alert";
 import { Badge, type BadgeVariant } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,7 +84,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
     typeof params[key] === "string" ? (params[key] as string) : undefined;
 
   const sql = requireDb();
-  const employees = await timedQuery("audit.employees", () => listEmployees(sql));
+  const employees = await timedRead("audit.employees", () => listEmployees(sql));
 
   const userParam = one("user");
   const includeDeleted = one("deleted") === "1";
@@ -104,9 +104,7 @@ export default async function AuditPage({ searchParams }: { searchParams: Promis
       problem = query.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
     } else {
       try {
-        history = await timedQuery("audit.history", () =>
-          getAuditHistory(sql, id.data, query.data),
-        );
+        history = await timedRead("audit.history", () => getAuditHistory(sql, id.data, query.data));
       } catch (err) {
         if (err instanceof AppError && err.code === "NOT_FOUND") problem = err.message;
         else throw err;

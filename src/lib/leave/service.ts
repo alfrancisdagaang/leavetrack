@@ -65,6 +65,11 @@ async function loadBalanceSummary(
   return summarizeBalances(types, balances, pending);
 }
 
+/** Balances only (confirmed, pending, available per type): for pages that do not list requests. */
+export async function getBalanceSummary(sql: Sql, userId: string): Promise<BalanceSummaryItem[]> {
+  return loadBalanceSummary(sql, userId);
+}
+
 /**
  * US-01. Creates a pending request and its `submitted` audit row in one transaction.
  * The manager is not stored on the request: their queue finds it through users.manager_id,

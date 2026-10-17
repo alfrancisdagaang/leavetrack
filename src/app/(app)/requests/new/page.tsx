@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { timedQuery } from "@/lib/db/timed";
-import { Alert } from "@/components/ui/alert";
+import { Suspense } from "react";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { LoadingRegion } from "@/components/ui/skeleton";
 import { requireSession } from "@/lib/auth/guards";
-import { getMySummary, requireDb } from "@/lib/leave/service";
-import { RequestForm } from "./request-form";
+import { RequestFormSection } from "./request-form-section";
+import { RequestFormSkeleton } from "./request-form-skeleton";
 
 export const metadata: Metadata = { title: "Request leave" };
 export const dynamic = "force-dynamic";
@@ -13,9 +13,6 @@ export const dynamic = "force-dynamic";
 /** US-01. The session user is the requester; the form never sends a user id. */
 export default async function NewRequestPage() {
   const { user } = await requireSession();
-  const { balances } = await timedQuery("requests_new.summary", () =>
-    getMySummary(requireDb(), user.id),
-  );
 
   return (
     <div className="max-w-5xl">
@@ -25,11 +22,15 @@ export default async function NewRequestPage() {
       />
       <div className="max-w-xl">
         <Card>
-          {balances.length === 0 ? (
-            <Alert variant="error">No leave types are set up yet.</Alert>
-          ) : (
-            <RequestForm balances={balances} />
-          )}
+          <Suspense
+            fallback={
+              <LoadingRegion>
+                <RequestFormSkeleton />
+              </LoadingRegion>
+            }
+          >
+            <RequestFormSection userId={user.id} />
+          </Suspense>
         </Card>
       </div>
     </div>

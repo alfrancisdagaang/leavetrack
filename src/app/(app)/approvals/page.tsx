@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { timedQuery } from "@/lib/db/timed";
+import { timedRead } from "@/lib/db/timed";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -29,8 +29,8 @@ export default async function ApprovalsPage() {
   const { user } = await requireRole("manager", "hr_admin");
   const sql = requireDb();
   const [queue, decided] = await Promise.all([
-    timedQuery("approvals.queue", () => getTeamQueue(sql, user.id)),
-    timedQuery("approvals.decided", () => getRecentlyDecided(sql, user.id)),
+    timedRead("approvals.queue", () => getTeamQueue(sql, user.id)),
+    timedRead("approvals.decided", () => getRecentlyDecided(sql, user.id)),
   ]);
 
   return (

@@ -179,16 +179,18 @@ export function LeaveCalendar({
         <div className="flex gap-1">
           <Link
             href={href(shiftMonth(month, -1), showRejected)}
+            prefetch={false}
             aria-label="Previous month"
             className={NAV}
           >
             <Image src="/icons/chevron-left.svg" alt="" width={20} height={20} unoptimized />
           </Link>
-          <Link href={href(null, showRejected)} className={NAV}>
+          <Link href={href(null, showRejected)} prefetch={false} className={NAV}>
             Today
           </Link>
           <Link
             href={href(shiftMonth(month, 1), showRejected)}
+            prefetch={false}
             aria-label="Next month"
             className={NAV}
           >

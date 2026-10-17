@@ -1,5 +1,5 @@
 import { assertRole } from "@/lib/auth/guards";
-import { timedQuery } from "@/lib/db/timed";
+import { timedRead } from "@/lib/db/timed";
 import { AppError } from "@/lib/errors/app-error";
 import { ok, withErrorHandling } from "@/lib/errors/respond";
 import { createLeaveRequestSchema, listQuerySchema } from "@/lib/leave/schemas";
@@ -39,10 +39,8 @@ export const GET = withErrorHandling(async (request) => {
   if (scope === "team") {
     await assertRole("manager", "hr_admin");
     return ok({
-      requests: await timedQuery("api.team_queue", () =>
-        getTeamQueue(requireDb(), session.user.id),
-      ),
+      requests: await timedRead("api.team_queue", () => getTeamQueue(requireDb(), session.user.id)),
     });
   }
-  return ok(await timedQuery("api.my_summary", () => getMySummary(requireDb(), session.user.id)));
+  return ok(await timedRead("api.my_summary", () => getMySummary(requireDb(), session.user.id)));
 });

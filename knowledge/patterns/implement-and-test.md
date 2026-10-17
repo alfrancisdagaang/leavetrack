@@ -36,3 +36,21 @@ The seed's org chart exists to make this test trivial — use it for every manag
 | `DELETE FROM leave_requests`      | DB raises `restrict_violation`                                                                                                                                 |
 | `UPDATE audit_log`                | DB raises `restrict_violation`                                                                                                                                 |
 | soft delete (`is_deleted = true`) | excluded from active views and from the HR audit by default; shown (flagged) in the HR audit only with `include_deleted=true`; the row is never purged (US-05) |
+
+## Canonical data-page pattern (streaming and failure)
+
+For any signed-in page that reads data (learned in the page-load reliability task):
+
+- The page awaits only the session, then renders its header and shell. Each data part is an async server
+  component in its own `<Suspense>` with a skeleton fallback (key it when the URL changes the data).
+- Reads go through `timedRead` (3 s first attempt, one retry, 8 s total). Writes never do: they run in
+  `sql.begin` and are not retried. `timedQuery` stays for a read that must not be retried.
+- A section that is decoration (a caption, a count) catches its own read failure and shows less. A section
+  that is the point of the page shows an alert with a "Try again" link. A page never lets a read failure
+  reach the generic error page.
+- Fetch only what the page shows: a page that needs balances calls `getBalanceSummary`, not `getMySummary`.
+- Test a section by calling the async component and rendering the element with `renderToStaticMarkup`.
+  Vitest only picks up `*.test.ts` here, so no JSX in tests; mock `next/navigation` (`unstable_rethrow`).
+- Smoke it for real: build in a throwaway copy (never while the user's server holds `.next`), point
+  `DATABASE_URL` at a TCP socket that accepts and never answers, and check the first byte arrives in
+  milliseconds, the page degrades with messages, and the log shows `Retrying read query`.

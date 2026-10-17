@@ -1,5 +1,5 @@
 import { assertRole } from "@/lib/auth/guards";
-import { timedQuery } from "@/lib/db/timed";
+import { timedRead } from "@/lib/db/timed";
 import { ok, withErrorHandling } from "@/lib/errors/respond";
 import { getAuditHistory } from "@/lib/leave/audit";
 import { auditQuerySchema, requestIdSchema } from "@/lib/leave/schemas";
@@ -27,7 +27,7 @@ export const GET = withErrorHandling<Context>(async (request, context) => {
     include_deleted: searchParams.get("include_deleted") ?? undefined,
   });
 
-  const history = await timedQuery("api.audit_history", () =>
+  const history = await timedRead("api.audit_history", () =>
     getAuditHistory(requireDb(), userId, query),
   );
   return ok({ ...history, filters: query });

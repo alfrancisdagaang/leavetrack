@@ -17,7 +17,11 @@ export function getDb(): postgres.Sql | undefined {
   sql ??= postgres(DATABASE_URL, {
     prepare: false,
     max: 5,
-    idle_timeout: 20,
+    // Drop idle sockets quickly and retire old ones: the pooler closes connections a frozen
+    // serverless function never noticed, and a dead socket only shows up as a stalled query.
+    // Best effort; timedRead's retry is what covers a socket that is already dead.
+    idle_timeout: 10,
+    max_lifetime: 300,
     connect_timeout: 5,
   });
   return sql;

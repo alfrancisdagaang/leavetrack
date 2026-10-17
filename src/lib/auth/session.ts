@@ -9,7 +9,7 @@ import { unstable_rethrow } from "next/navigation";
 import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { findUserByEmail } from "@/lib/auth/users";
 import { getDb } from "@/lib/db/client";
-import { timedQuery } from "@/lib/db/timed";
+import { timedRead } from "@/lib/db/timed";
 import { withDeadline } from "@/lib/supabase/fetch";
 import { parseRole, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/lib/auth/mock-cookie";
 import type { User, UserRole } from "@/lib/db/types";
@@ -51,7 +51,7 @@ async function sessionFromSupabase(): Promise<Session | null> {
     logger.warn("Signed-in account cannot be resolved: database not configured");
     return null;
   }
-  const user = await timedQuery("session.find_user", () => findUserByEmail(sql, email));
+  const user = await timedRead("session.find_user", () => findUserByEmail(sql, email));
   if (!user) {
     logger.warn({ authUserId: data.user.id }, "Signed-in account has no users row");
     return null;

@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { QUERY_DEADLINE_MS, SLOW_QUERY_MS, timedQuery } from "@/lib/db/timed";
+import {
+  QUERY_DEADLINE_MS,
+  READ_FIRST_ATTEMPT_MS,
+  SLOW_QUERY_MS,
+  timedQuery,
+  timedRead,
+} from "@/lib/db/timed";
 import { AppError } from "@/lib/errors/app-error";
 
 const log = vi.hoisted(() => ({ warn: vi.fn(), error: vi.fn() }));
@@ -97,5 +103,96 @@ describe("timedQuery", () => {
   it("leaves no timer running after a fast query", async () => {
     await timedQuery("fast", async () => 1);
     expect(vi.getTimerCount()).toBe(0);
+  });
+});
+
+describe("timedRead", () => {
+  it("returns a fast result without a retry", async () => {
+    const run = vi.fn(async () => "ok");
+    await expect(timedRead("fast", run)).resolves.toBe("ok");
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries once after the first-attempt deadline and returns the second result", async () => {
+    let calls = 0;
+    const run = vi.fn(() => (++calls === 1 ? new Promise<never>(() => {}) : Promise.resolve("ok")));
+    const pending = timedRead("balance.last_accrual", run);
+    await vi.advanceTimersByTimeAsync(READ_FIRST_ATTEMPT_MS);
+    await expect(pending).resolves.toBe("ok");
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ query: "balance.last_accrual", attempt: 2 }),
+      "Retrying read query",
+    );
+  });
+
+  it("fails with SERVICE_UNAVAILABLE after the total deadline when both attempts stall", async () => {
+    const run = vi.fn(() => new Promise<never>(() => {}));
+    const settled = timedRead("dashboard.calendar", run).catch((e: unknown) => e);
+    await vi.advanceTimersByTimeAsync(QUERY_DEADLINE_MS);
+    const err = await settled;
+    expect(err).toBeInstanceOf(AppError);
+    expect((err as AppError).code).toBe("SERVICE_UNAVAILABLE");
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("gives the retry only what is left of the deadline, so the total never grows", async () => {
+    const run = vi.fn(() => new Promise<never>(() => {}));
+    const settled = timedRead("x", run).catch(() => "done");
+    await vi.advanceTimersByTimeAsync(QUERY_DEADLINE_MS - 1);
+    expect(vi.getTimerCount()).toBeGreaterThan(0);
+    await vi.advanceTimersByTimeAsync(1);
+    await expect(settled).resolves.toBe("done");
+  });
+
+  it("retries once when the connection went away", async () => {
+    const gone = Object.assign(new Error("connection closed"), { code: "CONNECTION_CLOSED" });
+    let calls = 0;
+    const run = vi.fn(async () => {
+      if (++calls === 1) throw gone;
+      return "ok";
+    });
+    await expect(timedRead("session.find_user", run)).resolves.toBe("ok");
+    expect(run).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not retry an ordinary database error such as a statement timeout", async () => {
+    const failure = Object.assign(new Error("canceling statement"), { code: "57014" });
+    const run = vi.fn(async () => {
+      throw failure;
+    });
+    await expect(timedRead("x", run)).rejects.toBe(failure);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry a bad password, which a second attempt cannot fix", async () => {
+    const failure = Object.assign(new Error("password authentication failed"), { code: "28P01" });
+    const run = vi.fn(async () => {
+      throw failure;
+    });
+    await expect(timedRead("x", run)).rejects.toBe(failure);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry an expected AppError, even a 503 the query raised itself", async () => {
+    const own = new AppError("SERVICE_UNAVAILABLE", "raised by the query, not the deadline");
+    const run = vi.fn(async () => {
+      throw own;
+    });
+    await expect(timedRead("x", run)).rejects.toBe(own);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("never logs SQL or values while retrying", async () => {
+    let calls = 0;
+    const run = () =>
+      ++calls === 1 ? new Promise<never>(() => {}) : Promise.resolve("select * from users");
+    const pending = timedRead("x", run);
+    await vi.advanceTimersByTimeAsync(READ_FIRST_ATTEMPT_MS);
+    await pending;
+    expect(JSON.stringify([...log.warn.mock.calls, ...log.error.mock.calls])).not.toContain(
+      "select",
+    );
   });
 });
