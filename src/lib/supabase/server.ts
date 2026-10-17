@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getEnv } from "@/lib/env";
+import { supabaseCookieOptions } from "@/lib/supabase/cookie-options";
 import { fetchWithDeadline } from "@/lib/supabase/fetch";
 
 /**
@@ -14,6 +15,7 @@ export async function createSupabaseServerClient() {
   const cookieStore = await cookies();
   return createServerClient(url, anonKey, {
     global: { fetch: fetchWithDeadline("auth.get_user") },
+    cookieOptions: supabaseCookieOptions(),
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (toSet) => {

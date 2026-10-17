@@ -3,6 +3,7 @@ import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import type { NextRequest, NextResponse } from "next/server";
 import { getEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
+import { supabaseCookieOptions } from "@/lib/supabase/cookie-options";
 import { fetchWithDeadline, withDeadline } from "@/lib/supabase/fetch";
 
 export type ProxySupabaseSession = {
@@ -34,6 +35,7 @@ export async function refreshSupabaseSession(
   const pendingHeaders: Record<string, string> = {};
   const supabase = createServerClient(url, anonKey, {
     global: { fetch: fetchWithDeadline("proxy.get_claims") },
+    cookieOptions: supabaseCookieOptions(),
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (toSet, headers) => {

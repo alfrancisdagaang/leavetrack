@@ -86,6 +86,12 @@ export const POST = withErrorHandling(async (request) => {
   not only `APP_ENV` (set by humans, can be forgotten). Examples: `Secure` cookies, never loading
   devDependencies like pino-pretty at runtime.
 - `APP_ENV` stays the switch for _deployment intent_ (staging vs production config strictness).
+- **Library cookie defaults are not security settings** (learned in TASK-025): `@supabase/ssr` sets
+  `httpOnly: false` and no `Secure`. Pass `supabaseCookieOptions()` as `cookieOptions` wherever a
+  Supabase server client is created. A test stub that writes `{ httpOnly: true }` itself proves
+  nothing; assert what the code asks the library for.
+- Secrets reach logs by being passed as fields, not by bad luck: `src/lib/security-guards.test.ts`
+  fails on a service-role identifier in `src` or a cookie/token/header/body/`reason` log field.
 
 ## Catching errors around Next request APIs (learned in TASK-021 VALIDATE)
 

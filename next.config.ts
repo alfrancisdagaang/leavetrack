@@ -5,6 +5,10 @@ const isDev = process.env.NODE_ENV === "development";
 // CSP: Next.js App Router still needs 'unsafe-inline' for its bootstrap scripts
 // and styles. Replace with per-request nonces once the UI shell lands (BACKLOG).
 // 'unsafe-eval' is dev-only (React Refresh).
+// connect-src is 'self' only on purpose (TASK-025). Every Supabase call (sign-in, token refresh,
+// the session check) runs on the server, sign-in is a form post under form-action 'self', and the
+// app has no browser Supabase client, so the browser never contacts the Supabase origin. If a
+// browser client is ever added, allow exactly the project origin here and say why.
 const contentSecurityPolicy = [
   "default-src 'self'",
   `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,

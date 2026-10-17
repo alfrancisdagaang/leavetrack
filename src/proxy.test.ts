@@ -20,6 +20,8 @@ const supabase = vi.hoisted(() => ({
   throws: false,
   retryable: false,
   refreshed: [] as { name: string; value: string }[],
+  // What the proxy asked createServerClient for, to prove it overrides the library's cookie defaults.
+  cookieOptions: undefined as object | undefined,
 }));
 
 vi.mock("@supabase/ssr", () => ({
@@ -27,27 +29,31 @@ vi.mock("@supabase/ssr", () => ({
     _url: string,
     _key: string,
     opts: {
+      cookieOptions?: object;
       cookies: {
         setAll: (c: { name: string; value: string; options: object }[], h: object) => void;
       };
     },
-  ) => ({
-    auth: {
-      getClaims: async () => {
-        if (supabase.throws) throw new Error("auth server unreachable");
-        if (supabase.retryable) {
-          return { data: null, error: new AuthRetryableFetchError("fetch failed", 0) };
-        }
-        if (supabase.refreshed.length) {
-          opts.cookies.setAll(
-            supabase.refreshed.map((c) => ({ ...c, options: { path: "/", httpOnly: true } })),
-            { "Cache-Control": "no-store" },
-          );
-        }
-        return { data: supabase.claims ? { claims: supabase.claims } : null, error: null };
+  ) => {
+    supabase.cookieOptions = opts.cookieOptions;
+    return {
+      auth: {
+        getClaims: async () => {
+          if (supabase.throws) throw new Error("auth server unreachable");
+          if (supabase.retryable) {
+            return { data: null, error: new AuthRetryableFetchError("fetch failed", 0) };
+          }
+          if (supabase.refreshed.length) {
+            opts.cookies.setAll(
+              supabase.refreshed.map((c) => ({ ...c, options: { path: "/", httpOnly: true } })),
+              { "Cache-Control": "no-store" },
+            );
+          }
+          return { data: supabase.claims ? { claims: supabase.claims } : null, error: null };
+        },
       },
-    },
-  }),
+    };
+  },
 }));
 
 vi.mock("@/lib/logger", () => {
@@ -60,6 +66,7 @@ beforeEach(() => {
   supabase.throws = false;
   supabase.retryable = false;
   supabase.refreshed = [];
+  supabase.cookieOptions = undefined;
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://abc.supabase.co");
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "anon-key");
   vi.stubEnv("ALLOW_MOCK_LOGIN", "true");
@@ -127,6 +134,18 @@ describe("proxy — pages", () => {
     expect(res.headers.get("x-middleware-next")).toBe("1");
     expect(res.headers.get("set-cookie")).toMatch(/sb-abc-auth-token=fresh/);
     expect(res.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("TASK-025 AC2: asks for httpOnly, Secure session cookies instead of the library defaults", async () => {
+    vi.stubEnv("APP_ENV", "staging");
+    supabase.claims = { sub: "user-1" };
+    await run("/dashboard", { cookie: SB_COOKIE });
+    expect(supabase.cookieOptions).toEqual({
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      secure: true,
+    });
   });
 
   it("carries refreshed cookies onto a redirect and onto a 401 too", async () => {

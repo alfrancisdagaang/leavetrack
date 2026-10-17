@@ -17,18 +17,19 @@ import { AppError } from "@/lib/errors/app-error";
 import { getEnv } from "@/lib/env";
 import { logger } from "@/lib/logger";
 import { MOCK_USER_BY_ROLE } from "@/lib/mock/users";
+import { isSecureCookie } from "@/lib/supabase/cookie-options";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export { parseRole, SESSION_COOKIE, SESSION_MAX_AGE_SECONDS };
 
 export type Session = { role: UserRole; user: User };
 
-/** Secure unless running locally in dev — a production build is always Secure, even if APP_ENV is unset. */
+/** Options for the mock-role cookie. Secure follows the shared rule in `isSecureCookie`. */
 export function sessionCookieOptions(appEnv: string, nodeEnv = process.env.NODE_ENV) {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure: appEnv !== "development" || nodeEnv === "production",
+    secure: isSecureCookie(appEnv, nodeEnv),
     path: "/",
     maxAge: SESSION_MAX_AGE_SECONDS,
   };

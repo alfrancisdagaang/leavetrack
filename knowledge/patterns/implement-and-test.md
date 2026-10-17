@@ -54,3 +54,16 @@ For any signed-in page that reads data (learned in the page-load reliability tas
 - Smoke it for real: build in a throwaway copy (never while the user's server holds `.next`), point
   `DATABASE_URL` at a TCP socket that accepts and never answers, and check the first byte arrives in
   milliseconds, the page degrades with messages, and the log shows `Retrying read query`.
+
+## Canonical security-verification pattern (cookies, CSP, logging)
+
+Learned in TASK-025: a test that stubs the library proves only what the stub says (the old proxy test wrote
+`{ httpOnly: true }` itself and hid a real `httpOnly: false` default). So:
+
+- Assert what the code **asks the library for**, then run the **real library** once against a fake server and print only flags,
+  never values (`@supabase/ssr` + a fake `fetch` returning a session).
+- Check headers and cookies on the **production build** (`NODE_ENV=production`): build in a throwaway copy, serve on another port,
+  `curl -D -`, and drive headless Chrome through the DevTools protocol (Node 22's global `WebSocket`; collect `Log.entryAdded` and
+  `Runtime.consoleAPICalled`; read cookie flags with `Network.getAllCookies`). Run Node scripts with `bash`, not `zsh file`.
+- A source-level guard test (`src/lib/security-guards.test.ts`) is only worth having if it **fails on a planted violation**: add one
+  in a temporary file, watch it fail, delete it.
