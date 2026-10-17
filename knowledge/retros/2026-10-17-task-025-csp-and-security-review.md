@@ -48,6 +48,10 @@ Run on 2026-10-17 against `517ce12` plus this task, in a throwaway copy (the use
   the deployment with DevTools open and confirm (1) no CSP violation in the console, (2) in Application, Cookies, the
   `sb-*-auth-token` cookie shows `HttpOnly` and `Secure`. Sign out and in once after deploying: an existing browser keeps its
   old cookie until the token refreshes.
+- **Live check, partly reported (2026-10-17):** after signing in with a real demo account the user typed `document.cookie` in
+  DevTools and got `''`, which fits an HttpOnly session cookie (before the fix it would have listed `sb-*-auth-token`). The
+  Cookies table (HttpOnly, Secure, SameSite) and the Console (CSP errors) were **not reported**, so AC1 and AC2 stay unconfirmed
+  on the live site until they are.
 
 ## Backlog
 

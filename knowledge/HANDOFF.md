@@ -1,8 +1,9 @@
 # LeaveTrack — Session Handoff
 
-Last updated: Saturday 2026-10-17 · Code state: `main` is at `517ce12` and equals `origin/main` (everything is pushed).
-The only uncommitted change is this file. One commit this session after `c4e8c4e`: `517ce12` (page-load reliability: streamed
-sections and one retry of reads). Last session (2026-10-16): `5f49aaf` (TASK-020 + 021), `35a734b` (TASK-022), `50a74d5`
+Last updated: Saturday 2026-10-17 (end of session) · Code state: `origin/main` is at `bababb5`. Local `main` has **one more
+commit, this handoff, which is NOT pushed** (the user will push later). Working tree clean after that commit.
+Commits this session after `c4e8c4e`: `517ce12` (page-load reliability: streamed sections and one retry of reads), `3337112`
+(an earlier handoff), `bababb5` (TASK-025: httpOnly and Secure session cookie, wider log redaction). Last session (2026-10-16): `5f49aaf` (TASK-020 + 021), `35a734b` (TASK-022), `50a74d5`
 (TASK-024), `6cda7f3` (outage handling and query logging), `169bbcc` (deadlines on Auth calls and queries).
 
 A living note for starting a new session without chat history. Update it at the end of each session.
@@ -31,6 +32,10 @@ or explicitly marked as a **decision**, **lean** (a recommendation, not agreed),
   **Status 2026-10-17:** the staging **stall problem** (section 0a) is **mitigated** (page-load reliability, `517ce12`) and the
   user **reports no stuck loading** on the deployment. The cause is still **unproven**; watch the logs (section 0a). If pages
   start hanging again, demo the labelled mock fallback and say so plainly.
+  **Status 2026-10-17 (later): TASK-025 is built, validated and pushed (`bababb5`).** The Supabase session cookie was NOT
+  httpOnly or Secure (library default); it is now. Live check **partly reported**: after signing in the user typed
+  `document.cookie` in DevTools and got `''` (the `sb-*-auth-token` cookie is hidden from scripts). **Not reported:** the Cookies
+  table (HttpOnly, Secure, SameSite) and whether the Console shows any CSP error. Ask for both, then mark the retro verified.
 - **Supervisor's original scope:** US-01 to US-08 (EPIC-1). All built; TASK-016 (mobile pass) is the only EPIC-1 task still `Open`.
 - **UI approach:** the Figma dashboard design (file `GrKk5YyfJcDRdPBr7xXTF9`, now six frames: Manager desktop 14:8878, Manager
   mobile 14:9401, Account dropdown 14:9931, Mobile drawer 14:9698, Collapsed rail 14:9981, Navigation by role 14:9946) is the
@@ -59,14 +64,18 @@ or explicitly marked as a **decision**, **lean** (a recommendation, not agreed),
     The user fixed both. The password now lives in **four** places: Vercel `DATABASE_URL` (Transaction pooler, 6543), GitHub
     `SUPABASE_DB_URL` (Session pooler, 5432; check the **production Environment** secret, it overrides a repo-level one), the
     local `.env.local`, and any other local copy. Rotate all of them together. URL-encode special characters.
+  - **Shared demo password reset 2026-10-17 (reported).** The user could not sign in as `elena.cruz@leavetrack.example` on live
+    or locally: the shared password was not the one the accounts had. They re-ran `npm run auth:seed -- --yes` in their own
+    shell with a new `DEMO_PASSWORD`, which reset all seven accounts, and sign-in then worked. **The new password lives only
+    with the user** (never in chat or the repo): they should keep it in a password manager and give it to demo attendees directly.
 
 ### Plan (remaining)
 
-| Day               | Work                                                                                                                                                                                                                                   |
-| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Fri 10-16**     | Done: TASK-020, 021, 022, 024 (real sign-in), stall diagnosis and two resilience fixes (section 0a). Pushed.                                                                                                                           |
-| **Sat-Sun 10-18** | Done Sat: page-load reliability, deployed, user reports no stuck loading. Left: TASK-025 security review, TASK-027 staging rollout (sign-ups off, Site URL, mock off), click-through as each role on the live URL, demo script, buffer |
-| **Mon 10-19 am**  | Rehearse (from the network you will demo on), then demo                                                                                                                                                                                |
+| Day               | Work                                                                                                                                                                                                                                                                                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Fri 10-16**     | Done: TASK-020, 021, 022, 024 (real sign-in), stall diagnosis and two resilience fixes (section 0a). Pushed.                                                                                                                                                                        |
+| **Sat-Sun 10-18** | Done Sat: page-load reliability, deployed, user reports no stuck loading. TASK-025 security review done and pushed (live check partly reported). Left: TASK-027 staging rollout (sign-ups off, Site URL, mock off), click-through as each role on the live URL, demo script, buffer |
+| **Mon 10-19 am**  | Rehearse (from the network you will demo on), then demo                                                                                                                                                                                                                             |
 
 If time runs short, cut in this order: change-password page (TASK-026), polish, request detail page and cancel, extra features.
 The core loop (US-01 to US-05), accrual, the sidebar shell, the cards and the calendar are done.
@@ -181,6 +190,25 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
 - **GitHub Actions `db-push` failed with `28P01`** after the push: the `SUPABASE_DB_URL` secret still had the old database
   password. The push had no migrations, so nothing was skipped. The user updated the secret (Session pooler, port 5432) and
   re-ran the job; **reported fixed**.
+- **TASK-025 CSP and security review** (`bababb5`, pushed; retro `2026-10-17-task-025-csp-and-security-review.md`):
+  - **AC2 was a real gap.** `@supabase/ssr` 0.12.7 defaults to `httpOnly: false` and no `Secure`, and both clients passed its
+    options through, so the `sb-*-auth-token` cookie was readable by page scripts (ADR-E003 had claimed httpOnly). Fixed with
+    `src/lib/supabase/cookie-options.ts` (`supabaseCookieOptions`, `isSecureCookie`) passed as `cookieOptions` in
+    `src/lib/supabase/server.ts` and `proxy.ts`. Proved with the **real library against a fake Auth server**: before
+    `httpOnly=false secure=undefined`, after `httpOnly=true secure=true sameSite=lax`.
+  - The old proxy test stub wrote `{ httpOnly: true }` itself and hid the default; it now asserts what the proxy asks for.
+  - **AC3:** the logger's redact list only matched `*.password` and `*.token` one level down. `REDACT_PATHS` (exported) now covers
+    password, token, access_token, refresh_token, cookie, authorization at top level and one level down. New guard tests
+    (`security-guards.test.ts`: no service-role identifier in `src`, no secret-named `NEXT_PUBLIC_` variable, no secret-like log
+    field) were proved to fail on a planted violation.
+  - **AC1:** `connect-src 'self'` is unchanged on purpose (no browser Supabase client; every Auth call is server-side). A comment
+    in `next.config.ts` says so. Production build + headless Chrome: mock sign-in to `/dashboard` with no CSP violation; the
+    only console error was a `404` for `/favicon.ico`. A real Supabase sign-in could not be driven by me (shared password).
+  - Docs: ADR-E003 update (the cookie is httpOnly only because we override the default), two coding-standards rules, a pattern.
+- **Sign-in debugging tip:** the login form shows "Incorrect email or password." for three Supabase errors, `invalid_credentials`,
+  `user_not_found` and `email_not_confirmed`, on purpose. The real reason is in Supabase, Logs, Auth. Nothing is logged by the app
+  for these. A wrong Supabase URL or anon key shows a different message ("unavailable").
+- **Not done:** the AGENTS.md "MOCK AUTH" banner reword (asked, no answer), TASK-027, the polish batch, the favicon.
 
 ### What was done on 2026-10-16 (verified by me unless marked)
 
@@ -235,15 +263,16 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
 - [x] EPIC-1: TASK-010 to TASK-015, TASK-017, TASK-018 (`Done`) · [ ] **TASK-016** mobile pass (`Open`: the dashboard, request
       form and balance were measured; approvals and audit were not)
 - [x] UI foundation, restyle, sidebar shell and cards, calendar (committed and pushed)
-- [ ] **EPIC-2 sign-in:** built and validated: TASK-020, 021, 022, 024 (CSV statuses still `Open`; the user has not asked for `Done`).
-      Remaining: 025 (CSP and security review; sign-in is a server action so `connect-src 'self'` is likely unaffected, confirm live),
-      026 (voluntary change-password, first to cut), 027 (staging rollout), 023 (sidebar shell, built but not marked).
+- [ ] **EPIC-2 sign-in:** built and validated: TASK-020, 021, 022, 024, **025** (CSV statuses still `Open`; the user has not asked
+      for `Done`). 025's live check is partly reported (see section 0). Remaining: 027 (staging rollout and demo script, next),
+      026 (voluntary change-password, first to cut), 023 (sidebar shell, built but not marked).
 - [ ] **EPIC-3 dashboard:** TASK-030 calendar built (`Open` until the user asks). Not built: upcoming leave, recent activity,
       request detail page (`/requests/[id]`), the other Figma pages.
 
 ### Next session: do these in order
 
-0. **Servers and state.** `main` is pushed (`517ce12`). Check the port before any build and never build while something listens on
+0. **Servers and state.** `origin/main` is at `bababb5`; the handoff commit on top is local and **not pushed** (push it when the
+   user says). Check the port before any build and never build while something listens on
    3000 (the user's `next start` did, PID 10269 at the last check): build in a throwaway copy instead (copy the repo without
    `node_modules`, `.next`, `.git` and `.env*`, clone `node_modules` with `cp -Rc`, build there). The Postgres 18 on port 54329
    belonged to the old Windows machine. Ask the user what the Vercel logs and GitHub Actions show.
@@ -255,11 +284,18 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
    only got the retry, not streaming; `28P01` still shows the generic error page (fold into the polish batch, item 5).
 2. **User's own steps before Monday (I cannot do them):** switch off "Allow new users to sign up" and set the Site URL in Supabase;
    remove `ALLOW_MOCK_LOGIN` (or set false) on Vercel and redeploy; rotate the `.mcp.json` key; click through as each of the seven
-   users on the live URL (shared password); optionally set `APP_TIMEZONE`. Whenever the database password changes, update all four
+   users on the live URL (with the shared password, reset 2026-10-17 and known only to the user); optionally set `APP_TIMEZONE`. Whenever the database password changes, update all four
    places (section 0, Accounts).
 3. **Remaining live checks not done:** the "not set up" account against real Supabase (an Auth user with a non-seed email), rate-limit
    and `email_not_confirmed` codes, token refresh after about an hour, the 503 path against a real outage.
-4. **TASK-025** (CSP and security review), **TASK-027** (rollout and demo script), **TASK-026** only if time allows.
+4. **TASK-027** (rollout and demo script, High, depends on 022, 024, 025 which are done) is next. Mine to do: the runbook and demo
+   script; a few idempotent demo requests in `supabase/seed.sql` (the user runs it against staging); a click-through checklist, one
+   item per AC (each role sees only its own data; Marco never sees Leo's request; an email with no `users` row gets no session;
+   record the staging `ALLOW_MOCK_LOGIN` value here). The click-through itself and the Supabase and Vercel switches are the
+   user's. First ask for the two unreported TASK-025 checks (Cookies table flags, Console CSP errors). **TASK-026** only if time allows.
+   **TASK-025 backlog:** `/favicon.ico` returns 404 (one console error on every page; add `src/app/icon.svg`); `script-src` still
+   has `'unsafe-inline'` (nonce CSP is backlog); session length is the Supabase project's JWT and refresh settings, not this app
+   (cookie `maxAge` is the library's 400 days; the mock cookie is 8 h).
 5. **Polish batch** (the user agreed to items 1 to 5): readable dates (still ISO on balance, approvals and audit), friendly validation
    messages (raw zod paths), login page look and wording, the casing mismatch between nav labels and page titles; a dedicated
    "temporarily unavailable" error page (today the generic one shows, status 500); the login form resets the email after an error.
@@ -271,7 +307,7 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
 8. **TASK-016** mobile re-measure; **demo prep** (section 3). Offered, not done: extend `supabase/seed.sql` with a few idempotent demo
    requests so the staging calendar is not nearly empty.
 9. **AGENTS.md "MOCK AUTH" banner is now wrong** (real sign-in exists; it still says login accepts any input): reword with the
-   user's OK.
+   user's OK (asked on 2026-10-17, not answered; do not edit AGENTS.md without it).
 
 ### Sign-in design (decided with the user on 2026-10-15; **built 2026-10-16**; see ADR-LeaveTrack-E003)
 
@@ -353,8 +389,10 @@ mock fallback  only when ALLOW_MOCK_LOGIN is true, clearly labelled; with it off
 
 ### Source control
 
-- `main` is at `517ce12` and equals `origin/main` (verified with `rev-parse`). Working tree: only `knowledge/HANDOFF.md` modified.
-  Newest first: `517ce12` fix: stream page sections and retry stalled reads; `c4e8c4e` docs: update handoff for the 2026-10-16
+- `origin/main` is at `bababb5` (verified with `rev-parse` before this handoff). Local `main` is one commit ahead: this handoff,
+  not pushed. Newest first: `bababb5` fix: make the supabase session cookie httpOnly and Secure and close log redaction gaps
+  (TASK-025); `3337112` docs: update handoff for the 2026-10-17 session (an earlier version of this file); `517ce12` fix: stream
+  page sections and retry stalled reads; `c4e8c4e` docs: update handoff for the 2026-10-16
   session; `169bbcc` fix: deadlines on auth calls and queries; `6cda7f3` fix: report db and auth outages as unavailable and log
   slow queries; `50a74d5` feat: script to create supabase auth users (TASK-024); `35a734b` feat: email and password sign-in
   (TASK-022); `5f49aaf` feat: supabase session resolution and proxy session check (TASK-020 + 021); then the earlier
@@ -365,10 +403,14 @@ mock fallback  only when ALLOW_MOCK_LOGIN is true, clearly labelled; with it off
 
 ### Quality gate (re-verified 2026-10-16 evening on the committed tree)
 
-Re-verified 2026-10-17 on `517ce12`: `lint`, `format:check` and `typecheck` pass; **352 tests passed, 14 skipped** (35 test files
-passed, 3 skipped; the skipped ones are the gated real-database tests, not re-run). `npm run build` passed in a throwaway copy.
+Re-verified 2026-10-17 on the `bababb5` code: `lint`, `format:check` and `typecheck` pass; **369 tests passed, 14 skipped** (39 test
+files passed, 3 skipped; the skipped ones are the gated real-database tests, not re-run). `npm run build` passed in a throwaway copy.
 Real-Supabase checks were done by the user. The black-hole smoke script was a scratchpad file (not kept): a Python socket that
 accepts and never answers, `DATABASE_URL` pointed at it, built copy on port 3002, mock login cookie `mock-role=employee`.
+TASK-025 was also checked on a production build in a throwaway copy: response headers with `curl -D -`, headless Chrome driven
+through the DevTools protocol (`/login`, mock sign-in, `/dashboard`; console and cookie flags), and the real `@supabase/ssr`
+against a fake Auth server for the cookie flags. Those scripts were scratchpad files (not kept); the method is in
+`knowledge/patterns/implement-and-test.md`, "Canonical security-verification pattern".
 
 ### Built
 
@@ -404,6 +446,8 @@ accepts and never answers, `DATABASE_URL` pointed at it, built copy on port 3002
 - `timedRead` in `src/lib/db/timed.ts`; `getBalanceSummary` in `src/lib/leave/service.ts`; the dashboard's `sections.tsx` and
   `skeletons.tsx`; `balance-section.tsx` and `balance-skeleton.tsx`; `request-form-section.tsx` and `request-form-skeleton.tsx`;
   section tests (`*.test.ts` only: Vitest's include pattern skips `.tsx`).
+- TASK-025: `src/lib/supabase/cookie-options.ts` (+ test), `server.test.ts`, `src/lib/logger.test.ts`,
+  `src/lib/security-guards.test.ts`; `REDACT_PATHS` exported from `logger.ts`; `sessionCookieOptions` now uses `isSecureCookie`.
 
 ### Not built or not connected
 
