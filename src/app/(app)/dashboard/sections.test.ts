@@ -5,6 +5,8 @@ import type { BalanceSummaryItem } from "@/lib/leave/balance";
 
 const svc = vi.hoisted(() => ({ getBalanceSummary: vi.fn(), getTeamQueue: vi.fn() }));
 const cal = vi.hoisted(() => ({ getCalendarRequests: vi.fn() }));
+const upc = vi.hoisted(() => ({ getUpcomingLeave: vi.fn() }));
+const act = vi.hoisted(() => ({ getRecentActivity: vi.fn() }));
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn() } }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: () => {} }),
@@ -16,8 +18,11 @@ vi.mock("@/lib/leave/service", () => ({
 }));
 vi.mock("@/lib/leave/team", () => ({ getTeamQueue: svc.getTeamQueue }));
 vi.mock("@/lib/leave/calendar", () => ({ getCalendarRequests: cal.getCalendarRequests }));
+vi.mock("@/lib/leave/upcoming", () => ({ getUpcomingLeave: upc.getUpcomingLeave }));
+vi.mock("@/lib/leave/activity", () => ({ getRecentActivity: act.getRecentActivity }));
 
-const { CalendarSection, SummarySection } = await import("./sections");
+const { ActivitySection, CalendarSection, SummarySection, UpcomingSection } =
+  await import("./sections");
 
 const BALANCES: BalanceSummaryItem[] = [
   {
@@ -89,5 +94,76 @@ describe("CalendarSection", () => {
       {},
       expect.objectContaining({ role: "employee", userId: "u1", includeRejected: false }),
     );
+  });
+});
+
+describe("UpcomingSection (US-11)", () => {
+  const props = { role: "manager" as const, viewerId: "m1", today: "2026-10-15" as const };
+
+  it("AC7: says upcoming leave is unavailable when its read fails, instead of throwing", async () => {
+    upc.getUpcomingLeave.mockRejectedValue(new Error("boom"));
+    const out = await html(UpcomingSection(props));
+    expect(out).toContain("Upcoming leave is not available right now");
+  });
+
+  it("queries with the viewer's own id and role and the server's today, never a client-supplied one", async () => {
+    upc.getUpcomingLeave.mockResolvedValue([]);
+    await html(UpcomingSection(props));
+    expect(upc.getUpcomingLeave).toHaveBeenCalledWith(
+      {},
+      { role: "manager", userId: "m1", today: "2026-10-15" },
+    );
+  });
+
+  it("AC1: renders the rows the query returned", async () => {
+    upc.getUpcomingLeave.mockResolvedValue([
+      {
+        id: "r1",
+        userId: "p1",
+        userName: "Priya Shah",
+        leaveTypeName: "Vacation",
+        startDate: "2026-10-19",
+        endDate: "2026-10-21",
+        status: "pending",
+      },
+    ]);
+    const out = await html(UpcomingSection(props));
+    expect(out).toContain("Priya Shah");
+    expect(out).toContain("Oct 19–21 · Vacation");
+  });
+});
+
+describe("ActivitySection (US-11)", () => {
+  const props = { role: "employee" as const, viewerId: "u1", timeZone: "Asia/Manila" };
+
+  it("AC7: says recent activity is unavailable when its read fails, instead of throwing", async () => {
+    act.getRecentActivity.mockRejectedValue(new Error("boom"));
+    const out = await html(ActivitySection(props));
+    expect(out).toContain("Recent activity is not available right now");
+  });
+
+  it("queries with the viewer's own id and role, never a client-supplied one", async () => {
+    act.getRecentActivity.mockResolvedValue([]);
+    await html(ActivitySection(props));
+    expect(act.getRecentActivity).toHaveBeenCalledWith({}, { role: "employee", userId: "u1" });
+  });
+
+  it("AC5: renders the events the query returned", async () => {
+    act.getRecentActivity.mockResolvedValue([
+      {
+        id: "e1",
+        action: "submitted",
+        occurredAt: "2026-10-15T01:42:00.000Z",
+        actorId: "u1",
+        actorName: "Elena Cruz",
+        ownerId: "u1",
+        ownerName: "Elena Cruz",
+        leaveTypeName: "Vacation",
+        startDate: "2026-10-21",
+        endDate: "2026-10-23",
+      },
+    ]);
+    const out = await html(ActivitySection(props));
+    expect(out).toContain("Elena Cruz submitted Vacation · Oct 21–23");
   });
 });

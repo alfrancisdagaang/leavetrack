@@ -1,7 +1,10 @@
 import { LeaveCalendar } from "@/components/ui/leave-calendar";
+import { RecentActivityCard } from "@/components/ui/recent-activity";
 import { SummaryCard } from "@/components/ui/summary-card";
+import { UpcomingLeaveCard } from "@/components/ui/upcoming-leave";
 import { timedRead } from "@/lib/db/timed";
 import type { UserRole } from "@/lib/db/types";
+import { getRecentActivity, type ActivityEvent } from "@/lib/leave/activity";
 import type { BalanceSummaryItem } from "@/lib/leave/balance";
 import { getCalendarRequests } from "@/lib/leave/calendar";
 import {
@@ -13,6 +16,7 @@ import {
 import { summaryCards } from "@/lib/leave/dashboard";
 import { getBalanceSummary, requireDb } from "@/lib/leave/service";
 import { getTeamQueue } from "@/lib/leave/team";
+import { getUpcomingLeave, type UpcomingLeave } from "@/lib/leave/upcoming";
 import { logger } from "@/lib/logger";
 import { cardsGridClass } from "./skeletons";
 
@@ -51,6 +55,30 @@ async function calendarRequests(
     return await timedRead("dashboard.calendar", () => getCalendarRequests(requireDb(), query));
   } catch (err) {
     logger.warn({ err }, "dashboard: calendar unavailable");
+    return null;
+  }
+}
+
+/** The next leave the viewer may see (scoped in SQL by role). Null if unavailable. */
+async function upcomingLeave(
+  query: Parameters<typeof getUpcomingLeave>[1],
+): Promise<UpcomingLeave[] | null> {
+  try {
+    return await timedRead("dashboard.upcoming", () => getUpcomingLeave(requireDb(), query));
+  } catch (err) {
+    logger.warn({ err }, "dashboard: upcoming leave unavailable");
+    return null;
+  }
+}
+
+/** The latest decision events the viewer may see (scoped in SQL by role). Null if unavailable. */
+async function recentActivity(
+  query: Parameters<typeof getRecentActivity>[1],
+): Promise<ActivityEvent[] | null> {
+  try {
+    return await timedRead("dashboard.activity", () => getRecentActivity(requireDb(), query));
+  } catch (err) {
+    logger.warn({ err }, "dashboard: recent activity unavailable");
     return null;
   }
 }
@@ -105,4 +133,32 @@ export async function CalendarSection({
       showRejected={showRejected}
     />
   );
+}
+
+/** The "Upcoming leave" card, scoped by role in SQL. */
+export async function UpcomingSection({
+  role,
+  viewerId,
+  today,
+}: {
+  role: UserRole;
+  viewerId: string;
+  today: IsoDate;
+}) {
+  const items = await upcomingLeave({ role, userId: viewerId, today });
+  return <UpcomingLeaveCard items={items} viewerId={viewerId} today={today} />;
+}
+
+/** The "Recent activity" card, scoped by role in SQL. */
+export async function ActivitySection({
+  role,
+  viewerId,
+  timeZone,
+}: {
+  role: UserRole;
+  viewerId: string;
+  timeZone: string;
+}) {
+  const events = await recentActivity({ role, userId: viewerId });
+  return <RecentActivityCard events={events} now={new Date()} timeZone={timeZone} />;
 }

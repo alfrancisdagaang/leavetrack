@@ -73,6 +73,19 @@ As an Employee, Manager or HR Admin, I want a month calendar of leave on my dash
 
 Not in this story: opening a request's details from the calendar (a later story), an HR filter by employee, and cancelling a request.
 
+**US-11 — See Upcoming Leave and Recent Activity** *(BR-02, BR-04, BR-05)*
+As an Employee, Manager or HR Admin, I want the next leave and the latest decisions on my dashboard, so that I can see what is coming and what just happened without opening other pages.
+- AC1: Given I am an employee, when I open the dashboard, then Upcoming leave lists only my own pending and approved requests that have not ended, soonest first, at most five.
+- AC2: Given I am a manager, when I open the dashboard, then Upcoming leave and Recent activity show only my own requests and my direct reports' requests, and another team's request never appears.
+- AC3: Given I am an HR Admin, when I open the dashboard, then both sections cover every employee.
+- AC4: Given a request is rejected, cancelled or already over, when Upcoming leave is showing, then it is not listed; a request that is under way today still is.
+- AC5: Given Recent activity is showing, then it lists the latest submitted, approved, rejected and cancelled events, newest first, at most five, each with who did what, the leave type, the dates and the time in the app time zone.
+- AC6: Given a pending request in Upcoming leave or an event in Recent activity, then its status is written as text (never shown by colour alone).
+- AC7: Given one of the two sections cannot be read, then that section says it is not available and the rest of the dashboard still shows; when there is nothing to list, it says so.
+- AC8: Given a viewport of 375px or 320px, when I open the dashboard, then both sections are usable without horizontal scrolling.
+
+Not in this story: opening a request's details from a row (no details page yet), "View all", filters, and notifications by email.
+
 ## Non-Functional Requirements
 - p95 API response time under 500ms for balance and request-list endpoints.
 - All approval-affecting endpoints require an authenticated session; scoped-visibility (US-03 AC3, US-04) is enforced server-side, never client-side only.

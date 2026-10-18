@@ -43,3 +43,24 @@ export function CalendarSkeleton() {
     </div>
   );
 }
+
+/** Mirrors the Upcoming leave and Recent activity cards (a heading and a few rows). */
+export function ListCardSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div aria-hidden="true" className="rounded-tile bg-white p-5 shadow-tile sm:p-6">
+      <Skeleton className="my-3 h-5 w-36" />
+      {Array.from({ length: rows }, (_, i) => (
+        <div
+          key={i}
+          className="flex min-h-[78px] items-center gap-3 border-t border-line first:border-t-0"
+        >
+          <Skeleton className="size-[50px] shrink-0" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-3.5 w-32" />
+            <Skeleton className="h-3 w-44" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}

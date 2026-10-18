@@ -60,6 +60,10 @@
   --color-leave-vacation: #2162ff;
   --color-leave-sick: #166846;
   --color-leave-unpaid: #7040a0;
+
+  /* Recent activity: the coloured event label (Figma), beside the pending/approved/rejected badges */
+  --color-event-approved: #166846;
+  --color-event-rejected: #a63140;
   --color-calendar-cell: #fafcff;
 
   --shadow-tile: 0 3px 12px 0 rgb(36 77 119 / 0.06);

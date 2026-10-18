@@ -7,8 +7,14 @@ import { requireSession } from "@/lib/auth/guards";
 import { getEnv } from "@/lib/env";
 import { monthKey, parseMonthParam, todayIn } from "@/lib/leave/calendar-layout";
 import { welcomeSubtitle } from "@/lib/leave/dashboard";
-import { approvesLeave, CalendarSection, SummarySection } from "./sections";
-import { CalendarSkeleton, SummaryCardsSkeleton } from "./skeletons";
+import {
+  ActivitySection,
+  approvesLeave,
+  CalendarSection,
+  SummarySection,
+  UpcomingSection,
+} from "./sections";
+import { CalendarSkeleton, ListCardSkeleton, SummaryCardsSkeleton } from "./skeletons";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -16,9 +22,9 @@ type SearchParams = Record<string, string | string[] | undefined>;
 const first = (value: string | string[] | undefined) => (Array.isArray(value) ? value[0] : value);
 
 /**
- * Post-login landing: a welcome block, the user's leave summary and the leave calendar. Only the
- * session is awaited here; the summary and the calendar stream in on their own, so a slow query
- * never holds back the rest of the page.
+ * Post-login landing: a welcome block, the user's leave summary, the leave calendar, upcoming leave
+ * and recent activity. Only the session is awaited here; each section streams in on its own, so a
+ * slow query never holds back the rest of the page.
  */
 export default async function DashboardPage({
   searchParams,
@@ -27,7 +33,8 @@ export default async function DashboardPage({
 }) {
   const { user, role } = await requireSession();
   const params = await searchParams;
-  const today = todayIn(getEnv().APP_TIMEZONE ?? "UTC", new Date());
+  const timeZone = getEnv().APP_TIMEZONE ?? "UTC";
+  const today = todayIn(timeZone, new Date());
   const month = parseMonthParam(first(params.month), today);
   const showRejected = first(params.rejected) === "1";
 
@@ -70,6 +77,26 @@ export default async function DashboardPage({
           showRejected={showRejected}
         />
       </Suspense>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Suspense
+          fallback={
+            <LoadingRegion>
+              <ListCardSkeleton />
+            </LoadingRegion>
+          }
+        >
+          <UpcomingSection role={role} viewerId={user.id} today={today} />
+        </Suspense>
+        <Suspense
+          fallback={
+            <LoadingRegion>
+              <ListCardSkeleton />
+            </LoadingRegion>
+          }
+        >
+          <ActivitySection role={role} viewerId={user.id} timeZone={timeZone} />
+        </Suspense>
+      </div>
     </div>
   );
 }
