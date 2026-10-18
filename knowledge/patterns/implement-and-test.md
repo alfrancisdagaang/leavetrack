@@ -100,3 +100,20 @@ hung, more of them on every page load, until all of them did.
 - Prove it can fail: run the test against the previous code in a throwaway copy and expect exactly the over-budget pages to fail.
 - Measure against the real pooler from the Mac with read-only statements (`select 1`, `pg_sleep`), never print `DATABASE_URL`,
   and give every hung probe a hard `process.exit` so it cannot hold connections.
+
+**Adding a read to a page (learned adding the My Balance breakdown):** count the page's statements before and after, and keep the
+total at `POOL_MAX - 1` or fewer. Fold the new figures into the page's own statement (JSON subselects, `sum(...)` in SQL) instead of
+adding a parallel read, and give the page its **own** statement when the shared one also runs on other pages or inside a transaction
+(`loadSummaryRow` runs in the submit transaction): then the other pages cannot change, and an equivalence test between the two
+statements proves the figures they share still agree. Count working days with `countWorkingDays` on ranges the SQL has already
+clipped, so there is one definition of a working day.
+
+## Canonical responsive-table pattern (My Balance requests)
+
+Learned in the My Balance redesign: a data table that must not scroll sideways at 375 px is rendered as **two native structures with
+the same rows**, one hidden by CSS at each size (`hidden … sm:table` for a real `<table>` with `<th scope="col">` headers, a row header
+and an `aria-label`; `sm:hidden` for a stacked `<ul>`), not as one table whose `display` is switched to `block`. Changing a table's
+display drops its semantics in some screen readers, and ARIA roles only patch that. The cost is that the rows appear twice in the HTML,
+which is fine for a capped list (50 rows); tests then assert both structures. A guard test that renders the component and rejects
+hex or `rgb(` colours and inline styles must allow `next/image`'s own `style="color:transparent"`, and must be proved by planting a
+violation (`bg-[#ff0000]`), watching it fail, and restoring the file.
