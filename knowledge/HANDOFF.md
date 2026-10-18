@@ -1,15 +1,27 @@
 # LeaveTrack — Session Handoff
 
-Last updated: Sunday 2026-10-18 (end of session) · Code state: `origin/main` is at `06dee3f` and local `main` matches it. This
-handoff edit is the only uncommitted change (commit it when the user says).
-Commits 2026-10-18: `155e9df` (TASK-027: staging rollout runbook, demo checklist, four demo requests in the seed), `06dee3f`
-(EPIC-2 tasks marked Done, handoff). 2026-10-17: `517ce12` (page-load reliability: streamed sections and one retry of reads),
-`bababb5` (TASK-025: httpOnly and Secure session cookie, wider log redaction). Session 2026-10-16: `5f49aaf` (TASK-020 + 021),
-`35a734b` (TASK-022), `50a74d5` (TASK-024), `6cda7f3` (outage handling and query logging), `169bbcc` (deadlines on Auth calls and queries).
+Last updated: Sunday 2026-10-18 (end of session, night) · Code state: `origin/main` has everything below; the newest commits are
+a `docs:` handoff commit on top of `c73b563` (EPIC-4 team management as a tab of Team approvals). Check `git log` and `git status -sb`.
+Commits 2026-10-18 (newest first): `c73b563` (EPIC-4: My team roster, team member page, Team approvals tabs and rows, width fix),
+`db2ff00` (retros for My Balance), `52de8c9` (My Balance breakdown and redesign), `1f75b29` (pool budget fix: every page at most 4 parallel database statements; pushed at the
+user's request, **reported clean on Vercel**), `9f249bf` (retros for US-11 and the Request Leave redesign), `0ed8808` (Request Leave
+redesign), `93f7888` (US-11: Upcoming leave and Recent activity cards), `06dee3f` (EPIC-2 tasks marked Done), `155e9df` (TASK-027:
+staging rollout runbook, demo checklist, four demo requests in the seed). 2026-10-17: `517ce12` (page-load reliability: streamed
+sections and one retry of reads), `bababb5` (TASK-025: httpOnly and Secure session cookie, wider log redaction). Session
+2026-10-16: `5f49aaf` (TASK-020 + 021), `35a734b` (TASK-022), `50a74d5` (TASK-024), `6cda7f3` (outage handling and query logging),
+`169bbcc` (deadlines on Auth calls and queries).
 
-**Read first, 2026-10-18 end of session:** the demo is **Mon 2026-10-19**. Staging is in demo state (TASK-027 done, mock login off,
-reported by the user). The open threads are in section "What was done on 2026-10-18 (later)" below: the Figma MCP just added on
-this laptop, the Request Leave redesign, the missing Upcoming leave and Recent activity sections, and the icon 304 finding.
+**Read first, 2026-10-18 night:** since the notes below were written, three things shipped (see "What was done on 2026-10-18 (night)"):
+the My Balance breakdown and redesign (`52de8c9`), and EPIC-4 team management (`c73b563`): **My team is now the second tab of Team
+Approvals** (`/approvals/team`, `/approvals/team/[userId]`; the sidebar has one Team Approvals item; `/team` no longer exists). All
+validated in a throwaway production build on in-memory Postgres; **not yet seen on Vercel or staging**. Demo is **Mon 2026-10-19**.
+
+**Earlier on 2026-10-18:** the demo is **Mon 2026-10-19**. Staging is in demo state (TASK-027 done, mock login off,
+reported by the user). **The page stalls ("Database query hit its deadline" after clicking between pages) were caused by pages needing
+more parallel database statements than the pool holds. Fixed in `1f75b29`; the user tested Vercel and reports pages no longer stick
+(reported; I have not seen the Vercel logs).** Details in section 0a (first block) and retro `2026-10-18-dashboard-pool-stalls.md`.
+Open threads: the shelved session-pool plan, `APP_TIMEZONE` on Vercel, demo rehearsal, and "Next session" below. Upcoming leave,
+Recent activity and the Request Leave redesign are **built and pushed** (older notes below that say "not built" are superseded).
 
 A living note for starting a new session without chat history. Update it at the end of each session.
 Everything below is either **verified** (checked by me on the date above), **reported** (the user told me; I did not see it),
@@ -50,7 +62,9 @@ or explicitly marked as a **decision**, **lean** (a recommendation, not agreed),
 - **Supervisor's original scope:** US-01 to US-08 (EPIC-1). All built; TASK-016 (mobile pass) is the only EPIC-1 task still `Open`.
 - **UI approach:** the Figma dashboard design (file `GrKk5YyfJcDRdPBr7xXTF9`, now six frames: Manager desktop 14:8878, Manager
   mobile 14:9401, Account dropdown 14:9931, Mobile drawer 14:9698, Collapsed rail 14:9981, Navigation by role 14:9946) is the
-  basis. Request Leave, My Balance and Team Approvals **have no Figma yet; the user will send a link**. Until then those pages
+  basis. Request Leave was rebuilt from Figma on 2026-10-18 (`0ed8808`; frames 26:17257 desktop and 26:20368 mobile, per its retro) and the
+  dashboard's Upcoming leave and Recent activity cards from frames 14:9341, 14:9376 (desktop) and 14:9638, 14:9673 (mobile) (`93f7888`).
+  My Balance and Team Approvals **still have no Figma; the user will send a link**. Until then those pages
   use the restyled shared components (Card, Button, PageHeader, fields) on the dashboard tokens.
 - **"Online" means GitHub + Supabase (staging) + Vercel.** The demo uses fake data only and the URL is access-restricted
   (Vercel Deployment Protection).
@@ -89,9 +103,45 @@ or explicitly marked as a **decision**, **lean** (a recommendation, not agreed),
 | **Mon 10-19 am**  | Rehearse (from the network you will demo on), then demo                                                                                                                                                                                                                             |
 
 If time runs short, cut in this order: change-password page (TASK-026), polish, request detail page and cancel, extra features.
-The core loop (US-01 to US-05), accrual, the sidebar shell, the cards and the calendar are done.
+The core loop (US-01 to US-05), accrual, the sidebar shell, the cards and the calendar are done. Also done 2026-10-18: Upcoming leave
+and Recent activity (US-11), the Request Leave redesign, and the pool budget fix (page stalls).
 
-### 0a. Staging stall problem (mitigated 2026-10-17; cause still unproven)
+### 0a. Staging stall problem (FIXED 2026-10-18 as far as measured; the first block is current, the rest is history)
+
+**Update 2026-10-18 (pool budget; supersedes "cause still unproven" below).** Retro `2026-10-18-dashboard-pool-stalls.md`.
+
+- **Symptom (user, local and Vercel):** clicking between Dashboard, Request Leave and My Balance is fine for a few clicks, then slow,
+  then `Database query hit its deadline`. Example: `query: "dashboard.calendar"`, `ms: 5000`, `deadlineMs: 4999`. The 4999 is 8000
+  minus the 3000 first attempt, so the **retry also got no answer**. It was fine after `517ce12` and broke after US-11 (`93f7888`).
+- **Cause (measured; the mechanism is not fully explained):** a dashboard load needed more parallel statements than the pool
+  (`max: 5`): employee 6, manager and HR 7, My Balance 5 (Request Leave 4). Probes against the real staging pooler (from the Mac,
+  read-only): 4 and 5 parallel reads per page were clean (one `57014` in 12 loads); 6 per page hung more reads on every load until
+  all of them hung, and hung reads finished about 8.1 s late. Every page of one server instance shares the pool, so Request
+  Leave, My Balance and Approvals stalled too. `timedRead`'s retry needs a spare connection (the abandoned first query keeps its own),
+  so a page that uses the whole pool cannot recover from one stall.
+- **Why the old explanation was incomplete:** the dead-socket theory (candidate 1 below) was not what the probes showed. The earlier
+  fix (`517ce12`) helped most likely because it cut queries per page (unproven which part helped). The deadline and retry are a
+  safety net, not the fix.
+- **Fix (`1f75b29`):** the three balance reads became one statement (`loadSummaryRow` in `src/lib/leave/service.ts`); the dashboard
+  summary cards read balances and the manager/HR pending count in one statement (`getDashboardSummary`, no longer loading the
+  whole team queue just to count it); `POOL_MAX = 5` exported from `src/lib/db/client.ts`; **every page now needs at most 4
+  parallel statements** (employee 4, manager and HR 4, Request Leave 2, My Balance 3, Approvals 2). Guard:
+  `src/lib/db/query-budget.test.ts` runs each page's real sections against a fake client and fails above `POOL_MAX - 1` (proved: it
+  fails on the old code with 6, 7, 7 and 5).
+- **Evidence (mine, same harness old vs new, real sections, real pool and `timedRead`, from the Mac to staging):** manager dashboard x10:
+  old 9 bad of 10 (8 s, every section failed from the sixth load), new 0 bad (about 200 ms); employee x10: old 10 of 10, new 0; mixed
+  navigation (Dashboard, Request Leave, My Balance, Approvals) x6: old 24 of 24 (Approvals threw 503), new 0 of 24 (185 to 257 ms);
+  one connection held busy: old 8 s, new 762 ms; two held: new 3.2 s (one read waited out its 3 s first attempt, the retry
+  succeeded); old not reached (pool wedged). The new summary equals the old logic for all 7 seeded users on staging data.
+- **Result on Vercel (reported by the user, not seen by me):** after the push the user tested and pages no longer get stuck.
+- **A stuck page also slows the next page, measured:** every page does a session lookup (`session.find_user`, a database query)
+  in the layout before any content, on the same pool. With the stuck page holding 0 to 4 connections the next page was ready in
+  1.1 to 1.6 s (mostly reconnecting after idle, about 0.7 s per new connection from the Mac); with all 5 held, the lookup waited
+  6.5 s. After the budget fix a stuck page holds at most 4, plus its retry, so this needs a real stall to happen.
+- **Still unexplained:** why exceeding the pool hangs instead of queueing briefly. The fixed ~8.1 s hold and `57014` (statement
+  timeout) errors on plain `select 1` (seen once) and on a real query right after the old-code run left abandoned queries point at a
+  server or pooler timer. A lead, not a finding. **Vercel behaviour is unverified by me** (several instances, each with its own pool).
+- **Shelved (see Next session item 10):** a dedicated pool for the session lookup. Planned, not built.
 
 **Update 2026-10-17.** Evidence and result, newest first:
 
@@ -184,6 +234,34 @@ Tests with fake timers; writes stay unwrapped. After deploy, read the logs for `
 (port 3000 was held by the user's own server, so I did not build; the Vercel deployment evidently built, since its new log lines
 appeared); GitHub Actions for the last five commits (`gh` is not installed).
 
+### What was done on 2026-10-18 (night; verified by me unless marked)
+
+- **My Balance breakdown and redesign** (`52de8c9`, retros `2026-10-18-my-balance-breakdown.md` and `-my-balance-redesign.md`, `db2ff00`).
+  Per leave type: Available, Pending, Used this year, Accrued this year, derived Opening balance; table from `sm`, stacked rows on phones;
+  My Balance page only; PRD not edited. Width fixed to fill the area like the dashboard. Pushed at the user's request.
+- **EPIC-4 Team management** (`c73b563`; retro `2026-10-18-team-management.md`; PRD US-12 and US-13; `docs/dev-tasks/epic-4-team-tasks.csv`
+  TASK-033 to 036, **statuses still "Open" in the CSV: not updated**). The user chose to build it the night before the demo.
+  - **Roster** `/approvals/team` (`src/lib/leave/team-roster.ts`, one statement, scoped `u.manager_id = session user`): out today or next
+    approved leave, pending count, Vacation and Sick days left (equal to My Balance), last request. **Member page**
+    `/approvals/team/[userId]` (`team-member.ts`, one statement): balances, filters leave type / status / year (default this year, last
+    three), 25 per page, in the address; applying a filter is client navigation with no full reload (and a plain GET form without JS);
+    the employee's reason is selected **only for pending rows in the SQL**; a rejection note always shows; other team, missing, deleted,
+    the caller and the caller's manager all give the identical not-found. Approve and Reject on the member page reuse `ApprovalActions`.
+  - **Restructure (user request):** My team moved inside Team Approvals as a second tab (route-based tabs: `<nav>` with `aria-current`, not
+    tablist). Routes moved from `/team` to `/approvals/team`; **old `/team` URLs 404** (no redirect). Team Approvals page: rows like the
+    roster (pending with reason + Approve/Reject, decided with status text and rejection note), streamed as two sections with their own
+    failure notes, `max-w-5xl` removed (fills 100% of usable width at 320 to 1920 px, measured). Nav item "My Team" and `nav-user.svg` removed.
+  - **Validation (throwaway production build, pglite):** gate green (lint, format, typecheck, 698 tests passed, build); browser as Marco,
+    Hana, Elena at 1440, 375, 320; approve and reject through rows work. Real-engine integration tests with break-the-filter proofs
+    (9 roster mutations all caught). Query budget: approvals 2, roster 1, member 1 statements. **Not verified:** Vercel, real Supabase, the
+    insufficient-balance warning in a browser (unit-tested only), and the staging equivalence probe was **not re-run** after the tab change
+    (queries unchanged). Harness quirk: after Approve or Reject the refresh against one-connection pglite shows the failure notes
+    (ECONNRESET, two pools); a reload is correct.
+  - **Open, needs the user's decision:** link the employee name in approval rows to the member page (needs `u.id as employee_id` in
+    `getTeamQueue` and `getRecentlyDecided`, types and `team.test.ts`); the Audit page still has `max-w-5xl`; PRD US-12 AC4 wording was
+    edited (nav item replaced by the tab) and the user has not explicitly OK'd that edit; hr_admin sees only their direct reports in My team.
+  - If you run `next start` locally, **rebuild first**: `.next` is stale after the route move.
+
 ### What was done on 2026-10-18 (later; verified by me unless marked)
 
 - **TASK-027 done** (`155e9df`, `06dee3f`, pushed): `knowledge/runbooks/staging-rollout.md`, `demo-checklist.md`, retro
@@ -201,7 +279,7 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
   Fix if wanted after the demo (option B): exclude `icons/` in the matcher, `Cache-Control: public, max-age=86400` for `/icons/:path*`
   in `next.config.ts`, add `src/app/icon.svg` (the `/favicon.ico` 404), tests for matcher and header. Not logged in a retro (user said
   not to bother). If a page hangs in the demo, look at this first.
-- **Request Leave redesign (discussed, nothing built).** Current form: `src/app/(app)/requests/new/request-form.tsx` (leave-type select,
+- **Request Leave redesign (discussed here; BUILT later the same day in `0ed8808`, see the evening block).** Current form: `src/app/(app)/requests/new/request-form.tsx` (leave-type select,
   two dates, working-days line, reason, over-balance warning, success alert). Proposed, frontend-only (no API or DB change): selectable
   leave-type **cards** (Vacation, Sick, Unpaid "Untracked") showing available and pending days, doubling as the picker (radio group);
   a live summary panel (readable dates, working days, balance after); friendly field errors and a 500-character counter; a richer
@@ -209,7 +287,7 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
   overlap warning, approver name, half-days (no), attachments (no). I wrote a full Figma prompt for this (not saved in the repo; regenerate
   it from this list: tokens from `globals.css`, 10 states, desktop 1440 and mobile 375). The user's first Figma run failed because it
   ran in a **different Figma account** that could not see the dashboard file.
-- **Upcoming leave and Recent activity (dashboard, in the Figma, not built, no PRD story).** The user pointed out both are missing
+- **Upcoming leave and Recent activity (dashboard; BUILT later the same day in `93f7888` as PRD US-11, see the evening block).** The user pointed out both are missing
   from the dashboard. My proposal (a **lean**, not agreed): same role scope as the calendar (employee own, manager own plus direct reports
   by `u.manager_id`, HR everyone), Upcoming = `leave_requests` with `end_date >= today`, not deleted, **include pending with a chip**
   (the demo data is nearly all pending, so approved-only would be empty), about 5 rows; Recent activity = `audit_log` joined to the
@@ -224,10 +302,49 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
   `https://www.figma.com/design/GrKk5YyfJcDRdPBr7xXTF9/Untitled?node-id=0-1`. Fallback if the MCP will not connect: export the frames as
   PNGs into `docs/designs/dashboard/` (the tool can read images). The older Figma notes (file id, frame ids, asset URLs expire after 7
   days) are in "Machine and tooling notes".
-- **Suggested order for the next session:** (1) Figma MCP works, (2) read the Upcoming leave and Recent activity frames and settle the
+- **Suggested order for the next session (written before the evening work; superseded by "Next session: do these in order" below):** (1) Figma MCP works, (2) read the Upcoming leave and Recent activity frames and settle the
   five decisions, (3) PRD US-11 plus tasks, then `/evaluate`, (4) Request Leave redesign once its design exists, (5) TASK-016 mobile
   pass if there is time. Rehearse the demo script before anything else, from the network the demo will use. Do not touch `proxy.ts`
   the night before the demo.
+
+### What was done on 2026-10-18 (evening; verified by me unless marked)
+
+- **US-11 Upcoming leave and Recent activity** (`93f7888`; retro `2026-10-18-us-11-upcoming-leave-and-recent-activity.md`; PRD US-11,
+  TASK-031 and 032 in `epic-3-dashboard-tasks.csv`; I did not re-read their CSV status). I only re-checked this session that the
+  commit and its 21 files exist and the tests pass; the AC results below are **from the retro**. Read-only, no migration. Decisions
+  (lean defaults the user accepted by saying "apply"): pending requests are listed in Upcoming (demo data is mostly pending); role
+  scope as the calendar (employee own, manager own plus direct reports by `u.manager_id`, HR everyone); five rows; **no row link, no
+  chevron, no "View all"** until `/requests/[id]` exists; Recent activity scopes by the request owner, not the actor. Retro AC1 to AC8
+  PASS (real engine and headless Chrome as three roles). **Not verified:** anything on Vercel or real Supabase; `APP_TIMEZONE` is
+  unset on Vercel so times use UTC there. Expected, not a bug: the seed gives all audit rows one timestamp, so Recent activity on
+  staging shows only "Submitted" until someone decides a request.
+- **Request Leave redesign** (`0ed8808`; retro `2026-10-18-request-leave-redesign.md`; the PRD was **not** edited on purpose, user:
+  "don't edit the PRD", so there is no US-12 and no new task). Same write path (`POST /api/leave-requests`), no migration. Type cards
+  (radio group), live summary, "Before you submit", mobile sticky submit bar, success state. New `src/lib/leave/reviewer.ts`
+  (manager name, "HR" fallback). Decisions: the info line keeps the HR-override wording (PRD US-01 AC3), but **the override is not
+  built, so do not approve an over-balance request live**; a user with no manager shows "HR". Deviations from Figma (retro): three
+  icons hand-drawn, input borders darker for contrast, calendar icon image stays grey in the error state. Retro criteria all PASS (browser,
+  375, 320 and 1440 px). The user said afterwards "we did the leave request right".
+- **Page stalls: investigated, fixed, pushed** (`1f75b29`, details in section 0a, retro `2026-10-18-dashboard-pool-stalls.md`).
+  Method (scratchpad only, not kept): read-only probe scripts against staging (`select 1`, the real queries, `pg_sleep` to hold
+  connections), the real page sections run in a throwaway copy with `node --env-file=.env.local .../vitest.mjs`, the same harness on
+  the old code for a before and after, and the real-engine integration tests on pglite. New tests: `service.test.ts` (1 and 2
+  statements, scoping values), `sections.test.ts` (one summary read; the two cards now fail **together**), `query-budget.test.ts`,
+  gated `balance-summary.integration.test.ts` (5 tests; with both scope filters broken 4 fail, restored and diffed).
+- **The user asked "is deadline pass a good solution from the very start?"** My answer (the user then asked me to plan option 2 and left option 1 for later): the deadline is a good
+  safety net (a hang becomes a fast logged failure) but was not the fix, and the retry can make an over-committed pool worse. Ranked
+  ideas to make it faster (none built): (1) fewer trips per navigation: check the token locally with `getClaims()` instead of
+  `getUser()` and cache the user row for 30 to 60 s (**the user's decision**: a revoked session or role change would lag up to a
+  minute); (2) a separate pool for the session lookup; (3) tune the pool on Vercel (measure there first; the 100 ms from the Mac to Mumbai
+  exaggerates everything); (4) make the retry smarter or drop it; (5) keep the budget rule.
+- **Session pool plan (option 2): planned, then shelved.** Plan: `getSessionDb()` in `src/lib/db/client.ts`, a second lazy pool with
+  `max: 2` (**not 1**: with one connection a stuck lookup holds it and the retry queues behind it until the server cancels, about 8 s),
+  used by `sessionFromSupabase` and the post-sign-in lookup in `src/app/login/actions.ts`; tests mock `getDb` to throw in the session
+  tests; no auth semantics change, `proxy.ts` untouched. Risks: connections per instance 5 to 7 (Supavisor limits **unverified**), a second cold
+  connect per instance, no help for the Auth `getUser()` call. I recommended shelving it because the pages no longer stick and the demo is
+  the next day; the user went on to ask for this handoff without objecting. **Treat as shelved (lean), not a formal decision.**
+- **Committed and pushed at the user's request:** `1f75b29` on `main` (9 files: the fix, tests, retro, pattern note). `gh` is not
+  installed, so I could not see GitHub Actions or Vercel; the user tested Vercel and reports it fine.
 
 ### What was done on 2026-10-17 (verified by me unless marked)
 
@@ -314,6 +431,8 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
 
 ### Progress
 
+- [x] **Pool budget** (2026-10-18, `1f75b29`): every page at most 4 parallel statements, guarded by a test; the user reports no stuck
+      pages on Vercel (section 0a).
 - [x] **Page-load reliability** (2026-10-17, `517ce12`): streamed sections, `timedRead`, shorter connection lifetimes. The user
       reports no stuck loading on the deployment; the cause is unproven (section 0a).
 - [x] EPIC-1: TASK-010 to TASK-015, TASK-017, TASK-018 (`Done`) · [ ] **TASK-016** mobile pass (`Open`: the dashboard, request
@@ -321,14 +440,15 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
 - [x] UI foundation, restyle, sidebar shell and cards, calendar (committed and pushed)
 - [x] **EPIC-2 sign-in:** TASK-020, 021, 022, 023, 024, 025, **027** are `Done` in the CSV (marked 2026-10-18 at the user's request;
       027's live steps are reported by the user, see section 0). Remaining: **026** (voluntary change-password, `Open`, first to cut).
-- [ ] **EPIC-3 dashboard:** TASK-030 calendar built (`Open` until the user asks). Not built: upcoming leave, recent activity,
-      request detail page (`/requests/[id]`), the other Figma pages.
+- [ ] **EPIC-3 dashboard:** TASK-030 calendar and TASK-031/032 (Upcoming leave, Recent activity, `93f7888`) built; I did not re-read their
+      CSV status (`Open` until the user asks). Not built: request detail page (`/requests/[id]`), the My Balance and Team Approvals
+      Figma pages (no design yet).
 
 ### Next session: do these in order
 
-0. **Servers and state.** `origin/main` is at `06dee3f` (2026-10-18); only a handoff edit may be uncommitted (commit and push when the
-   user says). Check the port before any build and never build while something listens on
-   3000 (the user's `next start` did, PID 10269 at the last check): build in a throwaway copy instead (copy the repo without
+0. **Servers and state.** `origin/main` has `c73b563` plus a docs handoff commit (2026-10-18 night); check `git status -sb`.
+   **First, look at the deployed Team Approvals and My team tabs as Marco on Vercel**, and mark TASK-033 to 036 Done in the CSV if they pass. Check the port before any build and never build while something listens on
+   3000 (the user's `next start` did, PID 26589 at the last check, 2026-10-18 evening): build in a throwaway copy instead (copy the repo without
    `node_modules`, `.next`, `.git` and `.env*`, clone `node_modules` with `cp -Rc`, build there). The Postgres 18 on port 54329
    belonged to the old Windows machine. Ask the user what the Vercel logs and GitHub Actions show.
 1. **Watch the stall (section 0a).** Ask the user for the Vercel log lines after the deploy: `Retrying read query`,
@@ -337,6 +457,8 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
    **Backlog from this task:** `session.find_user` still runs before the shell (a stalled lookup delays the first byte by up to
    8 s, about 3 s with the retry); with the database fully down each page still takes about 8 s to finish; approvals and audit
    only got the retry, not streaming; `28P01` still shows the generic error page (fold into the polish batch, item 5).
+   1a. **After `1f75b29`, still ask for the Vercel logs** (the user reports no stuck pages; I have not seen the logs): `Database query hit
+its deadline`, `Retrying read query`, `57014`, and especially `query: "session.find_user"`. Those are the triggers for item 10.
 2. **User's own steps before Monday (I cannot do them):** switch off "Allow new users to sign up" and set the Site URL in Supabase;
    remove `ALLOW_MOCK_LOGIN` (or set false) on Vercel and redeploy; rotate the `.mcp.json` key; click through as each of the seven
    users on the live URL (with the shared password, reset 2026-10-17 and known only to the user); optionally set `APP_TIMEZONE`. Whenever the database password changes, update all four
@@ -362,7 +484,17 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
 8. **TASK-016** mobile re-measure; **demo prep** (section 3). Offered, not done: extend `supabase/seed.sql` with a few idempotent demo
    requests so the staging calendar is not nearly empty.
 9. **AGENTS.md "MOCK AUTH" banner is now wrong** (real sign-in exists; it still says login accepts any input): reword with the
-   user's OK (asked on 2026-10-17, not answered; do not edit AGENTS.md without it).
+   user's OK (asked on 2026-10-17, not answered; do not edit AGENTS.md without it). If item 10 is ever built, rule 7 ("use `getDb()`")
+   also needs one reworded sentence, with the user's OK.
+10. **Shelved: dedicated session pool** (see the evening block). Build it only if the logs show `session.find_user` hitting its
+    deadline, or one stuck page blanking the next. Use `max: 2`, include the login action, check Supabase's pooler limits first, and
+    re-run the cross probe (hold 0, 2, 3, 4, 5 connections on the main pool; expect the lookup near 0.7 s even at 5).
+11. **Speed decisions that are the user's** (none built): `getClaims()` instead of `getUser()`, a 30 to 60 s cache of the user row (auth
+    behaviour: revocation and role changes lag), the retry strategy, a shorter first-attempt deadline (3 s now; two stuck connections
+    cost the dashboard 3.2 s). Measure on Vercel first.
+12. **User step: `APP_TIMEZONE=Asia/Manila` on Vercel, then redeploy** (still unset: "Today" and the activity times use UTC there).
+13. **Before the demo:** rehearse from the demo network as Marco, Elena and Hana; submit one request and decide one as Marco so Recent
+    activity shows more than "Submitted"; do not approve an over-balance request (HR override is not built); do not touch `proxy.ts`.
 
 ### Sign-in design (decided with the user on 2026-10-15; **built 2026-10-16**; see ADR-LeaveTrack-E003)
 
@@ -444,7 +576,11 @@ mock fallback  only when ALLOW_MOCK_LOGIN is true, clearly labelled; with it off
 
 ### Source control
 
-- `origin/main` is at `06dee3f` and local `main` matches it (pushed 2026-10-18; verified with `git status -sb`). Newest first:
+- `origin/main` has `c73b563` feat (EPIC-4) and the docs handoff commit above it (2026-10-18 night). Newest first: `c73b563`; `db2ff00` docs:
+  retros for My Balance; `52de8c9` feat: My Balance breakdown;
+  `1f75b29` fix: keep every page within the database pool so reads stop stalling; `9f249bf` docs: add retros for US-11 and the request
+  leave redesign and update the handoff; `0ed8808` feat: redesign the request leave page with live summary and reviewer; `93f7888` feat: add
+  upcoming leave and recent activity cards to the dashboard (US-11); then
   `06dee3f` docs: mark epic-2 tasks done and record the staging rollout; `155e9df` docs: add staging rollout runbook, demo checklist
   and demo requests; `7ca4ae2` docs: update handoff for the end of the 2026-10-17 session; `bababb5` fix: make the supabase session cookie httpOnly and Secure and close log redaction gaps
   (TASK-025); `3337112` docs: update handoff for the 2026-10-17 session (an earlier version of this file); `517ce12` fix: stream
@@ -457,7 +593,14 @@ mock fallback  only when ALLOW_MOCK_LOGIN is true, clearly labelled; with it off
 - Package manager is **npm only**.
 - Git prints "CRLF will be replaced by LF" warnings on Windows; harmless (lint-staged runs prettier).
 
-### Quality gate (re-verified 2026-10-16 evening on the committed tree)
+### Quality gate (re-verified 2026-10-18 evening on `1f75b29`)
+
+Re-verified 2026-10-18 evening: `lint`, `format:check`, `typecheck` clean; **491 tests passed, 29 skipped** (55 files passed, 5
+skipped; the skipped ones are the gated real-database tests). `npm run build` passed in a throwaway copy before the commit (not re-run
+after; no code changed since). The gated integration tests passed on a fresh pglite each: leave-types 2, balance-summary 5,
+dashboard-lists 10, calendar 8. The user's own `next start` was listening on port 3000 (PID 26589), so no build was run in the repo.
+
+Earlier record, 2026-10-16 evening on the committed tree:
 
 Re-verified 2026-10-17 on the `bababb5` code: `lint`, `format:check` and `typecheck` pass; **369 tests passed, 14 skipped** (39 test
 files passed, 3 skipped; the skipped ones are the gated real-database tests, not re-run). `npm run build` passed in a throwaway copy.
@@ -505,12 +648,25 @@ against a fake Auth server for the cookie flags. Those scripts were scratchpad f
 - TASK-025: `src/lib/supabase/cookie-options.ts` (+ test), `server.test.ts`, `src/lib/logger.test.ts`,
   `src/lib/security-guards.test.ts`; `REDACT_PATHS` exported from `logger.ts`; `sessionCookieOptions` now uses `isSecureCookie`.
 
+### Built on 2026-10-18
+
+- US-11: `src/lib/leave/{upcoming,activity,format}.ts`, `src/components/ui/{upcoming-leave,recent-activity}.tsx`, icons `send`, `x`, `check`,
+  two colour tokens, the dashboard's `Upcoming` and `Activity` sections, tests and a gated integration test.
+- Request Leave redesign: `src/app/(app)/requests/new/*`, `src/lib/leave/reviewer.ts`.
+- Pool budget: `loadSummaryRow` and `getDashboardSummary` in `src/lib/leave/service.ts`, `POOL_MAX` in `src/lib/db/client.ts`, the dashboard
+  `SummarySection` on one read (`dashboard.summary`), `src/lib/db/query-budget.test.ts`, `src/lib/leave/balance-summary.integration.test.ts`.
+
+- EPIC-4 (2026-10-18 night): `src/app/(app)/approvals/{team-tabs,approval-row,decided-row,approvals-sections,approvals-states,approvals-skeleton}.tsx`,
+  `src/app/(app)/approvals/team/**` (roster and `[userId]` member page), `src/lib/leave/{team-roster,team-member}.ts` with integration tests,
+  `parseTeamMemberQuery` in `schemas.ts`.
+
 ### Not built or not connected
 
 - **Mock fallback:** while `ALLOW_MOCK_LOGIN` is true anyone with the URL can pick a role (Elena, Marco or Hana only). Switch it off
   before the demo. Real accounts exist for all seven seeded users.
-- **No request detail page, no cancel**, no upcoming leave, no recent activity, no manager filters or HR team view.
-- **Figma pages not yet designed:** Request Leave, My Balance, Team Approvals (the user will send a link).
+- **No request detail page, no cancel**, no manager filters or HR team view. (Upcoming leave and Recent activity exist but have no row
+  link, chevron or "View all" until the details page exists.)
+- **Figma pages not yet designed:** My Balance, Team Approvals (the user will send a link). Request Leave was designed and built 2026-10-18.
 - **No HR override** for over-balance requests (see decisions). **No pro-rating, no ledger screen, no export.**
 - No monitoring or alerting; a missed cron run is repaired by the next but nobody is told.
 
@@ -564,6 +720,14 @@ against a fake Auth server for the cookie flags. Those scripts were scratchpad f
 - Next.js `maxDuration` is valid in `layout.tsx`, `page.tsx` and `route.ts` (docs in `node_modules/next/dist/docs`). Curl cannot easily emulate a client-side RSC navigation (it needs the router-state headers); a plain document request works.
 - postgres.js keeps retrying with backoff on `ECONNREFUSED` (dev pages took 12 to 19 s on later requests); pool size changes the failure-case latency (see 0a).
 - In one Bash call even a single heredoc containing apostrophes failed with "unexpected EOF"; write scripts with the Write tool.
+- **2026-10-18 macOS probe notes:** `timeout` does not exist (put a `setTimeout` plus `process.exit` inside the script); in zsh
+  `for v in "A=1 B=2"; do env $v ...` does **not** split the string (it made `idle_timeout` NaN), so pass the variables explicitly; a
+  `sleep N; cat` chain is blocked by the tool, so use `until ...; do sleep 2; done` or run in the background; a launcher run in the
+  background reports "completed" at once while its detached children keep running (check the output files). `node --env-file=.env.local
+node_modules/vitest/vitest.mjs run <file>` runs a probe with the real code and database (aliases work) without printing the URL.
+  Probes against staging must be read-only (`select`, `pg_sleep`) with a hard exit: abandoned queries linger on the pooler, and a run
+  right after a heavy one can hit `57014` (seen once; passed 20 s later). The probe scripts and the pglite server are **not kept**; the
+  method is in `knowledge/patterns/implement-and-test.md` ("pool-budget pattern", "pglite").
 
 ### Choices the user already made
 
@@ -609,6 +773,8 @@ fixed ids (Vacation/Sick tracked, Unpaid not), CI asserting 3 leave types after 
 | -        | Auth outage behaviour (2026-10-16)      | `getSession()` throws 503 `SERVICE_UNAVAILABLE` (never null, never a session); proxy lets pages through to re-check and answers `/api/*` with 503; a real "no session" still redirects to `/login`. |
 | -        | Deadlines (2026-10-16)                  | Auth 5 s (whole call), read queries 8 s, `maxDuration` 30 s (cron 60 s); writes have no query deadline.                                                                                             |
 | -        | Pool size (2026-10-16)                  | Stays `max: 5`, `idle_timeout: 20`: shrinking it measured much slower under a stalled database.                                                                                                     |
+| -        | Page query budget (2026-10-18)          | Every page at most `POOL_MAX - 1` (4) parallel statements; the pool stays `max: 5`; guard in `src/lib/db/query-budget.test.ts`.                                                                     |
+| -        | Dashboard summary read (2026-10-18)     | Balances and the manager/HR pending count come from one statement; the two cards fail together. The user chose this over raising the pool to 8.                                                     |
 | -        | `ALLOW_MOCK_LOGIN=true` on Vercel       | Temporary (the user's choice, 2026-10-16); must be removed before the supervisor demo.                                                                                                              |
 
 ### Still open
@@ -621,7 +787,9 @@ fixed ids (Vacation/Sick tracked, Unpaid not), CI asserting 3 leave types after 
 | -   | Email delivery                           | No custom SMTP; Supabase's built-in sender is rate-limited. Needed for emailed invites, not for Monday.                      |
 | -   | App time zone                            | `APP_TIMEZONE` is optional (UTC when unset); set it on Vercel.                                                               |
 | -   | Client cache `staleTimes.dynamic: 30`    | Optional, experimental, would make going back to the dashboard instant; up to 30 s stale. The user has not decided.          |
-| -   | Root cause of the staging stalls         | Unproven (section 0a). Deadlines and logs are in place; the dashboard-reliability task is the proposed next step.            |
+| -   | Root cause of the staging stalls         | Mitigated by the pool budget (section 0a); the mechanism behind "over the pool hangs" is unexplained.                        |
+| -   | Dedicated session pool                   | Planned and shelved (lean, not a formal decision); build only on the triggers in Next session item 10.                       |
+| -   | Faster session path                      | `getClaims()` and/or a 30 to 60 s user-row cache: the user's call (auth behaviour); retry strategy also open.                |
 
 ### Say plainly to the supervisor in the demo
 
@@ -708,6 +876,9 @@ should sit next to the database.
 - `knowledge/retros/2026-10-16-task-020-supabase-session.md`, `...-task-021-proxy-session.md`, `...-task-022-login-form.md`,
   `...-task-024-seed-auth-users.md`, `...-page-load-resilience.md`, `...-hang-protection.md` (the newest first to read), and the
   runbook `knowledge/runbooks/seed-auth-users.md`.
+- `knowledge/retros/2026-10-17-page-load-reliability.md`, `...-task-025-csp-and-security-review.md`; 2026-10-18:
+  `...-task-027-staging-rollout.md`, `...-us-11-upcoming-leave-and-recent-activity.md`, `...-request-leave-redesign.md`, and
+  `2026-10-18-dashboard-pool-stalls.md` (newest; read it first for the stall).
 - `docs/arch-docs/ADR-LeaveTrack-E001-Auth-Session-Strategy.md`, `ADR-LeaveTrack-E002-Accrual-Idempotency.md` and
   `ADR-LeaveTrack-E003-Real-Sign-In.md`.
 - `knowledge/rules/coding-standards.md` and `AGENTS.md`: the rules every task follows (AGENTS.md has 11 backend rules).
