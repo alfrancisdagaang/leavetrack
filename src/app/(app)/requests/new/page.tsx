@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { LoadingRegion } from "@/components/ui/skeleton";
 import { requireSession } from "@/lib/auth/guards";
@@ -15,24 +14,20 @@ export default async function NewRequestPage() {
   const { user } = await requireSession();
 
   return (
-    <div className="max-w-5xl">
+    <div>
       <PageHeader
         title="Request leave"
         description="Submit a request for your manager to review."
       />
-      <div className="max-w-xl">
-        <Card>
-          <Suspense
-            fallback={
-              <LoadingRegion>
-                <RequestFormSkeleton />
-              </LoadingRegion>
-            }
-          >
-            <RequestFormSection userId={user.id} />
-          </Suspense>
-        </Card>
-      </div>
+      <Suspense
+        fallback={
+          <LoadingRegion>
+            <RequestFormSkeleton />
+          </LoadingRegion>
+        }
+      >
+        <RequestFormSection userId={user.id} />
+      </Suspense>
     </div>
   );
 }

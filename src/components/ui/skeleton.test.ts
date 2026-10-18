@@ -73,11 +73,16 @@ describe("loading states mirror their pages", () => {
     expect(count(html, "sm:grid-cols-2")).toBe(1);
   });
 
-  it("request form: a type, two dates, a tall reason box and a submit button", () => {
+  it("request form: three leave type cards, the details card, and the summary and guidance cards", () => {
     const html = render(NewRequestLoading);
-    expect(count(html, "h-11 w-full")).toBe(4); // three controls and the submit button
-    expect(count(html, "h-24 w-full")).toBe(1);
-    expect(html).toContain("max-w-xl");
+    expect(count(html, "h-[156px]")).toBe(3); // one placeholder per leave type card
+    expect(count(html, "h-[70px]")).toBe(2); // the two date fields
+    expect(count(html, "h-[128px]")).toBe(1); // the reason box
+    expect(count(html, "h-11 w-full")).toBe(1); // the submit button
+    expect(count(html, "h-[210px]")).toBe(1); // the summary card
+    expect(count(html, "h-[260px]")).toBe(1); // the guidance card
+    expect(html).toContain("xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"); // same grid as the page
+    expect(html).not.toContain("max-w-xl"); // the narrow form column is gone
   });
 
   it("dashboard: a welcome block, four summary cards and a calendar of five week rows", () => {

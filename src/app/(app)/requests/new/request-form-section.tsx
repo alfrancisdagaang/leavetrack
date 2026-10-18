@@ -3,9 +3,20 @@ import { Alert } from "@/components/ui/alert";
 import { ButtonLink } from "@/components/ui/button";
 import { timedRead } from "@/lib/db/timed";
 import type { BalanceSummaryItem } from "@/lib/leave/balance";
+import { getReviewerName } from "@/lib/leave/reviewer";
 import { getBalanceSummary, requireDb } from "@/lib/leave/service";
 import { logger } from "@/lib/logger";
 import { RequestForm } from "./request-form";
+
+/** The signed-in user's reviewer (scoped by their id in SQL). Null if unavailable: only that row hides. */
+async function reviewerOf(userId: string): Promise<string | null> {
+  try {
+    return await timedRead("requests_new.reviewer", () => getReviewerName(requireDb(), userId));
+  } catch (err) {
+    logger.warn({ err }, "requests/new: reviewer unavailable");
+    return null;
+  }
+}
 
 /**
  * The form with its leave types. It reads the user's own balances (scoped by their id in SQL), so
@@ -13,6 +24,7 @@ import { RequestForm } from "./request-form";
  * way to retry instead of crashing the page.
  */
 export async function RequestFormSection({ userId }: { userId: string }) {
+  const reviewer = reviewerOf(userId); // runs alongside the balances; never rejects
   let balances: BalanceSummaryItem[];
   try {
     balances = await timedRead("requests_new.summary", () =>
@@ -36,5 +48,5 @@ export async function RequestFormSection({ userId }: { userId: string }) {
   if (balances.length === 0) {
     return <Alert variant="error">No leave types are set up yet.</Alert>;
   }
-  return <RequestForm balances={balances} />;
+  return <RequestForm balances={balances} reviewerName={await reviewer} />;
 }
