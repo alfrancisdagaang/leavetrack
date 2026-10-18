@@ -243,3 +243,22 @@ describe("proxy — cron jobs", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("proxy matcher: public static brand assets", () => {
+  it("skips the logo, the icons and the tab icon (the sign-in page shows them to signed-out visitors) and nothing else", async () => {
+    const { config } = await import("@/proxy");
+    const guarded = new RegExp(`^${config.matcher[0]}$`);
+    for (const path of ["/icons/logo.svg", "/icons/nav-house.svg", "/icon.svg", "/favicon.ico"]) {
+      expect(guarded.test(path), path).toBe(false);
+    }
+    for (const path of [
+      "/dashboard",
+      "/audit",
+      "/api/leave-requests",
+      "/approvals/team",
+      "/login",
+    ]) {
+      expect(guarded.test(path), path).toBe(true);
+    }
+  });
+});

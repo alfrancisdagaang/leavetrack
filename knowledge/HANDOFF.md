@@ -243,6 +243,18 @@ Tests with fake timers; writes stay unwrapped. After deploy, read the logs for `
 (port 3000 was held by the user's own server, so I did not build; the Vercel deployment evidently built, since its new log lines
 appeared); GitHub Actions for the last five commits (`gh` is not installed).
 
+### What was done on 2026-10-18 (login redesign; verified by me unless marked)
+
+- **Sign-in page redesigned** (retro `2026-10-18-login-redesign.md`; from the ChatGPT mockup image 10; nothing in `docs/`). From `lg` a navy brand
+  panel (logo, tagline, calendar-and-clock SVG) beside the form; below it a single card. Password show/hide toggle
+  (`src/app/login/password-field.tsx`, still one `password` input), spinner on the button, the real error messages kept. The visible demo
+  account from the mockup (`hr@demo.com` / `demo123`) was dropped on purpose; the mock card is unchanged and shows only while `ALLOW_MOCK_LOGIN`
+  is true. `actions.ts` and `page.tsx` untouched.
+- **Bug fixed:** `proxy.ts` redirected signed-out requests for `/icons/*` and `/icon.svg` to `/login`, so the logo was a broken image on the
+  sign-in page. The matcher now skips `icons/` and `icon.svg` (brand icons only), with a test that fails without it.
+- **Tests that never ran:** vitest only includes `*.test.ts`, so `login-view.test.tsx` and `page.test.tsx` were silently skipped; renamed to `.ts`.
+- **Not verified:** a successful real sign-in (needs Supabase); a no-JavaScript submit. **Backlog:** the email field is cleared after a failed sign-in.
+
 ### What was done on 2026-10-18 (late night; verified by me unless marked)
 
 - **Audit History redesigned** (`1909b35`; retro `2026-10-18-audit-list-redesign.md`; from the ChatGPT mockup image 7; **no PRD story or CSV, by the

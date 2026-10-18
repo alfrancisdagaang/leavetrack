@@ -63,5 +63,7 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|robots.txt).*)"],
+  // Static brand assets (the logo, icons and the tab icon) are public: the sign-in page shows them
+  // to people who are not signed in, and they carry no data.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon.svg|robots.txt|icons/).*)"],
 };
