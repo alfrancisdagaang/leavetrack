@@ -67,3 +67,18 @@ Learned in TASK-025: a test that stubs the library proves only what the stub say
   `Runtime.consoleAPICalled`; read cookie flags with `Network.getAllCookies`). Run Node scripts with `bash`, not `zsh file`.
 - A source-level guard test (`src/lib/security-guards.test.ts`) is only worth having if it **fails on a planted violation**: add one
   in a temporary file, watch it fail, delete it.
+
+## Canonical real-database-without-Postgres pattern (pglite)
+
+Learned in US-11: there is no local Postgres on the Mac, so the gated `*.integration.test.ts` files and a browser check can run
+against `@electric-sql/pglite` + `@electric-sql/pglite-socket` installed **in the session scratchpad** (never in the repo).
+
+- Apply `supabase/migrations/*.sql` in order, minus the `create extension ... pgcrypto` line (pglite has no pgcrypto; Postgres 13+
+  has `gen_random_uuid()` built in). Add `supabase/seed.sql` only for a browser check, never for an integration test.
+- pglite is **one session**. Parallel connections share the unnamed prepared statement, so queries fail with
+  `bind message supplies N parameters, but prepared statement "" requires M`. That is the harness, not the code: run **one
+  integration file at a time**, and for a browser check make the throwaway copy's pool `max: 1` (copy only, never the repo).
+- Restart the server before **every** run. Fixture rows cannot be deleted (triggers), and leftover rows silently crowd out any
+  `limit` assertion, so a second run on the same instance gives failures that look like the bug you are hunting.
+- Prove a scoping test can fail: break the filter in the source, run on a **fresh** database, expect exactly the scope tests to
+  fail, restore the file and `diff` it against a backup.

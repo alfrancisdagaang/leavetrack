@@ -1,10 +1,15 @@
 # LeaveTrack — Session Handoff
 
-Last updated: Saturday 2026-10-17 (end of session) · Code state: `origin/main` is at `bababb5`. Local `main` has **one more
-commit, this handoff, which is NOT pushed** (the user will push later). Working tree clean after that commit.
-Commits this session after `c4e8c4e`: `517ce12` (page-load reliability: streamed sections and one retry of reads), `3337112`
-(an earlier handoff), `bababb5` (TASK-025: httpOnly and Secure session cookie, wider log redaction). Last session (2026-10-16): `5f49aaf` (TASK-020 + 021), `35a734b` (TASK-022), `50a74d5`
-(TASK-024), `6cda7f3` (outage handling and query logging), `169bbcc` (deadlines on Auth calls and queries).
+Last updated: Sunday 2026-10-18 (end of session) · Code state: `origin/main` is at `06dee3f` and local `main` matches it. This
+handoff edit is the only uncommitted change (commit it when the user says).
+Commits 2026-10-18: `155e9df` (TASK-027: staging rollout runbook, demo checklist, four demo requests in the seed), `06dee3f`
+(EPIC-2 tasks marked Done, handoff). 2026-10-17: `517ce12` (page-load reliability: streamed sections and one retry of reads),
+`bababb5` (TASK-025: httpOnly and Secure session cookie, wider log redaction). Session 2026-10-16: `5f49aaf` (TASK-020 + 021),
+`35a734b` (TASK-022), `50a74d5` (TASK-024), `6cda7f3` (outage handling and query logging), `169bbcc` (deadlines on Auth calls and queries).
+
+**Read first, 2026-10-18 end of session:** the demo is **Mon 2026-10-19**. Staging is in demo state (TASK-027 done, mock login off,
+reported by the user). The open threads are in section "What was done on 2026-10-18 (later)" below: the Figma MCP just added on
+this laptop, the Request Leave redesign, the missing Upcoming leave and Recent activity sections, and the icon 304 finding.
 
 A living note for starting a new session without chat history. Update it at the end of each session.
 Everything below is either **verified** (checked by me on the date above), **reported** (the user told me; I did not see it),
@@ -179,6 +184,51 @@ Tests with fake timers; writes stay unwrapped. After deploy, read the logs for `
 (port 3000 was held by the user's own server, so I did not build; the Vercel deployment evidently built, since its new log lines
 appeared); GitHub Actions for the last five commits (`gh` is not installed).
 
+### What was done on 2026-10-18 (later; verified by me unless marked)
+
+- **TASK-027 done** (`155e9df`, `06dee3f`, pushed): `knowledge/runbooks/staging-rollout.md`, `demo-checklist.md`, retro
+  `2026-10-18-task-027-staging-rollout.md`, four pending demo requests in `supabase/seed.sql`. I verified on an in-memory Postgres
+  (pglite in the scratchpad; no local Postgres on this Mac): migrations plus the seed twice are idempotent, queues scope correctly (Marco
+  gets Elena and Jun, never Leo), the auth-seed parser still reads 7 emails. The live steps are **reported** by the user: seed run on
+  staging, sign-ups off, Site URL set, **`ALLOW_MOCK_LOGIN` off**, sign-in works without the mock login. Per-item detail (cookie flags,
+  CSP console, per-role results) was not given: unconfirmed. Rollback: `ALLOW_MOCK_LOGIN=true` plus redeploy.
+- **EPIC-2 CSV:** TASK-020 to 025 and 027 are `Done` (the user asked, "mark done with the epic-2"); **TASK-026 stays `Open`**; the EPIC-2
+  header row stays `Open`.
+- **Icon 304 evaluated; the user chose to leave it (decision).** Verified with `curl` on the live URL: `/icons/*.svg` goes through
+  `src/proxy.ts` (the matcher only skips `_next/static`, `_next/image`, `favicon.ico`, `robots.txt`), so signed out it answers 307 to
+  `/login`, and signed in every icon costs an Auth check; Vercel serves `public/` files with `max-age=0, must-revalidate`, hence the
+  304s. Harmless for security and function. **Possible contributor to the stalls (unproven; Auth call is candidate 2 in section 0a).**
+  Fix if wanted after the demo (option B): exclude `icons/` in the matcher, `Cache-Control: public, max-age=86400` for `/icons/:path*`
+  in `next.config.ts`, add `src/app/icon.svg` (the `/favicon.ico` 404), tests for matcher and header. Not logged in a retro (user said
+  not to bother). If a page hangs in the demo, look at this first.
+- **Request Leave redesign (discussed, nothing built).** Current form: `src/app/(app)/requests/new/request-form.tsx` (leave-type select,
+  two dates, working-days line, reason, over-balance warning, success alert). Proposed, frontend-only (no API or DB change): selectable
+  leave-type **cards** (Vacation, Sick, Unpaid "Untracked") showing available and pending days, doubling as the picker (radio group);
+  a live summary panel (readable dates, working days, balance after); friendly field errors and a 500-character counter; a richer
+  success screen; mobile stacking with a sticky Submit; desktop two columns. **Needs a decision, not designed:** block past dates,
+  overlap warning, approver name, half-days (no), attachments (no). I wrote a full Figma prompt for this (not saved in the repo; regenerate
+  it from this list: tokens from `globals.css`, 10 states, desktop 1440 and mobile 375). The user's first Figma run failed because it
+  ran in a **different Figma account** that could not see the dashboard file.
+- **Upcoming leave and Recent activity (dashboard, in the Figma, not built, no PRD story).** The user pointed out both are missing
+  from the dashboard. My proposal (a **lean**, not agreed): same role scope as the calendar (employee own, manager own plus direct reports
+  by `u.manager_id`, HR everyone), Upcoming = `leave_requests` with `end_date >= today`, not deleted, **include pending with a chip**
+  (the demo data is nearly all pending, so approved-only would be empty), about 5 rows; Recent activity = `audit_log` joined to the
+  request and people (submitted, approved, rejected; no cancel yet), scoped in SQL, relative time. No migration. Each is about 1 to 2
+  hours with tests, streamed with `timedRead` per the dashboard pattern. **Decisions the user has not answered:** pending in
+  Upcoming, role scope, time format, row links (no detail page exists, so none), and writing PRD US-11 plus two CSV tasks first.
+  **I have not seen those two sections in Figma** (no Figma access in this session).
+- **Figma MCP (this is a new laptop).** The user ran `claude mcp add --transport http --scope user figma https://mcp.figma.com/mcp`
+  (saved in `~/.claude.json`, **not** in the repo; the project `.mcp.json` is untouched). `/mcp` did not list it yet because Claude Code
+  reads servers at startup. **Next session:** restart, `/mcp`, select figma, Authenticate with the Figma account that can open the
+  file (it must be able to see it; share the file if not), then use the link the user sent:
+  `https://www.figma.com/design/GrKk5YyfJcDRdPBr7xXTF9/Untitled?node-id=0-1`. Fallback if the MCP will not connect: export the frames as
+  PNGs into `docs/designs/dashboard/` (the tool can read images). The older Figma notes (file id, frame ids, asset URLs expire after 7
+  days) are in "Machine and tooling notes".
+- **Suggested order for the next session:** (1) Figma MCP works, (2) read the Upcoming leave and Recent activity frames and settle the
+  five decisions, (3) PRD US-11 plus tasks, then `/evaluate`, (4) Request Leave redesign once its design exists, (5) TASK-016 mobile
+  pass if there is time. Rehearse the demo script before anything else, from the network the demo will use. Do not touch `proxy.ts`
+  the night before the demo.
+
 ### What was done on 2026-10-17 (verified by me unless marked)
 
 - **Machine changed:** this session ran on **macOS** (zsh), not the Windows machine of earlier sessions. `.env.local` did not exist
@@ -276,7 +326,7 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
 
 ### Next session: do these in order
 
-0. **Servers and state.** `origin/main` is at `bababb5`; the handoff commit on top is local and **not pushed** (push it when the
+0. **Servers and state.** `origin/main` is at `06dee3f` (2026-10-18); only a handoff edit may be uncommitted (commit and push when the
    user says). Check the port before any build and never build while something listens on
    3000 (the user's `next start` did, PID 10269 at the last check): build in a throwaway copy instead (copy the repo without
    `node_modules`, `.next`, `.git` and `.env*`, clone `node_modules` with `cp -Rc`, build there). The Postgres 18 on port 54329
@@ -394,8 +444,9 @@ mock fallback  only when ALLOW_MOCK_LOGIN is true, clearly labelled; with it off
 
 ### Source control
 
-- `origin/main` is at `bababb5` (verified with `rev-parse` before this handoff). Local `main` is one commit ahead: this handoff,
-  not pushed. Newest first: `bababb5` fix: make the supabase session cookie httpOnly and Secure and close log redaction gaps
+- `origin/main` is at `06dee3f` and local `main` matches it (pushed 2026-10-18; verified with `git status -sb`). Newest first:
+  `06dee3f` docs: mark epic-2 tasks done and record the staging rollout; `155e9df` docs: add staging rollout runbook, demo checklist
+  and demo requests; `7ca4ae2` docs: update handoff for the end of the 2026-10-17 session; `bababb5` fix: make the supabase session cookie httpOnly and Secure and close log redaction gaps
   (TASK-025); `3337112` docs: update handoff for the 2026-10-17 session (an earlier version of this file); `517ce12` fix: stream
   page sections and retry stalled reads; `c4e8c4e` docs: update handoff for the 2026-10-16
   session; `169bbcc` fix: deadlines on auth calls and queries; `6cda7f3` fix: report db and auth outages as unavailable and log
