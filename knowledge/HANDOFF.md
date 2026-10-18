@@ -1,8 +1,10 @@
 # LeaveTrack — Session Handoff
 
-Last updated: Sunday 2026-10-18 (end of session, night) · Code state: `origin/main` has everything below; the newest commits are
-a `docs:` handoff commit on top of `c73b563` (EPIC-4 team management as a tab of Team approvals). Check `git log` and `git status -sb`.
-Commits 2026-10-18 (newest first): `c73b563` (EPIC-4: My team roster, team member page, Team approvals tabs and rows, width fix),
+Last updated: Sunday 2026-10-18 (end of session, late night) · Code state: `origin/main` has everything below; the newest commits are
+a `docs:` handoff commit on top of `1909b35` (audit list redesign and new logo) and `5c546d0` (PRD restored to its original). Check
+`git log` and `git status -sb`.
+Commits 2026-10-18 (newest first): `1909b35` (Audit History redesigned as an all-employees list, Audit History sidebar icon, new app logo
+and tab icon), `5c546d0` (PRD restored to its original day-0 text), `da0a782` (handoff), `c73b563` (EPIC-4: My team roster, team member page, Team approvals tabs and rows, width fix),
 `db2ff00` (retros for My Balance), `52de8c9` (My Balance breakdown and redesign), `1f75b29` (pool budget fix: every page at most 4 parallel database statements; pushed at the
 user's request, **reported clean on Vercel**), `9f249bf` (retros for US-11 and the Request Leave redesign), `0ed8808` (Request Leave
 redesign), `93f7888` (US-11: Upcoming leave and Recent activity cards), `06dee3f` (EPIC-2 tasks marked Done), `155e9df` (TASK-027:
@@ -10,6 +12,13 @@ staging rollout runbook, demo checklist, four demo requests in the seed). 2026-1
 sections and one retry of reads), `bababb5` (TASK-025: httpOnly and Secure session cookie, wider log redaction). Session
 2026-10-16: `5f49aaf` (TASK-020 + 021), `35a734b` (TASK-022), `50a74d5` (TASK-024), `6cda7f3` (outage handling and query logging),
 `169bbcc` (deadlines on Auth calls and queries).
+
+**DOCS RULE (user, 2026-10-18, from the supervisor): do NOT edit the PRD, the BRD or the other requirement docs.** The PRD was put back to
+its original day-0 text (8 stories, US-01 to US-08) in `5c546d0`: US-09 to US-11 (added by an earlier session) and today's US-12 and US-13
+are gone from it (they stay in git history). The user kept `ARCH-LeaveTrack-v1.0.md`, the ADR-E002 and ADR-E003 files and all dev-task
+CSVs as they are (`epic-4-team-tasks.csv` is committed and still mentions US-12/US-13, which no longer exist in the PRD; code comments and
+tests in about 39 files and some retros also cite US-11 to US-14: harmless, an offer to reword them is open). Write new decisions in
+`knowledge/` (retros, this file), never in `docs/`. Everything built beyond the original PRD is listed in "Built beyond the PRD" below.
 
 **Read first, 2026-10-18 night:** since the notes below were written, three things shipped (see "What was done on 2026-10-18 (night)"):
 the My Balance breakdown and redesign (`52de8c9`), and EPIC-4 team management (`c73b563`): **My team is now the second tab of Team
@@ -234,12 +243,57 @@ Tests with fake timers; writes stay unwrapped. After deploy, read the logs for `
 (port 3000 was held by the user's own server, so I did not build; the Vercel deployment evidently built, since its new log lines
 appeared); GitHub Actions for the last five commits (`gh` is not installed).
 
+### What was done on 2026-10-18 (late night; verified by me unless marked)
+
+- **Audit History redesigned** (`1909b35`; retro `2026-10-18-audit-list-redesign.md`; from the ChatGPT mockup image 7; **no PRD story or CSV, by the
+  docs rule**). `/audit` (HR only, read-only, full width, h1 "Audit History") is now an all-employees list: name search with native
+  suggestions (`<datalist>`, up to 500 names), leave type, status (Pending, Approved, Rejected, Removed), decided by, UTC date range
+  (a request matches when ANY of its audit events falls in the range), applied-filter chips, a summary strip (Total, Approved, Rejected,
+  Pending, Removed; a soft-deleted request counts as Removed only, so the buckets add up), a table from `sm` and stacked rows below,
+  25 per page (a page past the end shows the last). Dates read "Nov 2 to Nov 4, 2026", times "Oct 18, 2026, 09:12 UTC". Code:
+  `src/lib/leave/audit-list.ts` (`getAuditPage` one statement, `getAuditFilterChoices` one statement), `src/app/(app)/audit/*`,
+  `parseAuditListQuery` in `schemas.ts`. The old one-employee API `GET /api/audit/[userId]`, `audit.ts` and their tests are unchanged
+  (`listEmployees` is no longer used by the page). The employee's `reason` and the decision note are never selected.
+  Validation: gate in a throwaway copy (745 then 748 tests), real-engine test (12) with **13 break-the-filter mutations all caught**,
+  browser as HR at 1440, 375, 320 (width 100% like the dashboard, filters without reload, no-JS GET form, manager and employee redirected).
+  The shared filter shell moved to `src/components/ui/filter-shell.tsx` (the team member page uses it too); `MemberPagination` takes a page size.
+  **Not built:** the request details page `/audit/[requestId]` with the event timeline (so rows have no chevron); the mockup's "Viewed"
+  and "Created" events (not in the data), export, time zone toggle. Audit of reads is still backlog.
+- **Sidebar icon for Audit History** (`public/icons/nav-history.svg`, `NAV_ICON.audit`, a test that every nav item has an existing icon).
+- **New app logo** (blue circle with a white L and a light-blue T, drawn by hand from the user's image 8; colours estimated `#1155EE`,
+  `#C0D9FB`): `public/icons/logo.svg` in the sidebar brand (36x36) and `src/app/icon.svg` as the browser tab icon (there was none).
+  The old `leaf-logo.svg` is deleted.
+- **Tip given to the user:** use `npm run dev` for UI work (hot reload) and `npm run build` plus `npm start` only as a last check. Dev uses
+  `.env.local`, which points at the real staging database.
+
+### Built beyond the PRD (not in the original 8 stories; keep this list in `knowledge/`, not in the PRD)
+
+My team roster and the team member page (inside Team approvals as a second tab), Team approvals as rows with a "Recently decided" list,
+the all-employees Audit History list with filters, the My Balance breakdown, the Request Leave redesign, the sidebar shell and profile menu,
+the dashboard calendar, upcoming leave and recent activity (US-09 to US-11 were added to the PRD earlier and have now been removed from it), real
+sign-in with Supabase Auth, the "Cannot be approved" over-balance warning, streamed page sections with a one-time read retry, the
+4-statements-per-page budget, and the app logo and tab icon.
+
+### What is lacking against the original BRD and PRD (answer given to the user, 2026-10-18)
+
+- **3-year retention (BR-04, US-05):** satisfied in the database (triggers forbid deleting or truncating `leave_requests` and `audit_log`; the
+  list has no time cutoff). Gaps: US-05 AC2 "view its record and see it was never hard-deleted" needs the per-request details page (not built;
+  the list shows "Removed (soft-deleted)"); **no test with a record older than 3 years**; keeping Supabase backups for 3 years is a setup
+  question, not app code.
+- **Notifications:** US-01 AC1 (manager notified) and US-03 (employee notified) have **no implementation at all** (no email, no in-app). Biggest gap.
+- **HR override** (US-01 AC3): an over-balance request can be submitted but only rejected; nobody can override. The UI says "not available yet".
+- **US-06:** done and checked at 375 and 320 px, but TASK-016 is still `Open` in the CSV.
+- **NFRs:** p95 under 500 ms and 800 concurrent staff were never measured; production is not set up (only staging); the monthly accrual cron is
+  scheduled in `vercel.json` but has only been run by hand on staging.
+- **Still open tasks:** TASK-016, TASK-026 (change-password page). CSV statuses of TASK-030 to 036 are still `Open` (built); the user said not
+  to change the CSVs, so leave them unless told.
+
 ### What was done on 2026-10-18 (night; verified by me unless marked)
 
 - **My Balance breakdown and redesign** (`52de8c9`, retros `2026-10-18-my-balance-breakdown.md` and `-my-balance-redesign.md`, `db2ff00`).
   Per leave type: Available, Pending, Used this year, Accrued this year, derived Opening balance; table from `sm`, stacked rows on phones;
   My Balance page only; PRD not edited. Width fixed to fill the area like the dashboard. Pushed at the user's request.
-- **EPIC-4 Team management** (`c73b563`; retro `2026-10-18-team-management.md`; PRD US-12 and US-13; `docs/dev-tasks/epic-4-team-tasks.csv`
+- **EPIC-4 Team management** (`c73b563`; retro `2026-10-18-team-management.md`; PRD US-12 and US-13 **were written there and then removed again in `5c546d0`**; `docs/dev-tasks/epic-4-team-tasks.csv`
   TASK-033 to 036, **statuses still "Open" in the CSV: not updated**). The user chose to build it the night before the demo.
   - **Roster** `/approvals/team` (`src/lib/leave/team-roster.ts`, one statement, scoped `u.manager_id = session user`): out today or next
     approved leave, pending count, Vacation and Sick days left (equal to My Balance), last request. **Member page**
@@ -258,7 +312,7 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
     (queries unchanged). Harness quirk: after Approve or Reject the refresh against one-connection pglite shows the failure notes
     (ECONNRESET, two pools); a reload is correct.
   - **Open, needs the user's decision:** link the employee name in approval rows to the member page (needs `u.id as employee_id` in
-    `getTeamQueue` and `getRecentlyDecided`, types and `team.test.ts`); the Audit page still has `max-w-5xl`; PRD US-12 AC4 wording was
+    `getTeamQueue` and `getRecentlyDecided`, types and `team.test.ts`); (the Audit page width is fixed, see the next block); the PRD edit is reverted;
     edited (nav item replaced by the tab) and the user has not explicitly OK'd that edit; hr_admin sees only their direct reports in My team.
   - If you run `next start` locally, **rebuild first**: `.next` is stale after the route move.
 
@@ -446,7 +500,7 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
 
 ### Next session: do these in order
 
-0. **Servers and state.** `origin/main` has `c73b563` plus a docs handoff commit (2026-10-18 night); check `git status -sb`.
+0. **Servers and state.** `origin/main` has `1909b35` and `5c546d0` plus a docs handoff commit (2026-10-18 late night); check `git status -sb`.
    **First, look at the deployed Team Approvals and My team tabs as Marco on Vercel**, and mark TASK-033 to 036 Done in the CSV if they pass. Check the port before any build and never build while something listens on
    3000 (the user's `next start` did, PID 26589 at the last check, 2026-10-18 evening): build in a throwaway copy instead (copy the repo without
    `node_modules`, `.next`, `.git` and `.env*`, clone `node_modules` with `cp -Rc`, build there). The Postgres 18 on port 54329
@@ -576,7 +630,7 @@ mock fallback  only when ALLOW_MOCK_LOGIN is true, clearly labelled; with it off
 
 ### Source control
 
-- `origin/main` has `c73b563` feat (EPIC-4) and the docs handoff commit above it (2026-10-18 night). Newest first: `c73b563`; `db2ff00` docs:
+- `origin/main` has the docs handoff commit on top of `1909b35` feat (audit list, logo) and `5c546d0` docs (PRD restored) (2026-10-18 late night). Newest first: `1909b35`; `5c546d0`; `da0a782`; `c73b563`; `db2ff00` docs:
   retros for My Balance; `52de8c9` feat: My Balance breakdown;
   `1f75b29` fix: keep every page within the database pool so reads stop stalling; `9f249bf` docs: add retros for US-11 and the request
   leave redesign and update the handoff; `0ed8808` feat: redesign the request leave page with live summary and reviewer; `93f7888` feat: add
