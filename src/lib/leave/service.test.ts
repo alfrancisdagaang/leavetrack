@@ -1,6 +1,11 @@
 import type { Sql } from "postgres";
 import { describe, expect, it } from "vitest";
-import { createLeaveRequest } from "@/lib/leave/service";
+import {
+  createLeaveRequest,
+  getBalanceSummary,
+  getDashboardSummary,
+  getMySummary,
+} from "@/lib/leave/service";
 
 const ELENA = "00000000-0000-4000-8000-000000000003";
 const MARCO = "00000000-0000-4000-8000-000000000002";
@@ -16,8 +21,16 @@ const TYPES = [
   { id: UNPAID, name: "Unpaid", tracks_balance: false },
 ];
 
-/** A fake postgres.js client: records every statement and answers the ones submit makes. */
-function fakeSql(balances: { leave_type_id: string; balance: string }[]) {
+type Pending = { leave_type_id: string; start_date: string; end_date: string };
+
+/**
+ * A fake postgres.js client: records every statement and answers the ones these functions make.
+ * The balance summary is ONE statement that returns its three parts as JSON columns.
+ */
+function fakeSql(
+  balances: { leave_type_id: string; balance: string }[],
+  { pending = [], approvals = 0 }: { pending?: Pending[]; approvals?: number } = {},
+) {
   const calls: Call[] = [];
   const tx = (strings: TemplateStringsArray, ...values: unknown[]) => {
     const text = strings.join("?").replace(/\s+/g, " ").trim();
@@ -25,12 +38,15 @@ function fakeSql(balances: { leave_type_id: string; balance: string }[]) {
     let rows: unknown[] = [];
     if (/^select id, manager_id from public\.users/.test(text)) {
       rows = [{ id: ELENA, manager_id: MARCO }];
-    } else if (/^select id, name, tracks_balance from public\.leave_types/.test(text)) {
-      rows = TYPES;
-    } else if (/^select leave_type_id, balance from public\.leave_balances/.test(text)) {
-      rows = balances;
-    } else if (/from public\.leave_requests where user_id/.test(text)) {
-      rows = [];
+    } else if (/json_agg\(.*public\.leave_types/.test(text)) {
+      rows = [
+        {
+          types: TYPES,
+          balances,
+          pending,
+          pending_approvals: values[2] === true ? approvals : null,
+        },
+      ];
     } else if (/^insert into public\.leave_requests/.test(text)) {
       rows = [
         {
@@ -48,9 +64,11 @@ function fakeSql(balances: { leave_type_id: string; balance: string }[]) {
     }
     return Promise.resolve(rows);
   };
-  const sql = { begin: (cb: (t: typeof tx) => Promise<unknown>) => cb(tx) } as unknown as Sql;
+  const sql = Object.assign(tx, {
+    begin: (cb: (t: typeof tx) => Promise<unknown>) => cb(tx),
+  }) as unknown as Sql;
   const touched = (re: RegExp) => calls.filter((c) => re.test(c.text));
-  return { sql, touched };
+  return { sql, touched, calls };
 }
 
 // Mon 2026-11-02 to Fri 2026-11-06 is 5 working days.
@@ -96,5 +114,56 @@ describe("createLeaveRequest (US-08 AC2: submit is never blocked by a balance)",
       code: "VALIDATION_ERROR",
     });
     expect(touched(/^insert into/)).toHaveLength(0);
+  });
+});
+
+describe("balance summary reads (pool budget: one statement per summary)", () => {
+  const SUMMARY = /json_agg\(.*public\.leave_types/;
+
+  it("getBalanceSummary issues exactly one statement and shapes it as before", async () => {
+    const { sql, calls } = fakeSql([{ leave_type_id: VAC, balance: "10.00" }], {
+      pending: [{ leave_type_id: VAC, start_date: "2026-11-02", end_date: "2026-11-03" }],
+    });
+    const summary = await getBalanceSummary(sql, ELENA);
+
+    expect(calls).toHaveLength(1);
+    expect(summary.map((s) => s.leaveTypeName)).toEqual(["Vacation", "Sick", "Unpaid"]);
+    expect(summary[0]).toMatchObject({ confirmed: 10, pending: 2, available: 8 });
+    expect(summary[1]).toMatchObject({ confirmed: 0, pending: 0, available: 0 });
+    expect(summary[2]).toMatchObject({ tracksBalance: false, confirmed: null, available: null });
+  });
+
+  it("getMySummary issues exactly two statements: the request list and the summary", async () => {
+    const { sql, calls } = fakeSql([]);
+    await getMySummary(sql, ELENA);
+    expect(calls).toHaveLength(2);
+    expect(calls.filter((c) => SUMMARY.test(c.text))).toHaveLength(1);
+  });
+
+  it("filters by the given user id in SQL, never fetching broadly", async () => {
+    const { sql, calls } = fakeSql([]);
+    await getBalanceSummary(sql, ELENA);
+    expect(calls[0]?.text).toMatch(/b\.user_id = \?/);
+    expect(calls[0]?.text).toMatch(/r\.user_id = \?/);
+    expect(calls[0]?.values.filter((v) => v === ELENA)).toHaveLength(3);
+  });
+
+  it("getDashboardSummary counts approvals for an approver, scoped by manager_id in SQL", async () => {
+    const { sql, calls } = fakeSql([], { approvals: 3 });
+    const result = await getDashboardSummary(sql, MARCO, true);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.text).toMatch(/u\.manager_id = \?/);
+    expect(calls[0]?.values).toEqual([MARCO, MARCO, true, MARCO]);
+    expect(result.pendingApprovals).toBe(3);
+  });
+
+  it("getDashboardSummary leaves the approvals count null for an employee", async () => {
+    const { sql, calls } = fakeSql([], { approvals: 3 });
+    const result = await getDashboardSummary(sql, ELENA, false);
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.values[2]).toBe(false);
+    expect(result.pendingApprovals).toBeNull();
   });
 });

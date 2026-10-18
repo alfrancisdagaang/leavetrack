@@ -82,3 +82,21 @@ against `@electric-sql/pglite` + `@electric-sql/pglite-socket` installed **in th
   `limit` assertion, so a second run on the same instance gives failures that look like the bug you are hunting.
 - Prove a scoping test can fail: break the filter in the source, run on a **fresh** database, expect exactly the scope tests to
   fail, restore the file and `diff` it against a backup.
+
+## Canonical pool-budget pattern (parallel reads per page)
+
+Learned 2026-10-18: US-11 took the dashboard from 4-5 to 6-7 parallel reads against a pool of `max: 5`, and pages began to stall
+("fine for a few clicks, then slow, then a deadline"). Against the real pooler, 4 and 5 parallel reads per page stayed clean; 6
+hung, more of them on every page load, until all of them did.
+
+- **A page's parallel reads must stay at `POOL_MAX - 1` or fewer** (`src/lib/db/client.ts`). `timedRead` retries a stalled read, but the
+  abandoned first query keeps its connection, so a page that needs the whole pool has no connection left for the retry and one stall
+  cascades into every page of that instance, because they share the pool.
+- Count the **statements**, not the helpers: a helper that wraps `Promise.all` of three selects costs three connections. Prefer one
+  statement (scalar subselects returning JSON, as `loadSummaryRow` in `src/lib/leave/service.ts`) over several parallel ones, and
+  `count(*)` over fetching rows to count them.
+- `src/lib/db/query-budget.test.ts` runs each page's real data sections against a fake client that records the peak number of
+  statements in flight. A new card or section that goes over fails it. Add the page there when you add one.
+- Prove it can fail: run the test against the previous code in a throwaway copy and expect exactly the over-budget pages to fail.
+- Measure against the real pooler from the Mac with read-only statements (`select 1`, `pg_sleep`), never print `DATABASE_URL`,
+  and give every hung probe a hard `process.exit` so it cannot hold connections.

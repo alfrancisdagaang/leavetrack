@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BalanceSummaryItem } from "@/lib/leave/balance";
 
-const svc = vi.hoisted(() => ({ getBalanceSummary: vi.fn(), getTeamQueue: vi.fn() }));
+const svc = vi.hoisted(() => ({ getDashboardSummary: vi.fn() }));
 const cal = vi.hoisted(() => ({ getCalendarRequests: vi.fn() }));
 const upc = vi.hoisted(() => ({ getUpcomingLeave: vi.fn() }));
 const act = vi.hoisted(() => ({ getRecentActivity: vi.fn() }));
@@ -14,9 +14,8 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/leave/service", () => ({
   requireDb: () => ({}),
-  getBalanceSummary: svc.getBalanceSummary,
+  getDashboardSummary: svc.getDashboardSummary,
 }));
-vi.mock("@/lib/leave/team", () => ({ getTeamQueue: svc.getTeamQueue }));
 vi.mock("@/lib/leave/calendar", () => ({ getCalendarRequests: cal.getCalendarRequests }));
 vi.mock("@/lib/leave/upcoming", () => ({ getUpcomingLeave: upc.getUpcomingLeave }));
 vi.mock("@/lib/leave/activity", () => ({ getRecentActivity: act.getRecentActivity }));
@@ -41,34 +40,38 @@ beforeEach(() => {
 });
 
 describe("SummarySection", () => {
-  it("shows every balance card as unavailable when the balances read fails", async () => {
-    svc.getBalanceSummary.mockRejectedValue(new Error("boom"));
-    const out = await html(SummarySection({ role: "employee", userId: "u1" }));
-    expect(out.match(/Not available right now\./g)).toHaveLength(3);
+  it("shows every card as unavailable when the one summary read fails", async () => {
+    svc.getDashboardSummary.mockRejectedValue(new Error("boom"));
+    const employee = await html(SummarySection({ role: "employee", userId: "u1" }));
+    expect(employee.match(/Not available right now\./g)).toHaveLength(3);
+
+    const manager = await html(SummarySection({ role: "manager", userId: "m1" }));
+    expect(manager.match(/Not available right now\./g)).toHaveLength(4);
+    expect(manager).toContain("Pending approvals");
   });
 
-  it("keeps the pending-approvals card when only the balances read fails", async () => {
-    svc.getBalanceSummary.mockRejectedValue(new Error("boom"));
-    svc.getTeamQueue.mockResolvedValue([{}, {}]);
+  it("reads balances and the pending count in one call, scoped by the given id", async () => {
+    svc.getDashboardSummary.mockResolvedValue({ balances: BALANCES, pendingApprovals: 2 });
     const out = await html(SummarySection({ role: "manager", userId: "m1" }));
+    expect(svc.getDashboardSummary).toHaveBeenCalledTimes(1);
+    expect(svc.getDashboardSummary).toHaveBeenCalledWith({}, "m1", true);
     expect(out).toContain("Pending approvals");
-    expect(out).toContain("2");
-    expect(out.match(/Not available right now\./g)).toHaveLength(3);
-  });
-
-  it("does not query the team queue for an employee, and scopes balances by the given id", async () => {
-    svc.getBalanceSummary.mockResolvedValue(BALANCES);
-    await html(SummarySection({ role: "employee", userId: "u1" }));
-    expect(svc.getTeamQueue).not.toHaveBeenCalled();
-    expect(svc.getBalanceSummary).toHaveBeenCalledWith({}, "u1");
-  });
-
-  it("shows the pending card as unavailable when only the queue read fails", async () => {
-    svc.getBalanceSummary.mockResolvedValue(BALANCES);
-    svc.getTeamQueue.mockRejectedValue(new Error("boom"));
-    const out = await html(SummarySection({ role: "hr_admin", userId: "h1" }));
     expect(out).toContain("12");
-    expect(out.match(/Not available right now\./g)).toHaveLength(1);
+    expect(out).toContain("2");
+  });
+
+  it("does not ask for the approvals count for an employee", async () => {
+    svc.getDashboardSummary.mockResolvedValue({ balances: BALANCES, pendingApprovals: null });
+    const out = await html(SummarySection({ role: "employee", userId: "u1" }));
+    expect(svc.getDashboardSummary).toHaveBeenCalledWith({}, "u1", false);
+    expect(out).not.toContain("Pending approvals");
+  });
+
+  it("asks for the approvals count for HR as well", async () => {
+    svc.getDashboardSummary.mockResolvedValue({ balances: BALANCES, pendingApprovals: 0 });
+    const out = await html(SummarySection({ role: "hr_admin", userId: "h1" }));
+    expect(svc.getDashboardSummary).toHaveBeenCalledWith({}, "h1", true);
+    expect(out).toContain("Nothing is waiting");
   });
 });
 

@@ -45,29 +45,86 @@ function toView(row: RequestRow): LeaveRequestView {
   return { ...row, working_days: countWorkingDays(row.start_date, row.end_date) };
 }
 
+type SummaryRow = {
+  types: LeaveType[];
+  balances: Pick<LeaveBalance, "leave_type_id" | "balance">[];
+  pending: Pick<LeaveRequest, "leave_type_id" | "start_date" | "end_date">[];
+  pending_approvals: number | null;
+};
+
+/**
+ * Everything a balance summary needs in ONE statement (one pooled connection), as JSON columns.
+ * Three separate reads cost three connections per page, and a page that needs the whole pool
+ * cascades into stalls when one read hangs (see the 2026-10-18 pool-stalls retro). Balances are
+ * cast to text and dates to text so the values match what the separate selects returned.
+ * Both user-scoped parts filter by `userId` in SQL (AGENTS.md rule 3); leave types are global.
+ * `pending_approvals` counts the caller's direct reports' pending requests and is only computed
+ * when `countApprovals` is true (`u.manager_id = userId`, in the query itself); otherwise null.
+ */
+async function loadSummaryRow(
+  sql: Sql | TransactionSql,
+  userId: string,
+  countApprovals: boolean,
+): Promise<SummaryRow> {
+  const [row] = await sql<SummaryRow[]>`
+    select
+      coalesce((
+        select json_agg(
+          json_build_object('id', t.id, 'name', t.name, 'tracks_balance', t.tracks_balance)
+          order by t.tracks_balance desc, t.name desc)
+        from public.leave_types t), '[]'::json) as types,
+      coalesce((
+        select json_agg(json_build_object('leave_type_id', b.leave_type_id, 'balance', b.balance::text))
+        from public.leave_balances b where b.user_id = ${userId}), '[]'::json) as balances,
+      coalesce((
+        select json_agg(json_build_object(
+          'leave_type_id', r.leave_type_id,
+          'start_date', r.start_date::text,
+          'end_date', r.end_date::text))
+        from public.leave_requests r
+        where r.user_id = ${userId} and r.status = 'pending' and r.is_deleted = false), '[]'::json) as pending,
+      case when ${countApprovals}::boolean then (
+        select count(*)::int
+        from public.leave_requests q
+        join public.users u on u.id = q.user_id
+        where u.manager_id = ${userId} and q.status = 'pending' and q.is_deleted = false
+      ) end as pending_approvals`;
+  return row ?? { types: [], balances: [], pending: [], pending_approvals: null };
+}
+
 /** Balance summary for one user: confirmed per type, with pending days shown separately. */
 async function loadBalanceSummary(
   sql: Sql | TransactionSql,
   userId: string,
 ): Promise<BalanceSummaryItem[]> {
-  const [types, balances, pending] = await Promise.all([
-    // Vacation, Sick, then Unpaid.
-    sql<LeaveType[]>`
-      select id, name, tracks_balance from public.leave_types
-      order by tracks_balance desc, name desc`,
-    sql<Pick<LeaveBalance, "leave_type_id" | "balance">[]>`
-      select leave_type_id, balance from public.leave_balances where user_id = ${userId}`,
-    sql<Pick<LeaveRequest, "leave_type_id" | "start_date" | "end_date">[]>`
-      select leave_type_id, start_date::text as start_date, end_date::text as end_date
-      from public.leave_requests
-      where user_id = ${userId} and status = 'pending' and is_deleted = false`,
-  ]);
+  const { types, balances, pending } = await loadSummaryRow(sql, userId, false);
   return summarizeBalances(types, balances, pending);
 }
 
 /** Balances only (confirmed, pending, available per type): for pages that do not list requests. */
 export async function getBalanceSummary(sql: Sql, userId: string): Promise<BalanceSummaryItem[]> {
   return loadBalanceSummary(sql, userId);
+}
+
+/**
+ * The dashboard's summary cards in one statement: the user's balances and, for approvers, how
+ * many requests from their direct reports wait for them. Replaces a balances read plus loading
+ * the whole team queue only to count it.
+ */
+export async function getDashboardSummary(
+  sql: Sql,
+  userId: string,
+  countApprovals: boolean,
+): Promise<{ balances: BalanceSummaryItem[]; pendingApprovals: number | null }> {
+  const { types, balances, pending, pending_approvals } = await loadSummaryRow(
+    sql,
+    userId,
+    countApprovals,
+  );
+  return {
+    balances: summarizeBalances(types, balances, pending),
+    pendingApprovals: countApprovals ? (pending_approvals ?? 0) : null,
+  };
 }
 
 /**

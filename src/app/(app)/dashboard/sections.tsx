@@ -14,8 +14,7 @@ import {
   type MonthRef,
 } from "@/lib/leave/calendar-layout";
 import { summaryCards } from "@/lib/leave/dashboard";
-import { getBalanceSummary, requireDb } from "@/lib/leave/service";
-import { getTeamQueue } from "@/lib/leave/team";
+import { getDashboardSummary, requireDb } from "@/lib/leave/service";
 import { getUpcomingLeave, type UpcomingLeave } from "@/lib/leave/upcoming";
 import { logger } from "@/lib/logger";
 import { cardsGridClass } from "./skeletons";
@@ -26,23 +25,20 @@ import { cardsGridClass } from "./skeletons";
  * A failed read becomes null, which the section shows as "not available" instead of an error page.
  */
 
-/** The signed-in user's own balances (scoped by their id in SQL). Null if unavailable. */
-async function ownBalances(userId: string): Promise<BalanceSummaryItem[] | null> {
-  try {
-    return await timedRead("dashboard.balances", () => getBalanceSummary(requireDb(), userId));
-  } catch (err) {
-    logger.warn({ err }, "dashboard: balances unavailable");
-    return null;
-  }
-}
+type SummaryData = { balances: BalanceSummaryItem[]; pendingApprovals: number | null };
 
-/** Pending requests from the signed-in manager's own reports (scoped in SQL). Null if unavailable. */
-async function pendingApprovalCount(managerId: string): Promise<number | null> {
+/**
+ * The summary cards' data in one read (one pooled connection): the signed-in user's own balances
+ * and, for approvers, the pending count from their direct reports. Both are scoped by the session
+ * user's id in SQL. Null if unavailable: every card then says so.
+ */
+async function summaryData(userId: string, countApprovals: boolean): Promise<SummaryData | null> {
   try {
-    return (await timedRead("dashboard.pending", () => getTeamQueue(requireDb(), managerId)))
-      .length;
+    return await timedRead("dashboard.summary", () =>
+      getDashboardSummary(requireDb(), userId, countApprovals),
+    );
   } catch (err) {
-    logger.warn({ err }, "dashboard: pending approval count unavailable");
+    logger.warn({ err }, "dashboard: summary unavailable");
     return null;
   }
 }
@@ -87,11 +83,12 @@ export const approvesLeave = (role: UserRole) => role === "manager" || role === 
 
 /** The row of summary cards: the user's balances and, for approvers, the pending count. */
 export async function SummarySection({ role, userId }: { role: UserRole; userId: string }) {
-  const [balances, pendingApprovals] = await Promise.all([
-    ownBalances(userId),
-    approvesLeave(role) ? pendingApprovalCount(userId) : Promise.resolve(null),
-  ]);
-  const cards = summaryCards({ role, balances, pendingApprovals });
+  const data = await summaryData(userId, approvesLeave(role));
+  const cards = summaryCards({
+    role,
+    balances: data?.balances ?? null,
+    pendingApprovals: data?.pendingApprovals ?? null,
+  });
   return (
     <div className={cardsGridClass(cards.length)}>
       {cards.map((card) => (
