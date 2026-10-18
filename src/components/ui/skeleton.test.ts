@@ -6,6 +6,8 @@ import AuditLoading from "@/app/(app)/audit/loading";
 import BalanceLoading from "@/app/(app)/balance/loading";
 import DashboardLoading from "@/app/(app)/dashboard/loading";
 import FallbackLoading from "@/app/(app)/loading";
+import TeamLoading from "@/app/(app)/approvals/team/loading";
+import TeamMemberLoading from "@/app/(app)/approvals/team/[userId]/loading";
 import NewRequestLoading from "@/app/(app)/requests/new/loading";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -26,6 +28,7 @@ describe.each([
   ["fallback", FallbackLoading],
   ["dashboard", DashboardLoading],
   ["balance", BalanceLoading],
+  ["team roster", TeamLoading],
   ["approvals", ApprovalsLoading],
   ["audit", AuditLoading],
   ["request form", NewRequestLoading],
@@ -63,10 +66,11 @@ describe("loading states mirror their pages", () => {
     expect(html).toContain("h-12 w-full"); // the note under the cards
   });
 
-  it("approvals: cards with an Approve and a Reject button placeholder", () => {
+  it("approvals: the tabs, pending rows with Approve and Reject placeholders, then decided rows", () => {
     const html = render(ApprovalsLoading);
-    expect(count(html, "shadow-tile")).toBe(2);
-    expect(count(html, "sm:w-28")).toBe(4); // two buttons on each of two cards
+    expect(count(html, "border-b border-line")).toBe(1); // the tab bar
+    expect(count(html, "shadow-tile")).toBe(4); // two pending rows, two decided rows
+    expect(count(html, "sm:w-28")).toBe(4); // two buttons on each of the two pending rows
   });
 
   it("audit: the filter form (employee, two dates) with no results yet", () => {
@@ -94,5 +98,29 @@ describe("loading states mirror their pages", () => {
     expect(count(html, "min-h-[148px]")).toBe(4);
     expect(count(html, "shadow-tile")).toBe(5); // four cards and the calendar card
     expect(count(html, "h-[86px]")).toBe(5); // one placeholder per week row
+  });
+});
+
+describe("team loading states mirror their pages", () => {
+  it("team roster: the header and a row per person with an avatar circle and a chip", () => {
+    const html = render(TeamLoading);
+    expect(count(html, "shadow-tile")).toBe(4); // four people
+    expect(count(html, "size-10")).toBe(4); // an avatar circle each
+    expect(count(html, "rounded-full")).toBe(8); // the circle and a pending chip each
+  });
+
+  it("team member: back link, the person, two balance cards, the filter card and the requests card", () => {
+    const html = render(TeamMemberLoading);
+    expect(count(html, 'role="status"')).toBe(1);
+    expect(html).toContain('aria-busy="true"');
+    expect(html).toContain("size-12"); // the person's avatar
+    expect(count(html, "sm:grid-cols-2")).toBe(1); // the two balance cards
+    expect(count(html, "shadow-tile")).toBe(4); // two balances, the filters, the requests
+  });
+
+  it("team member: purely visual and tokens only", () => {
+    const html = render(TeamMemberLoading);
+    expect(html).not.toMatch(/<(h[1-6]|a|button|input|select|textarea)[\s>]/);
+    expect(html).not.toMatch(/#[0-9a-fA-F]{3,6}\b|rgb\(/);
   });
 });

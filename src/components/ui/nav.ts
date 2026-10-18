@@ -37,7 +37,7 @@ const APPROVALS: NavItem = {
   key: "approvals",
   label: "Team Approvals",
   href: "/approvals",
-  description: "Review leave requests from your direct reports.",
+  description: "Review leave requests and see your direct reports.",
   available: true,
 };
 

@@ -3,7 +3,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { navItemsFor } from "@/components/ui/nav";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/approvals" }));
+let path = "/approvals";
+vi.mock("next/navigation", () => ({ usePathname: () => path }));
 
 const { AppFrame } = await import("@/components/ui/app-frame");
 const { AccountMenu } = await import("@/components/ui/account-menu");
@@ -35,6 +36,8 @@ describe("AppFrame", () => {
     }
     expect(manager).not.toContain("Audit History");
     expect(frame("employee")).not.toContain("Team Approvals");
+    expect(manager).not.toContain("My Team");
+    expect(frame("employee")).not.toContain("My Team");
     expect(frame("hr_admin")).toContain("Audit History");
   });
 
@@ -42,6 +45,19 @@ describe("AppFrame", () => {
     const html = frame("manager");
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
     expect(html).toMatch(/<a(?=[^>]*aria-current="page")(?=[^>]*href="\/approvals")[^>]*>/);
+  });
+
+  it.each([
+    "/approvals",
+    "/approvals/team",
+    "/approvals/team/00000000-0000-4000-8000-000000000003",
+  ])("keeps Team Approvals highlighted, and titles the top bar, on %s", (p) => {
+    path = p;
+    const html = frame("manager");
+    path = "/approvals";
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(html).toMatch(/<a(?=[^>]*aria-current="page")(?=[^>]*href="\/approvals")[^>]*>/);
+    expect(html).toMatch(/<p class="[^"]*text-lg[^"]*">Team Approvals<\/p>/);
   });
 
   it("starts expanded with a labelled collapse control and a closed navigation drawer", () => {

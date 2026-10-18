@@ -4,7 +4,7 @@ Traces to: `docs/brd/BRD-LeaveTrack-v1.0.md`
 
 ## User Roles
 - **Employee** — submits requests, views own balance.
-- **Manager** — approves/rejects requests for direct reports only.
+- **Manager** — approves/rejects requests for direct reports only, and can see their direct reports' leave (requests, statuses and balances; US-12, US-13) but nobody else's. *Seeing balances goes beyond BR-02's wording about requests and needs HR sign-off (see the EPIC-4 retro).*
 - **HR Admin** — configures leave policies, runs audit reports.
 
 ## User Stories
@@ -85,6 +85,30 @@ As an Employee, Manager or HR Admin, I want the next leave and the latest decisi
 - AC8: Given a viewport of 375px or 320px, when I open the dashboard, then both sections are usable without horizontal scrolling.
 
 Not in this story: opening a request's details from a row (no details page yet), "View all", filters, and notifications by email.
+
+**US-12 — See My Team** *(BR-02, BR-05)*
+As a Manager (or an HR Admin who manages people), I want a list of my direct reports with their current leave status, so that I can see who is away, who has requests waiting and who is running low on leave without opening each request.
+- AC1: Given I have direct reports, when I open My Team, then I see exactly my direct reports, one row each, in name order, and never myself or anyone from another team.
+- AC2: Given a person in my team, when their row is showing, then it shows whether they are out today (an approved request covers today in the app time zone) or the start of their next approved leave, how many of their requests are pending, their available Vacation and Sick days after pending, and their most recent request with its status written as text.
+- AC3: Given I have no direct reports, when I open My Team, then I see an empty state and not an error.
+- AC4: Given I am an employee, when I open My Team, then I am sent to the dashboard, and "Team Approvals" (which holds the My team tab) is not in my navigation.
+- AC5: Given the roster cannot be read, when I open My Team, then it says so with a way to try again, and the rest of the app still works.
+- AC6: Given a viewport of 375px or 320px, when I open My Team, then it is usable without horizontal scrolling, and nothing is shown by colour alone.
+
+Not in this story: opening a person's requests (US-13), a search box, editing the org chart or HR "manage managers" screens, and email notifications.
+
+**US-13 — Review a Team Member's Requests** *(BR-02, BR-04, BR-05)*
+As a Manager, I want to open one direct report and see all of their requests with filters, so that I can review their leave history and decide their pending requests with context.
+- AC1: Given a direct report, when I open their page, then I see their name, their balances for the tracked types (confirmed, pending and available after pending, the same figures as My Balance) and all their non-deleted requests, newest start date first.
+- AC2: Given the list is showing, when I choose a leave type, a status or a year, then only matching requests are listed; the year defaults to the current calendar year, any of the last three years can be chosen (a request counts in every year it overlaps), and the choices live in the page address so a reload or the back button keeps the view. Applying a filter updates only the list, without reloading the whole page, and each applied filter is shown as a chip that removes just that filter.
+- AC3: Given a filter value that is not valid, when I open the page, then I see a clear message or the unfiltered list, and never a server error.
+- AC4: Given a request is listed, when it is pending, then the employee's free-text reason is shown (I need it to decide, as in Team Approvals); when it is decided, then the reason is not shown (it may hold medical details), while a rejection's decision note always is.
+- AC5: Given a pending request on this page, when I approve or reject it, then the same rules as Team Approvals apply (a rejection needs a reason; an approval beyond the balance is refused), the decision is audited, and the list shows the new status.
+- AC6: Given more than 25 requests match, when the list is showing, then it shows 25 at a time with next and previous, and says how many match.
+- AC7: Given a person who is not my direct report, a person who does not exist, or a deleted one, when I open their page, then I get the same "not found" in every case and no data about them is returned.
+- AC8: Given the page cannot be read, when I open it, then it says so with a way to try again; given a viewport of 375px or 320px, then it is usable without horizontal scrolling and status is never shown by colour alone.
+
+Not in this story: export, searching by name, cancelling or editing a request, a request details page, HR viewing any employee (US-05 is the HR audit), and recording that a manager looked at a history (an existing backlog item).
 
 ## Non-Functional Requirements
 - p95 API response time under 500ms for balance and request-list endpoints.

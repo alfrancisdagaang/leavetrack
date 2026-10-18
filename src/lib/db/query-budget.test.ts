@@ -22,7 +22,11 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: () => {}, refresh: () => {} }),
   unstable_rethrow: () => {},
   redirect: () => {},
+  notFound: () => {
+    throw new Error("NEXT_NOT_FOUND");
+  },
 }));
+vi.mock("@/lib/env", () => ({ getEnv: () => ({ APP_TIMEZONE: "UTC" }) }));
 vi.mock("@/lib/auth/guards", () => ({
   requireRole: async () => ({ role: "manager", user: { id: "m1", name: "Marco" } }),
 }));
@@ -31,7 +35,10 @@ vi.mock("@/lib/leave/service", async (importOriginal) => ({
   requireDb: () => holder.sql,
 }));
 
-/** Answers every statement with no rows, except the balance summary, which is a single row. */
+/**
+ * Answers every statement with no rows, except the balance summary and a team member's page, which
+ * are a single row each (a person who was found, with nothing in the year).
+ */
 function trackingSql() {
   let inFlight = 0;
   let peak = 0;
@@ -39,9 +46,22 @@ function trackingSql() {
     const text = strings.join("?");
     inFlight += 1;
     peak = Math.max(peak, inFlight);
-    const rows = /json_agg\(/.test(text)
-      ? [{ types: [], balances: [], pending: [], pending_approvals: 0 }]
-      : [];
+    const rows = /with member as/.test(text)
+      ? [
+          {
+            member: { id: "x", name: "Elena Cruz", role: "employee" },
+            types: [],
+            balances: [],
+            pending: [],
+            total: 0,
+            requests: [],
+          },
+        ]
+      : /from public\.users u\s+where u\.manager_id/.test(text)
+        ? []
+        : /json_agg\(/.test(text)
+          ? [{ types: [], balances: [], pending: [], pending_approvals: 0 }]
+          : [];
     return new Promise<unknown[]>((resolve) =>
       setTimeout(() => {
         inFlight -= 1;
@@ -56,7 +76,9 @@ const { CalendarSection, SummarySection, UpcomingSection, ActivitySection } =
   await import("@/app/(app)/dashboard/sections");
 const { RequestFormSection } = await import("@/app/(app)/requests/new/request-form-section");
 const { BalanceSection } = await import("@/app/(app)/balance/balance-section");
-const { default: ApprovalsPage } = await import("@/app/(app)/approvals/page");
+const { PendingSection, DecidedSection } = await import("@/app/(app)/approvals/approvals-sections");
+const { RosterSection } = await import("@/app/(app)/approvals/team/roster-section");
+const { default: TeamMemberRoute } = await import("@/app/(app)/approvals/team/[userId]/page");
 
 let tracker: ReturnType<typeof trackingSql>;
 beforeEach(() => {
@@ -109,8 +131,23 @@ describe("query budget (parallel statements per page)", () => {
   });
 
   it("Team approvals stays within the budget", async () => {
-    await ApprovalsPage();
+    await Promise.all([PendingSection({ managerId: "m1" }), DecidedSection({ managerId: "m1" })]);
     expect(tracker.peak()).toBeGreaterThan(0);
+    expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it("My Team (the roster) reads everything in ONE statement, however many people report to the manager", async () => {
+    await RosterSection({ managerId: "m1", today: "2026-10-18" });
+    expect(tracker.peak()).toBe(1);
+    expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it("A team member's page reads the person, balances, filters and requests in ONE statement", async () => {
+    await TeamMemberRoute({
+      params: Promise.resolve({ userId: "00000000-0000-4000-8000-000000000003" }),
+      searchParams: Promise.resolve({}),
+    });
+    expect(tracker.peak()).toBe(1);
     expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
   });
 });

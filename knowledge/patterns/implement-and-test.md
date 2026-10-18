@@ -117,3 +117,34 @@ display drops its semantics in some screen readers, and ARIA roles only patch th
 which is fine for a capped list (50 rows); tests then assert both structures. A guard test that renders the component and rejects
 hex or `rgb(` colours and inline styles must allow `next/image`'s own `style="color:transparent"`, and must be proved by planting a
 violation (`bg-[#ff0000]`), watching it fail, and restoring the file.
+
+## Canonical scoped-read-of-another-person's-data pattern (My Team and the team member page)
+
+Learned in EPIC-4, where a manager reads a direct report's data (BR-02: another team's data is a data-exposure incident):
+
+- **Put the scope in the first CTE and read everything through it.** A `member` CTE finds the person only if
+  `u.manager_id = ${caller}`; the balances, the pending ranges, the filtered requests and the count all `join member`. One statement means
+  no gap for a manager change to slip through, and every way of not being allowed (another team, a missing person, a deleted one, the
+  caller themselves, their own manager, a peer, a stranger, a malformed id) is the same empty result. Test each of them against the real
+  engine, and prove the scope test can fail by breaking the predicate (`or true`) on a fresh database.
+- **Choose sensitive columns in the SQL.** `case when r.status = 'pending' then r.reason end` means a decided request can never carry the
+  free-text reason, whatever the page does later; the UI also refuses to show it (defence in depth) and a test plants a reason on a
+  decided row. The same idea applies to any column that must not leave the database for some rows.
+- **End every "cannot open" case the same way.** The page calls `notFound()` for a bad address and for a null read, with one segment
+  `not-found.tsx` that says nothing about why. Streaming can send the shell first, so the HTTP status may be 200; what must hold is that
+  the bodies are identical (compare them byte for byte in the browser).
+- **A roster is one statement, not one query per person.** Subselects per row (out today, next leave, pending, last request, balances)
+  stay at one pooled connection however big the team is. Compute shared figures with the existing pure function (`summarizeBalances`) so
+  they equal the person's own page by construction, and test the equivalence.
+- **Filters from the address:** parse each value on its own, ignore a bad one with a visible note, keep the others; never fail the page.
+
+## Canonical filters-without-a-page-reload pattern (the team member page)
+
+Learned when "Apply" reloaded the whole page: a plain `<form method="get">` makes the browser load a new document. Keep the form as a GET form
+(so it still works without JavaScript), but apply it with the router: a small client `FilterShell` holds `useTransition` and `router.push(href,
+{ scroll: false })`, the form's `onSubmit` and the chips' links call it, and a `ResultsRegion` wrapper dims the old results and sets `aria-busy`
+until the new ones arrive. The address still changes (back button, reload, bookmark), the server still validates every value, and the layout,
+header and filter card stay mounted. Give the `<form>` a `key` built from the applied filters, so its selects always show what is applied
+(also after the back button). To prove it in a browser: set `window.__marker`, record `performance.timeOrigin`, tag a few DOM nodes with an
+expando, click Apply, then check all of them survive and that no Document request was made (a reload would reset every one of them). Beware
+`x ?? 0 === 2` in a polling condition: it parses as `x ?? (0 === 2)` and returns at once; parenthesise the left side.

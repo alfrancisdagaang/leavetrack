@@ -3,7 +3,9 @@ import {
   auditQuerySchema,
   createLeaveRequestSchema,
   decisionSchema,
+  parseTeamMemberQuery,
   listQuerySchema,
+  memberIdSchema,
   requestIdSchema,
 } from "@/lib/leave/schemas";
 
@@ -140,5 +142,74 @@ describe("auditQuerySchema", () => {
     );
     expect(auditQuerySchema.safeParse({ from: "2026-02-30" }).success).toBe(false);
     expect(auditQuerySchema.safeParse({ include_deleted: "yes" }).success).toBe(false);
+  });
+});
+
+describe("parseTeamMemberQuery (US-13 AC2, AC3)", () => {
+  const VAC = "10000000-0000-4000-8000-000000000001";
+
+  it("uses the defaults when there is nothing in the address: all types, all statuses, this year, page 1", () => {
+    expect(parseTeamMemberQuery({}, 2026)).toEqual({
+      query: { leaveTypeId: undefined, status: undefined, year: 2026, page: 1 },
+      ignored: [],
+    });
+  });
+
+  it("reads each filter, and treats an empty value (All) as no filter", () => {
+    const result = parseTeamMemberQuery(
+      { type: VAC, status: "pending", year: "2025", page: "3" },
+      2026,
+    );
+    expect(result.query).toEqual({ leaveTypeId: VAC, status: "pending", year: 2025, page: 3 });
+    expect(
+      parseTeamMemberQuery({ type: "", status: "", year: "", page: "" }, 2026).ignored,
+    ).toEqual([]);
+  });
+
+  it("accepts this year and the two before it, and nothing else", () => {
+    for (const year of ["2026", "2025", "2024"]) {
+      expect(parseTeamMemberQuery({ year }, 2026).query.year).toBe(Number(year));
+    }
+    for (const year of ["2023", "2027", "20", "abc", "2025.5"]) {
+      const result = parseTeamMemberQuery({ year }, 2026);
+      expect(result.query.year).toBe(2026);
+      expect(result.ignored).toEqual(["year"]);
+    }
+  });
+
+  it("drops a bad value on its own and keeps the good ones (never an error)", () => {
+    const result = parseTeamMemberQuery(
+      { type: "not-a-uuid", status: "approved", year: "2025", page: "0" },
+      2026,
+    );
+    expect(result.query).toEqual({
+      leaveTypeId: undefined,
+      status: "approved",
+      year: 2025,
+      page: 1,
+    });
+    expect(result.ignored).toEqual(["leave type", "page"]);
+  });
+
+  it("rejects a status that is not one of the three, an over-large page and a negative page", () => {
+    expect(parseTeamMemberQuery({ status: "deleted" }, 2026).ignored).toEqual(["status"]);
+    expect(parseTeamMemberQuery({ page: "1001" }, 2026).query.page).toBe(1);
+    expect(parseTeamMemberQuery({ page: "1000" }, 2026).query.page).toBe(1000);
+    expect(parseTeamMemberQuery({ page: "-2" }, 2026).ignored).toEqual(["page"]);
+  });
+
+  it("takes the first value when a parameter is repeated", () => {
+    expect(parseTeamMemberQuery({ status: ["rejected", "pending"] }, 2026).query.status).toBe(
+      "rejected",
+    );
+  });
+});
+
+describe("memberIdSchema (US-13 AC7)", () => {
+  it("accepts a uuid and rejects anything else, so a malformed address is just 'not found'", () => {
+    expect(memberIdSchema.safeParse("00000000-0000-4000-8000-000000000003").success).toBe(true);
+    for (const bad of ["", "abc", "1", "../etc/passwd", "00000000-0000-4000-8000-00000000000g"]) {
+      expect(memberIdSchema.safeParse(bad).success).toBe(false);
+    }
   });
 });

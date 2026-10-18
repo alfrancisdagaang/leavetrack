@@ -8,8 +8,14 @@ describe("navItemsFor", () => {
     expect(keys("employee")).toEqual(["dashboard", "request", "balance"]);
   });
 
-  it("adds team approvals for managers", () => {
+  it("adds one Team Approvals item for managers; My Team is a tab inside it, not a nav item", () => {
     expect(keys("manager")).toEqual(["dashboard", "request", "balance", "approvals"]);
+  });
+
+  it("does not show Team Approvals (or My Team) to an employee", () => {
+    expect(keys("employee")).not.toContain("approvals");
+    expect(keys("manager")).not.toContain("team");
+    expect(keys("hr_admin")).not.toContain("team");
   });
 
   it("adds the audit log for HR admins on top of the manager items", () => {
