@@ -73,10 +73,12 @@ describe("loading states mirror their pages", () => {
     expect(count(html, "sm:w-28")).toBe(4); // two buttons on each of the two pending rows
   });
 
-  it("audit: the filter form (employee, two dates) with no results yet", () => {
+  it("audit: the filter card, five summary figures and the rows", () => {
     const html = render(AuditLoading);
-    expect(count(html, "h-11 w-full")).toBe(4); // three 44px controls and the button
-    expect(count(html, "sm:grid-cols-2")).toBe(1);
+    expect(count(html, "h-11 w-full")).toBe(7); // search, five controls and the button
+    expect(count(html, "shadow-tile")).toBe(7); // the filter card, five figures, the rows card
+    expect(count(html, "lg:grid-cols-5")).toBe(1);
+    expect(html).not.toContain("max-w-5xl");
   });
 
   it("request form: three leave type cards, the details card, and the summary and guidance cards", () => {

@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {} }) }));
 
-const { FilterShell, ResultsRegion, useFilterNav } = await import("./member-filter-shell");
+const { FilterShell, ResultsRegion, useFilterNav } = await import("./filter-shell");
 
 describe("ResultsRegion (the results update in place)", () => {
   const render = () =>

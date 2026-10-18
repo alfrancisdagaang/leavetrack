@@ -48,7 +48,7 @@ export function ResultsRegion({ children }: { children: ReactNode }) {
   return (
     <div aria-busy={pending} className={`transition-opacity ${pending ? "opacity-50" : ""}`}>
       <p role="status" className="sr-only">
-        {pending ? "Updating requests" : ""}
+        {pending ? "Updating results" : ""}
       </p>
       {children}
     </div>

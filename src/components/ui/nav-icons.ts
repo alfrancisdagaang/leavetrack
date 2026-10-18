@@ -4,4 +4,5 @@ export const NAV_ICON: Record<string, string | undefined> = {
   request: "/icons/nav-file-plus.svg",
   balance: "/icons/nav-wallet.svg",
   approvals: "/icons/nav-users.svg",
+  audit: "/icons/nav-history.svg",
 };

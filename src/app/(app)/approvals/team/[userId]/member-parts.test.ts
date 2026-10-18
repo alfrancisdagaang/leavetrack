@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { TeamMemberQuery } from "@/lib/leave/schemas";
 import { MemberBalances } from "./member-balances";
-import { FilterShell } from "./member-filter-shell";
+import { FilterShell } from "@/components/ui/filter-shell";
 import { MemberFilters } from "./member-filters";
 import { MemberHeader } from "./member-header";
 import { MemberPagination } from "./member-pagination";

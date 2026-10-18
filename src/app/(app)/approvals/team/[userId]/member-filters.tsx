@@ -5,7 +5,7 @@ import type { MouseEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
 import type { TeamMemberQuery } from "@/lib/leave/schemas";
-import { useFilterNav } from "./member-filter-shell";
+import { useFilterNav } from "@/components/ui/filter-shell";
 import { filterChips, filtersHref } from "./member-url";
 
 type Option = { value: string; label: string };

@@ -28,7 +28,7 @@ const ROW =
 function Brand({ collapsed = false }: { collapsed?: boolean }) {
   return (
     <Link href="/dashboard" className="flex min-h-11 items-center gap-2 rounded-lg">
-      <Image src="/icons/leaf-logo.svg" alt="" width={36} height={32} unoptimized />
+      <Image src="/icons/logo.svg" alt="" width={36} height={36} unoptimized />
       <span className={collapsed ? "sr-only" : "text-[21px] font-bold text-white"}>LeaveTrack</span>
     </Link>
   );

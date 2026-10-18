@@ -10,7 +10,7 @@ import { requireDb } from "@/lib/leave/service";
 import { getTeamMemberPage, type TeamMemberPage } from "@/lib/leave/team-member";
 import { logger } from "@/lib/logger";
 import { MemberBalances } from "./member-balances";
-import { FilterShell, ResultsRegion } from "./member-filter-shell";
+import { FilterShell, ResultsRegion } from "@/components/ui/filter-shell";
 import { MemberFilters } from "./member-filters";
 import { BackToTeam, MemberHeader } from "./member-header";
 import { MemberPagination } from "./member-pagination";

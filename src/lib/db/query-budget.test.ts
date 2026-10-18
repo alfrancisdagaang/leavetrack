@@ -46,22 +46,26 @@ function trackingSql() {
     const text = strings.join("?");
     inFlight += 1;
     peak = Math.max(peak, inFlight);
-    const rows = /with member as/.test(text)
-      ? [
-          {
-            member: { id: "x", name: "Elena Cruz", role: "employee" },
-            types: [],
-            balances: [],
-            pending: [],
-            total: 0,
-            requests: [],
-          },
-        ]
-      : /from public\.users u\s+where u\.manager_id/.test(text)
-        ? []
-        : /json_agg\(/.test(text)
-          ? [{ types: [], balances: [], pending: [], pending_approvals: 0 }]
-          : [];
+    const rows = /with f as/.test(text)
+      ? [{ total: 0, approved: 0, rejected: 0, pending: 0, deleted: 0, rows: [] }]
+      : /as "leaveTypes"/.test(text)
+        ? [{ leaveTypes: [], deciders: [], employeeNames: [] }]
+        : /with member as/.test(text)
+          ? [
+              {
+                member: { id: "x", name: "Elena Cruz", role: "employee" },
+                types: [],
+                balances: [],
+                pending: [],
+                total: 0,
+                requests: [],
+              },
+            ]
+          : /from public\.users u\s+where u\.manager_id/.test(text)
+            ? []
+            : /json_agg\(/.test(text)
+              ? [{ types: [], balances: [], pending: [], pending_approvals: 0 }]
+              : [];
     return new Promise<unknown[]>((resolve) =>
       setTimeout(() => {
         inFlight -= 1;
@@ -77,6 +81,7 @@ const { CalendarSection, SummarySection, UpcomingSection, ActivitySection } =
 const { RequestFormSection } = await import("@/app/(app)/requests/new/request-form-section");
 const { BalanceSection } = await import("@/app/(app)/balance/balance-section");
 const { PendingSection, DecidedSection } = await import("@/app/(app)/approvals/approvals-sections");
+const { AuditBody } = await import("@/app/(app)/audit/audit-body");
 const { RosterSection } = await import("@/app/(app)/approvals/team/roster-section");
 const { default: TeamMemberRoute } = await import("@/app/(app)/approvals/team/[userId]/page");
 
@@ -148,6 +153,22 @@ describe("query budget (parallel statements per page)", () => {
       searchParams: Promise.resolve({}),
     });
     expect(tracker.peak()).toBe(1);
+    expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it("The audit list reads the filter choices and one page of requests: two statements", async () => {
+    await AuditBody({
+      query: {
+        q: undefined,
+        leaveTypeId: undefined,
+        status: undefined,
+        decidedBy: undefined,
+        from: undefined,
+        to: undefined,
+        page: 1,
+      },
+    });
+    expect(tracker.peak()).toBe(2);
     expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
   });
 });

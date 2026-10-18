@@ -1,5 +1,7 @@
+import { existsSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { navItemsFor, workspaceLabel } from "@/components/ui/nav";
+import { NAV_ICON } from "@/components/ui/nav-icons";
 
 const keys = (role: Parameters<typeof navItemsFor>[0]) => navItemsFor(role).map((i) => i.key);
 
@@ -49,5 +51,14 @@ describe("navItemsFor", () => {
     expect(workspaceLabel("employee")).toBe("Employee workspace");
     expect(workspaceLabel("manager")).toBe("Manager workspace");
     expect(workspaceLabel("hr_admin")).toBe("HR Admin workspace");
+  });
+
+  it("gives every item an icon, and the icon file exists (Audit History included)", () => {
+    for (const item of navItemsFor("hr_admin")) {
+      const icon = NAV_ICON[item.key];
+      expect(icon, `${item.key} has no icon`).toBeTruthy();
+      expect(existsSync(`public${icon}`), `${icon} is missing`).toBe(true);
+    }
+    expect(NAV_ICON.audit).toBe("/icons/nav-history.svg");
   });
 });

@@ -147,3 +147,91 @@ export function parseTeamMemberQuery(
 
   return { query: { leaveTypeId, status, year, page }, ignored };
 }
+
+/** US-14. The audit list shows this many requests at a time. */
+export const AUDIT_PAGE_SIZE = 25;
+
+export const AUDIT_STATUSES = ["pending", "approved", "rejected", "deleted"] as const;
+export type AuditListStatus = (typeof AUDIT_STATUSES)[number];
+
+export type AuditListQuery = {
+  /** Part of the employee's name; undefined means everyone. */
+  q: string | undefined;
+  leaveTypeId: string | undefined;
+  /** "deleted" is a soft-deleted request (whatever its status was); the others are live requests. */
+  status: AuditListStatus | undefined;
+  /** Only requests decided by this person. */
+  decidedBy: string | undefined;
+  /** UTC calendar days, inclusive: a request matches when any of its audit events falls inside. */
+  from: string | undefined;
+  to: string | undefined;
+  page: number;
+};
+
+const AUDIT_SEARCH_MAX = 60;
+
+/**
+ * US-14. Reads the audit list filters from the page address. Every value is checked on its own: a bad
+ * one is dropped (and named in `ignored`) so the page shows its default for it and never fails. An
+ * empty value means no filter, and there is no default date range: nothing in the record is hidden.
+ */
+export function parseAuditListQuery(params: Record<string, string | string[] | undefined>): {
+  query: AuditListQuery;
+  ignored: string[];
+} {
+  const ignored: string[] = [];
+  const raw = (key: string) => {
+    const value = first(params[key]);
+    return value === undefined || value === "" ? undefined : value;
+  };
+
+  let q: string | undefined;
+  const search = raw("q")?.trim();
+  if (search) {
+    if (search.length <= AUDIT_SEARCH_MAX) q = search;
+    else ignored.push("search");
+  }
+
+  const uuid = (key: string, label: string) => {
+    const value = raw(key);
+    if (value === undefined) return undefined;
+    const parsed = z.uuid().safeParse(value);
+    if (parsed.success) return parsed.data;
+    ignored.push(label);
+    return undefined;
+  };
+  const leaveTypeId = uuid("type", "leave type");
+  const decidedBy = uuid("by", "decided by");
+
+  let status: AuditListQuery["status"];
+  const statusValue = raw("status");
+  if (statusValue !== undefined) {
+    const parsed = z.enum(AUDIT_STATUSES).safeParse(statusValue);
+    if (parsed.success) status = parsed.data;
+    else ignored.push("status");
+  }
+
+  const date = (key: string) => {
+    const value = raw(key);
+    if (value === undefined) return undefined;
+    if (isRealIsoDate(value)) return value;
+    ignored.push(key === "from" ? "from date" : "to date");
+    return undefined;
+  };
+  const from = date("from");
+  let to = date("to");
+  if (from && to && to < from) {
+    ignored.push("to date");
+    to = undefined;
+  }
+
+  let page = 1;
+  const pageValue = raw("page");
+  if (pageValue !== undefined) {
+    const n = /^\d{1,4}$/.test(pageValue) ? Number(pageValue) : NaN;
+    if (n >= 1 && n <= MEMBER_MAX_PAGE) page = n;
+    else ignored.push("page");
+  }
+
+  return { query: { q, leaveTypeId, status, decidedBy, from, to, page }, ignored };
+}

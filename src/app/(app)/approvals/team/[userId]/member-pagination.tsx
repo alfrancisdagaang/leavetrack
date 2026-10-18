@@ -9,16 +9,19 @@ export function MemberPagination({
   page,
   total,
   hrefFor,
+  pageSize = MEMBER_PAGE_SIZE,
 }: {
   page: number;
   total: number;
   hrefFor: (page: number) => string;
+  /** Rows per page; the audit list shares this component with its own size. */
+  pageSize?: number;
 }) {
-  const pages = Math.max(1, Math.ceil(total / MEMBER_PAGE_SIZE));
+  const pages = Math.max(1, Math.ceil(total / pageSize));
   if (pages <= 1) return null;
 
-  const from = (page - 1) * MEMBER_PAGE_SIZE + 1;
-  const to = Math.min(page * MEMBER_PAGE_SIZE, total);
+  const from = (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
 
   return (
     <nav

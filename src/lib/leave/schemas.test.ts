@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  parseAuditListQuery,
   auditQuerySchema,
   createLeaveRequestSchema,
   decisionSchema,
@@ -211,5 +212,76 @@ describe("memberIdSchema (US-13 AC7)", () => {
     for (const bad of ["", "abc", "1", "../etc/passwd", "00000000-0000-4000-8000-00000000000g"]) {
       expect(memberIdSchema.safeParse(bad).success).toBe(false);
     }
+  });
+});
+
+describe("parseAuditListQuery (US-14)", () => {
+  const T = "10000000-0000-4000-8000-000000000001";
+  const parse = (p: Record<string, string | string[] | undefined>) => parseAuditListQuery(p);
+
+  it("defaults to no filters, no date range and page 1", () => {
+    expect(parse({})).toEqual({
+      query: {
+        q: undefined,
+        leaveTypeId: undefined,
+        status: undefined,
+        decidedBy: undefined,
+        from: undefined,
+        to: undefined,
+        page: 1,
+      },
+      ignored: [],
+    });
+  });
+
+  it("reads every filter, trimming the search and treating empty values as none", () => {
+    const { query, ignored } = parse({
+      q: "  elena ",
+      type: T,
+      status: "deleted",
+      by: T,
+      from: "2026-01-01",
+      to: "2026-12-31",
+      page: "3",
+    });
+    expect(query).toEqual({
+      q: "elena",
+      leaveTypeId: T,
+      status: "deleted",
+      decidedBy: T,
+      from: "2026-01-01",
+      to: "2026-12-31",
+      page: 3,
+    });
+    expect(ignored).toEqual([]);
+    expect(parse({ q: "", type: "", status: "", by: "", from: "", to: "" }).ignored).toEqual([]);
+  });
+
+  it("drops each bad value on its own and names it, keeping the good ones", () => {
+    const { query, ignored } = parse({
+      q: "x".repeat(61),
+      type: "nope",
+      status: "cancelled",
+      by: "1",
+      from: "2026-02-30",
+      to: "2026-01-01",
+      page: "0",
+    });
+    expect(ignored).toEqual(["search", "leave type", "decided by", "status", "from date", "page"]);
+    expect(query.q).toBeUndefined();
+    expect(query.page).toBe(1);
+  });
+
+  it("drops a to date that is before the from date", () => {
+    const { query, ignored } = parse({ from: "2026-05-02", to: "2026-05-01" });
+    expect(query.from).toBe("2026-05-02");
+    expect(query.to).toBeUndefined();
+    expect(ignored).toEqual(["to date"]);
+  });
+
+  it("limits the page number, and takes the first of a repeated value", () => {
+    expect(parse({ page: "1001" }).ignored).toEqual(["page"]);
+    expect(parse({ page: "1000" }).query.page).toBe(1000);
+    expect(parse({ status: ["approved", "pending"] }).query.status).toBe("approved");
   });
 });
