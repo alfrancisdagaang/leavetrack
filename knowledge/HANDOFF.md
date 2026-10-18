@@ -1,9 +1,9 @@
 # LeaveTrack — Session Handoff
 
-Last updated: Sunday 2026-10-18 (end of session, late night) · Code state: `origin/main` has everything below; the newest commits are
-a `docs:` handoff commit on top of `1909b35` (audit list redesign and new logo) and `5c546d0` (PRD restored to its original). Check
-`git log` and `git status -sb`.
-Commits 2026-10-18 (newest first): `1909b35` (Audit History redesigned as an all-employees list, Audit History sidebar icon, new app logo
+Last updated: Sunday 2026-10-18 (end of session, late night) · Code state: `origin/main` is at `ee95022` (sign-in redesign); a later
+`docs:` commit that refreshes this file is local until the user pushes it. Check `git log` and `git status -sb`.
+Commits 2026-10-18 (newest first): `ee95022` (sign-in page redesign, brand icons reachable when signed out, login tests that now run),
+`2e3eafa` (handoff), `1909b35` (Audit History redesigned as an all-employees list, Audit History sidebar icon, new app logo
 and tab icon), `5c546d0` (PRD restored to its original day-0 text), `da0a782` (handoff), `c73b563` (EPIC-4: My team roster, team member page, Team approvals tabs and rows, width fix),
 `db2ff00` (retros for My Balance), `52de8c9` (My Balance breakdown and redesign), `1f75b29` (pool budget fix: every page at most 4 parallel database statements; pushed at the
 user's request, **reported clean on Vercel**), `9f249bf` (retros for US-11 and the Request Leave redesign), `0ed8808` (Request Leave
@@ -512,7 +512,7 @@ sign-in with Supabase Auth, the "Cannot be approved" over-balance warning, strea
 
 ### Next session: do these in order
 
-0. **Servers and state.** `origin/main` has `1909b35` and `5c546d0` plus a docs handoff commit (2026-10-18 late night); check `git status -sb`.
+0. **Servers and state.** `origin/main` is at `ee95022` (2026-10-18 late night); the newest docs commit may be local only; check `git status -sb`.
    **First, look at the deployed Team Approvals and My team tabs as Marco on Vercel**, and mark TASK-033 to 036 Done in the CSV if they pass. Check the port before any build and never build while something listens on
    3000 (the user's `next start` did, PID 26589 at the last check, 2026-10-18 evening): build in a throwaway copy instead (copy the repo without
    `node_modules`, `.next`, `.git` and `.env*`, clone `node_modules` with `cp -Rc`, build there). The Postgres 18 on port 54329
@@ -642,7 +642,7 @@ mock fallback  only when ALLOW_MOCK_LOGIN is true, clearly labelled; with it off
 
 ### Source control
 
-- `origin/main` has the docs handoff commit on top of `1909b35` feat (audit list, logo) and `5c546d0` docs (PRD restored) (2026-10-18 late night). Newest first: `1909b35`; `5c546d0`; `da0a782`; `c73b563`; `db2ff00` docs:
+- `origin/main` is at `ee95022` (2026-10-18 late night); a newer docs commit may be local. Newest first: `ee95022` feat: sign-in redesign; `2e3eafa` docs: handoff; `1909b35`; `5c546d0`; `da0a782`; `c73b563`; `db2ff00` docs:
   retros for My Balance; `52de8c9` feat: My Balance breakdown;
   `1f75b29` fix: keep every page within the database pool so reads stop stalling; `9f249bf` docs: add retros for US-11 and the request
   leave redesign and update the handoff; `0ed8808` feat: redesign the request leave page with live summary and reviewer; `93f7888` feat: add
