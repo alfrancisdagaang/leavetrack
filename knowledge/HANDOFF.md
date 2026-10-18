@@ -36,6 +36,12 @@ or explicitly marked as a **decision**, **lean** (a recommendation, not agreed),
   httpOnly or Secure (library default); it is now. Live check **partly reported**: after signing in the user typed
   `document.cookie` in DevTools and got `''` (the `sb-*-auth-token` cookie is hidden from scripts). **Not reported:** the Cookies
   table (HttpOnly, Secure, SameSite) and whether the Console shows any CSP error. Ask for both, then mark the retro verified.
+  **Status 2026-10-18: TASK-027 staging rollout done by the user (reported, not seen by me).** Per `knowledge/runbooks/staging-rollout.md`
+  and `demo-checklist.md` steps 1 to 7 the user reports all good: `seed.sql` re-run on staging (adds 4 pending requests), sign-ups off,
+  Site URL set, **`ALLOW_MOCK_LOGIN` off on Vercel (AC4)** and redeployed, and sign-in works **without the mock login**. The user did not give
+  per-item detail, so these stay **unconfirmed**: the exact Cookies flags (HttpOnly, Secure, SameSite) and Console CSP result (TASK-025),
+  and the per-role results (Marco never sees Leo, "not set up" account). Ask only if the supervisor questions them. Decision 2026-10-18:
+  mock login OFF for the demo; rollback is `ALLOW_MOCK_LOGIN=true` plus a redeploy (runbook). Retro `2026-10-18-task-027-staging-rollout.md`.
 - **Supervisor's original scope:** US-01 to US-08 (EPIC-1). All built; TASK-016 (mobile pass) is the only EPIC-1 task still `Open`.
 - **UI approach:** the Figma dashboard design (file `GrKk5YyfJcDRdPBr7xXTF9`, now six frames: Manager desktop 14:8878, Manager
   mobile 14:9401, Account dropdown 14:9931, Mobile drawer 14:9698, Collapsed rail 14:9981, Navigation by role 14:9946) is the
@@ -263,9 +269,8 @@ appeared); GitHub Actions for the last five commits (`gh` is not installed).
 - [x] EPIC-1: TASK-010 to TASK-015, TASK-017, TASK-018 (`Done`) · [ ] **TASK-016** mobile pass (`Open`: the dashboard, request
       form and balance were measured; approvals and audit were not)
 - [x] UI foundation, restyle, sidebar shell and cards, calendar (committed and pushed)
-- [ ] **EPIC-2 sign-in:** built and validated: TASK-020, 021, 022, 024, **025** (CSV statuses still `Open`; the user has not asked
-      for `Done`). 025's live check is partly reported (see section 0). Remaining: 027 (staging rollout and demo script, next),
-      026 (voluntary change-password, first to cut), 023 (sidebar shell, built but not marked).
+- [x] **EPIC-2 sign-in:** TASK-020, 021, 022, 023, 024, 025, **027** are `Done` in the CSV (marked 2026-10-18 at the user's request;
+      027's live steps are reported by the user, see section 0). Remaining: **026** (voluntary change-password, `Open`, first to cut).
 - [ ] **EPIC-3 dashboard:** TASK-030 calendar built (`Open` until the user asks). Not built: upcoming leave, recent activity,
       request detail page (`/requests/[id]`), the other Figma pages.
 
