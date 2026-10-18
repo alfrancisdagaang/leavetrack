@@ -101,9 +101,11 @@ describe("query budget (parallel statements per page)", () => {
   });
 
   it("My Balance stays within the budget", async () => {
-    await BalanceSection({ userId: "u1" });
+    await BalanceSection({ userId: "u1", today: "2026-10-18" });
     expect(tracker.peak()).toBeGreaterThan(0);
     expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+    // Request list + breakdown + last accrual: the breakdown must stay folded into one statement.
+    expect(tracker.peak()).toBeLessThanOrEqual(3);
   });
 
   it("Team approvals stays within the budget", async () => {

@@ -8,6 +8,13 @@ import {
   type BalanceSummaryItem,
   type LeaveWarning,
 } from "@/lib/leave/balance";
+import {
+  summarizeBreakdown,
+  type AccruedTotal,
+  type BalanceBreakdownItem,
+  type UsedRange,
+  type YearBounds,
+} from "@/lib/leave/breakdown";
 import type { CreateLeaveRequestInput } from "@/lib/leave/schemas";
 import { countWorkingDays } from "@/lib/leave/working-days";
 
@@ -174,17 +181,108 @@ export async function createLeaveRequest(
   });
 }
 
+/** The user's own non-deleted requests, newest first (one statement). Scoped by `userId` in SQL. */
+function listMyRequests(sql: Sql, userId: string): Promise<RequestRow[]> {
+  return sql<RequestRow[]>`
+    select id, leave_type_id, start_date::text as start_date, end_date::text as end_date,
+           reason, status, created_at, decided_at, decision_note
+    from public.leave_requests
+    where user_id = ${userId} and is_deleted = false
+    order by created_at desc
+    limit 50`;
+}
+
 /** US-02. The user's own non-deleted requests (newest first) and balance summary. */
 export async function getMySummary(sql: Sql, userId: string): Promise<MySummary> {
   const [rows, balances] = await Promise.all([
-    sql<RequestRow[]>`
-      select id, leave_type_id, start_date::text as start_date, end_date::text as end_date,
-             reason, status, created_at, decided_at, decision_note
-      from public.leave_requests
-      where user_id = ${userId} and is_deleted = false
-      order by created_at desc
-      limit 50`,
+    listMyRequests(sql, userId),
     loadBalanceSummary(sql, userId),
   ]);
   return { requests: rows.map(toView), balances };
+}
+
+type BreakdownRow = {
+  types: LeaveType[];
+  balances: Pick<LeaveBalance, "leave_type_id" | "balance">[];
+  pending: UsedRange[];
+  used: UsedRange[] | null;
+  accrued: AccruedTotal[] | null;
+};
+
+/**
+ * The My Balance page's figures in ONE statement (one pooled connection). It repeats the three
+ * subselects of `loadSummaryRow` on purpose: that statement runs on the dashboard, on Request
+ * Leave and inside the submit transaction, and this page's extra data must not be able to change
+ * any of them. Every user-scoped part filters by `userId` in SQL (AGENTS.md rule 3).
+ * - `used`: this user's APPROVED, non-deleted requests that overlap the year, already clipped to
+ *   it (`greatest`/`least`); the weekdays are counted in TypeScript by `countWorkingDays`, the
+ *   same function that counts pending days, so there is one definition of a working day.
+ * - `accrued`: this user's ledger credits for the year's months, summed in SQL (`numeric`).
+ */
+async function loadBreakdownRow(
+  sql: Sql,
+  userId: string,
+  { from, to }: YearBounds,
+): Promise<BreakdownRow> {
+  const [row] = await sql<BreakdownRow[]>`
+    select
+      coalesce((
+        select json_agg(
+          json_build_object('id', t.id, 'name', t.name, 'tracks_balance', t.tracks_balance)
+          order by t.tracks_balance desc, t.name desc)
+        from public.leave_types t), '[]'::json) as types,
+      coalesce((
+        select json_agg(json_build_object('leave_type_id', b.leave_type_id, 'balance', b.balance::text))
+        from public.leave_balances b where b.user_id = ${userId}), '[]'::json) as balances,
+      coalesce((
+        select json_agg(json_build_object(
+          'leave_type_id', r.leave_type_id,
+          'start_date', r.start_date::text,
+          'end_date', r.end_date::text))
+        from public.leave_requests r
+        where r.user_id = ${userId} and r.status = 'pending' and r.is_deleted = false), '[]'::json) as pending,
+      coalesce((
+        select json_agg(json_build_object(
+          'leave_type_id', u.leave_type_id,
+          'start_date', greatest(u.start_date, ${from}::date)::text,
+          'end_date', least(u.end_date, ${to}::date)::text))
+        from public.leave_requests u
+        where u.user_id = ${userId} and u.status = 'approved' and u.is_deleted = false
+          and u.start_date <= ${to}::date and u.end_date >= ${from}::date), '[]'::json) as used,
+      coalesce((
+        select json_agg(json_build_object('leave_type_id', a.leave_type_id, 'amount', a.total::text))
+        from (
+          select l.leave_type_id, sum(l.amount) as total
+          from public.accrual_ledger l
+          where l.user_id = ${userId} and l.period >= ${from}::date and l.period <= ${to}::date
+          group by l.leave_type_id) a), '[]'::json) as accrued`;
+  return row ?? { types: [], balances: [], pending: [], used: [], accrued: [] };
+}
+
+export type BalancePage = { requests: LeaveRequestView[]; balances: BalanceBreakdownItem[] };
+
+/**
+ * US-02, My Balance page: the user's requests and, per leave type, how the days are made up
+ * (opening, accrued and used this year, pending, available). Two statements run in parallel.
+ * `getMySummary` is left as it is for `GET /api/leave-requests`, so that payload does not change.
+ */
+export async function getBalancePage(
+  sql: Sql,
+  userId: string,
+  year: YearBounds,
+): Promise<BalancePage> {
+  const [rows, row] = await Promise.all([
+    listMyRequests(sql, userId),
+    loadBreakdownRow(sql, userId, year),
+  ]);
+  return {
+    requests: rows.map(toView),
+    balances: summarizeBreakdown({
+      types: row.types,
+      balances: row.balances,
+      pending: row.pending,
+      usedRanges: row.used ?? [],
+      accrued: row.accrued ?? [],
+    }),
+  };
 }

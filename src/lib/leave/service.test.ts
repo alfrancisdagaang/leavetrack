@@ -2,10 +2,12 @@ import type { Sql } from "postgres";
 import { describe, expect, it } from "vitest";
 import {
   createLeaveRequest,
+  getBalancePage,
   getBalanceSummary,
   getDashboardSummary,
   getMySummary,
 } from "@/lib/leave/service";
+import { yearBounds } from "@/lib/leave/breakdown";
 
 const ELENA = "00000000-0000-4000-8000-000000000003";
 const MARCO = "00000000-0000-4000-8000-000000000002";
@@ -29,7 +31,17 @@ type Pending = { leave_type_id: string; start_date: string; end_date: string };
  */
 function fakeSql(
   balances: { leave_type_id: string; balance: string }[],
-  { pending = [], approvals = 0 }: { pending?: Pending[]; approvals?: number } = {},
+  {
+    pending = [],
+    approvals = 0,
+    used = [],
+    accrued = [],
+  }: {
+    pending?: Pending[];
+    approvals?: number;
+    used?: Pending[];
+    accrued?: { leave_type_id: string; amount: string }[];
+  } = {},
 ) {
   const calls: Call[] = [];
   const tx = (strings: TemplateStringsArray, ...values: unknown[]) => {
@@ -45,6 +57,8 @@ function fakeSql(
           balances,
           pending,
           pending_approvals: values[2] === true ? approvals : null,
+          used,
+          accrued,
         },
       ];
     } else if (/^insert into public\.leave_requests/.test(text)) {
@@ -165,5 +179,71 @@ describe("balance summary reads (pool budget: one statement per summary)", () =>
     expect(calls).toHaveLength(1);
     expect(calls[0]?.values[2]).toBe(false);
     expect(result.pendingApprovals).toBeNull();
+  });
+});
+
+describe("My Balance page read (pool budget: one statement for the breakdown)", () => {
+  const YEAR = yearBounds("2026-10-18");
+  const BREAKDOWN = /json_agg\(.*public\.accrual_ledger/;
+
+  it("getBalancePage issues exactly two statements: the request list and the breakdown", async () => {
+    const { sql, calls } = fakeSql([]);
+    await getBalancePage(sql, ELENA, YEAR);
+    expect(calls).toHaveLength(2);
+    expect(calls.filter((c) => BREAKDOWN.test(c.text))).toHaveLength(1);
+  });
+
+  it("B9: every user-scoped part filters by the given user id in SQL", async () => {
+    const { sql, calls } = fakeSql([]);
+    await getBalancePage(sql, ELENA, YEAR);
+    const call = calls.find((c) => BREAKDOWN.test(c.text))!;
+    for (const scoped of ["b.user_id = ?", "r.user_id = ?", "u.user_id = ?", "l.user_id = ?"]) {
+      expect(call.text).toContain(scoped);
+    }
+    expect(call.values.filter((v) => v === ELENA)).toHaveLength(4);
+    expect(call.values.filter((v) => v === YEAR.from)).toHaveLength(3);
+    expect(call.values.filter((v) => v === YEAR.to)).toHaveLength(3);
+  });
+
+  it("B3: used reads only approved, non-deleted requests; pending reads only pending", async () => {
+    const { sql, calls } = fakeSql([]);
+    await getBalancePage(sql, ELENA, YEAR);
+    const text = calls.find((c) => BREAKDOWN.test(c.text))!.text;
+    expect(text).toMatch(/u\.status = 'approved' and u\.is_deleted = false/);
+    expect(text).toMatch(/r\.status = 'pending' and r\.is_deleted = false/);
+  });
+
+  it("B4: the year clips the range in SQL and the weekdays are counted by countWorkingDays", async () => {
+    const { sql, calls } = fakeSql([{ leave_type_id: VAC, balance: "10.00" }], {
+      used: [{ leave_type_id: VAC, start_date: "2026-12-29", end_date: "2026-12-31" }],
+      accrued: [{ leave_type_id: VAC, amount: "2.50" }],
+    });
+    const page = await getBalancePage(sql, ELENA, YEAR);
+    const text = calls.find((c) => BREAKDOWN.test(c.text))!.text;
+    expect(text).toContain("greatest(u.start_date, ?::date)");
+    expect(text).toContain("least(u.end_date, ?::date)");
+    expect(page.balances[0]).toMatchObject({
+      usedThisYear: 3,
+      accruedThisYear: 2.5,
+      openingBalance: 10.5, // 10 + 3 - 2.5
+    });
+  });
+
+  it("B10: confirmed, pending and available equal getBalanceSummary's for the same data", async () => {
+    const data = [{ leave_type_id: VAC, balance: "11.25" }];
+    const pending = [{ leave_type_id: VAC, start_date: "2026-11-02", end_date: "2026-11-04" }];
+    const old = await getBalanceSummary(fakeSql(data, { pending }).sql, ELENA);
+    const page = await getBalancePage(fakeSql(data, { pending }).sql, ELENA, YEAR);
+    expect(
+      page.balances.map(({ usedThisYear: _u, accruedThisYear: _a, openingBalance: _o, ...r }) => r),
+    ).toEqual(old);
+  });
+
+  it("B10: getMySummary still returns the old shape, with no breakdown fields (the API payload)", async () => {
+    const { sql } = fakeSql([{ leave_type_id: VAC, balance: "10.00" }]);
+    const result = await getMySummary(sql, ELENA);
+    expect(Object.keys(result.balances[0] ?? {}).sort()).toEqual(
+      ["available", "confirmed", "leaveTypeId", "leaveTypeName", "pending", "tracksBalance"].sort(),
+    );
   });
 });

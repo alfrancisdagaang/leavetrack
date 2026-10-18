@@ -53,12 +53,14 @@ describe.each([
 });
 
 describe("loading states mirror their pages", () => {
-  it("balance: header action, three balance cards and a request list", () => {
+  it("balance: header action, three balance cards (icon and chip), the note bar and a requests card", () => {
     const html = render(BalanceLoading);
     expect(html).toContain("h-11 w-32"); // the Request leave action
     expect(count(html, "lg:grid-cols-3")).toBe(1);
-    expect(count(html, "shadow-tile")).toBe(6); // three balance cards and three request rows
-    expect(count(html, "rounded-full")).toBe(3); // a status badge per request row
+    expect(count(html, "shadow-tile")).toBe(4); // three balance cards and the requests card
+    expect(count(html, "size-9")).toBe(3); // an icon circle per balance card
+    expect(count(html, "rounded-full")).toBe(9); // circle and chip per card, a badge per request row
+    expect(html).toContain("h-12 w-full"); // the note under the cards
   });
 
   it("approvals: cards with an Approve and a Reject button placeholder", () => {
