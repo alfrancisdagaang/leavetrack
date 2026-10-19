@@ -1,6 +1,61 @@
 # LeaveTrack — Session Handoff
 
-## READ FIRST: end of session 2026-10-19, late night (EPIC-12 manager split; supersedes every older note below where they disagree)
+## READ FIRST: end of session 2026-10-20, early morning (EPIC-11 My Profile, TASK-062 to 064, and the reporting lines; supersedes every older note below where they disagree)
+
+**State in a few lines.** Committed and **pushed to `origin/main`** when the user asked ("commit and push this for now"), in three commits (the My Profile feature, the reporting-lines data fix, then the retros, patterns and this handoff; `git log -3`).
+Ask the user to read the GitHub Actions run (`gh` is not installed, so I cannot see it) and Vercel. **The demo is TODAY, Tue 2026-10-20.** Gate on the final code (exit codes read): lint 0, prettier 0, tsc 0, `npm test` 0 with
+**1,184 passed, 180 skipped** (gated; the 16 new ones are `org.integration`), build 0 on a throwaway copy. EPIC-11 is **three of five tasks built**: TASK-062, 063 and 064 are done and validated; **TASK-065 (change password) and TASK-066 (end to end) are not built**, so
+the **Account settings tab still says "Account settings is not available yet"** and is live with this push. No role, required-feature or `docs/` change; one data change (below) and no migration.
+
+**What shipped.**
+
+1. **My Profile (`/profile`, every role; retros `2026-10-19-task-062-profile-shell.md`, `-063-org-reads.md`, `-064-org-chart-ui.md`).** Three route-based tabs (`ProfileTabs`, `ProfileFrame`): **Overview** (name, role, email, manager's name, one statement `getProfile`),
+   **Organization**, **Account settings** (placeholder until TASK-065). A "Profile" link in the account menu, and **"My Profile" is now the last sidebar item for all three roles** (`nav.ts`, white `nav-profile.svg`; highlighted on `/profile` and below, titles the top bar).
+2. **Org reads (`src/lib/leave/org.ts`, TASK-063).** ONE statement each, scoped from the session user's id in the SQL: `getEmployeeOrg` (own manager, self, direct reports), `getManagerOrg` (recursive walk down `manager_id`, depth cap 6, cycle guard by a path array that starts with the viewer,
+   200 people shallowest-first with the true total counted before the cut; the viewer must be a `manager`), `getOrgChildren` / `getOrgRoots` (HR only, 50 per page, page clamped in SQL, a `reports` count per node; an unknown parent is an empty page). Nodes are `{ id, name, role, reports }`: no email, no leave data.
+   `GET /api/org/children?parent=&page=` (`withErrorHandling`, zod in the new `org-schema.ts`, `assertRole("hr_admin")`, `no-store`) is a documented exception to AGENTS.md rule 3 (HR's scope is the company). Proven on a real PostgreSQL: 16 gated tests, 10 mutations all caught, an 800-user load check (every read about 1 ms or less; figures in the 063 retro).
+3. **Organization tab UI (TASK-064) and its redesign from the user's reference image.** A summary card (avatar, name, "You", role, the viewer's OWN email from the session and their manager), then one chart card: employee (manager card, connector, a highlighted "You" card, "Direct reports" or a dashed empty box, "Your manager" at the side),
+   manager (a tree of native `<details>`, closed at first, indent capped after level 3, "Showing N of M" when cut, "N reports not shown" at the depth cap), HR (the roots, each expandable through the HR route: per-person busy and error state with Retry, focus kept on the toggle, focus moved to the first new person after "Show more", a pure reducer in `org-hr-state.ts`).
+   **Left out of the reference on purpose (earlier decisions):** job title and department (no such data), "View profile" (no profile pages for other people), the Appearance card and dark mode (light-only UI), the breadcrumb bar. 12 UI mutations all caught; browser checks 243 and then 275 checks at 1440, 768, 375 and 320 px, 0 failed.
+4. **Reporting lines (retro `2026-10-20-reporting-lines.md`).** The user pointed out that the docs never put a manager under HR or an HR Admin under another. `manager_id` is an employee's approver (BRD BR-02, PRD US-03 and US-04, ARCH), so the demo data now has **no manager for Marco, Priya, Hana or Sam**; employees keep theirs (Marco: Elena, Jun; Priya: Leo).
+   `seed.sql` (also **removes the old "point Hana at Sam" update**, which would have undone it on every run, and adds an idempotent update that clears the three on databases seeded earlier), `mock/users.ts`, `verify_seed.sql`, `verify_schema.sql` (it still asserted Hana's manager: found only by the real-database run), a new `src/lib/mock/seed-consistency.test.ts`, and the demo and staging runbooks.
+   Proven on a real PostgreSQL (old seed, then new seed twice; 15 checks), 8 mutations caught, browser 54 checks.
+
+**STAGING NEEDS ONE STEP FROM THE USER BEFORE THE DEMO:** re-run the whole `supabase/seed.sql` in the Supabase SQL editor (safe to run again). Until then staging still shows Sam above Hana above Marco and Priya. CI's `db-push` applies migrations only, never the seed.
+
+**Decisions taken (defaults, no objection).** Roots past 50 get a note, not a pager (the route needs a `parent`); HR also reads its own manager (2 statements); native `<details>` for the manager tree; the summary shows the viewer's own email (drop `ProfileSummary` in `org-section.tsx` if that is too much);
+the clearing update names only the three seed ids; Sam stays as a second HR Admin account; no database rule that only employees may have a manager.
+
+**Not seen:** GitHub Actions and Vercel for these commits, staging, the real sign-in path (every browser check used the mock cookie: Elena, Marco, Hana), a screen reader, real Supabase latency for the org reads. The gated real-database tests do not run in CI (no `TEST_DATABASE_URL`).
+
+**Next (not started): TASK-065 change password, then TASK-066 (end to end for the profile pages; the 800-user load check of the org reads was already done in TASK-063), then EPIC-8 (user management with email invites; the biggest and riskiest).** Start with `/evaluate TASK-065`. It is the riskiest task of the epic (credentials through our server, `connect-src 'self'` only) and needs the user's answers before `/plan`:
+
+- the Supabase project's own **minimum password length** (Authentication, Sign In / Providers, Email) and whether **"secure password change"** (re-authentication) is on;
+- how a mock session is told apart from a real one without changing the `getSession()` contract (default in the plan: a second export `getSessionSource()` sharing the same cached resolution);
+- an app-side rate limit on wrong current passwords (default: none, Supabase rate-limits sign-in).
+
+Also add `current_password`, `new_password` and `confirm_password` to the logger's `SECRET_KEYS`. TASK-041 is still deferred and TASK-056 not built.
+
+**Open items (the user's; nothing done).**
+
+- **Re-run `seed.sql` on staging** (above) and **read the Actions run** (the `db-verify` job now runs the changed `verify_schema.sql` and `verify_seed.sql`) and Vercel.
+- **CSV bookkeeping:** no EPIC-11 row (TASK-062 to 066) is marked in `docs/dev-tasks/epic-11-profile-tasks.csv`; the EPIC-7, EPIC-9, dashboard and Balance Overrides rows are also unmarked (only when asked). EPIC-12's rows are `Built`, not `Done`.
+- **Backlog (from the retros):** roots past 50 cannot be paged; an opened HR node does not refresh; the HR expand button is icon-only; the 320 px tab strip scrolls inside itself; the mock top bar can show a different name than the database row; on the employee read the manager node's `reports` includes the viewer's peers (a number only);
+  a closed loop of people who all have a manager is unreachable from HR's roots; `decide.ts` and `notify.ts` keep old comments about an HR Admin who is somebody's manager. The older backlog items below still stand.
+
+**Harness notes added this session.** `embedded-postgres`, `postgres` and `puppeteer-core` in the session scratchpad again (the scripts are gone afterwards; recreate from `knowledge/patterns/implement-and-test.md`). For a TypeScript script outside the repo, `npx --yes tsx` works from the scratchpad (not a repo dependency).
+**macOS:** `sed -i` needs an empty suffix argument (a plain `sed -i 's/..//'` failed once); use a small Python script with an assertion that the pattern exists. **`export SP=...` before a Python heredoc that reads `os.environ["SP"]`** (two `KeyError: 'SP'` mix-ups); a `${2:+-H "Cookie: ..."}` in `curl` splits into two words, so branch with `if`.
+**Copy the repo to the scratchpad with `.env.local` and `.mcp.json` removed** and check `diff -rq src` before building. Run mutation proofs from a script that saves the original, applies one replacement with an assertion, runs the gated file, restores with `cp` and checks with `cmp`.
+A grid item is as wide as its longest word (`grid-cols-1` fixes it) and a component defined inside a component drops focus: both are in the patterns file with their tests.
+
+**Suggested opening prompt for the next session:**
+
+> Read AGENTS.md, knowledge/HANDOFF.md and the newest retros in knowledge/retros/, then run git log and git status. Tell me the current state in a few lines and what's next. Don't
+> start any work yet. (Then: `/evaluate TASK-065`, change password.)
+
+---
+
+## Earlier the same night: EPIC-12 manager split (still true unless the block above says otherwise)
 
 **State in a few lines.** The manager split is **built, validated and committed on `main`**, and pushed together with the earlier local commits (the EPIC-11 docs, EPIC-7, the dashboard rework and Balance Overrides) when the user asked
 ("commit and push it"). Ask the user to read the GitHub Actions run (`gh` is not installed, so I cannot see it); `db-push` has no new migration to apply. Demo: **Tue 2026-10-20**. Gate on the final code (exit codes read): lint 0, prettier 0,

@@ -282,3 +282,40 @@ Learned in TASK-037 (2026-10-19), adding the `override_approved` audit action to
 - **An odd last card takes the whole row below the breakpoint:** `[&>*:last-child:nth-child(odd)]:col-span-2` with `xl:...:col-span-1`, in the one helper that builds both the cards and
   their skeleton. It fixes every role's row at once (an employee's three cards had a hole at 375 and 768 px).
 - **A predicate that only narrows rows an inner join already excludes cannot be proven by a data test** (the "window starts a week early" mutant survives). Say so in the retro and prove it with a timing instead of pretending the test covers it.
+
+## Recursive read with a cycle guard and a true total (EPIC-11, the organization chart)
+
+- **The schema only stops "managing yourself", so a loop is possible.** A recursive walk over `manager_id` carries `path uuid[]` that STARTS with the viewer
+  (`array[v.id, u.id]`) and recurses with `where t.depth < 6 and not (u.id = any (t.path))`. A depth cap alone also ends a loop, but only after returning the same
+  people up to six times, so the test must assert each id appears once, not only that the query returns.
+- **Count before you cut.** `counted as (select count(*) from tree)` is a CTE next to `kept as (select * from tree order by depth, name, id limit 200)`, so the true
+  total survives the limit. **Order the cut by depth first**: every kept person's manager is then kept too (all of depth d come before d + 1), and the tree stays connected.
+- **A role gate in the read itself** (`where u.id = ${viewerId} and u.role = 'manager'`) makes a wrong call return nothing; the gated test runs it as an employee, as HR and as an
+  unknown id, and also proves the right role gets data.
+- **An unknown parent and a person with no reports must answer identically** (an empty page), so the route cannot be used to ask whether someone exists.
+- **Mutation proof by script:** one list of (name, pattern, replacement), assert the pattern exists, run the gated file, restore from a saved copy, `cmp`. Ten mutants in under a minute.
+- A new zod schema for a new route goes in its own file when the shared `schemas.ts` has a very high degree (66 importers).
+
+## Canonical lazy tree and wide-content pattern (EPIC-11, the Organization tab)
+
+- **A grid item is as wide as its longest word.** Below the breakpoint a plain `grid` has an auto column, so one 140-character unbroken name made a card 1,343 px wide and the page scrolled
+  sideways, even with `break-words` and `[overflow-wrap:anywhere]` on the text. Use `grid-cols-1` (it is `minmax(0, 1fr)`) and switch to the real columns at `lg`. Only a long name in a
+  grid layout shows it, so put one in the browser data and measure `scrollWidth <= clientWidth` with every level open.
+- **Never define a component inside a component.** `function Row() {}` inside the tree is a new type on every render, so React remounts the subtree and the focused button loses focus.
+  Use plain render functions (`const renderRow = (...) => <li key=...>`) and keep a source test that fails if `function List|Row` or `<List` / `<Row` returns.
+- **A lazy tree's state is a pure reducer** with a ticket per request (an answer for an older request is ignored), a merge by id (offset pages can repeat someone), `collapse` that keeps what
+  was loaded, and a `focusId` set after "Show more" so focus moves to the first NEW row instead of falling to `body` when the button disappears. Parse the answer defensively (anything
+  not exactly the envelope is a failed expansion) and keep only the fields the page draws.
+- **Native `<details>` is a free keyboard-usable tree** (Enter and Space toggle, no client code); make the whole card the `<summary>` (spans only, so it is valid inside it) and `list-none`
+  plus `[&::-webkit-details-marker]:hidden` to hide the marker. Cap the indent by level so a six-level tree stays inside 320 px.
+- **Prove "never shows X" with a leaky read**: feed the component objects that carry an `email` and a `reason` and assert neither is in the HTML, rather than only checking the happy data.
+
+## Changing the seed (found in the reporting-lines change, 2026-10-20)
+
+- **`on conflict do nothing` does not change an existing row**, so a seed change that edits a column must also carry an idempotent `update` that names the fixed ids and a "still has the old value" guard
+  (`... and manager_id is not null`), or staging keeps the old data. Prove it by running the OLD seed (`git show HEAD:supabase/seed.sql`), then the NEW seed twice, on a real PostgreSQL, and comparing row counts.
+- **An old fix-up update can silently undo the new data.** The "point Hana at Sam when she has no manager" update ran on every seed and would have re-attached her each time. When changing what a column
+  should be, grep the seed for every `update public.<table>` and remove the ones that set the old value. A test that reads `seed.sql` and fails on any non-null assignment catches it coming back.
+- **Check every SQL assertion file, not only the one named after the thing**: CI runs `verify_schema.sql` as well as `verify_seed.sql`, and the former held "Hana must have a second hr_admin as her manager".
+  Search `supabase/tests/` for the names and ids you change, and run both files against the migrated database.
+- **Keep the mock users and the seed in one test**: parse the seed's users insert and assert each mock user equals its row, so the two cannot drift.
