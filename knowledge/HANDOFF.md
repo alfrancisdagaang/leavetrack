@@ -1,12 +1,90 @@
 # LeaveTrack — Session Handoff
 
-## READ FIRST: end of session 2026-10-19 (supersedes every older note below where they disagree)
+## READ FIRST: end of session 2026-10-19, evening (EPIC-9 notifications; supersedes every older note below where they disagree)
+
+**State in a few lines.** **EPIC-9 (in-app notifications) is built, validated and pushed to `origin/main`**: `6588ba3` TASK-052 (the table), `59c8503` TASK-053
+(notifications written in the leave transactions), `52055f4` TASK-054 (read and mark-read routes), `bf50ff9` TASK-055 (the bell), `1932bdb` docs (patterns).
+TASK-057 (the end-to-end test, the EPIC-9 retro) and this handoff are in the commits after `1932bdb`. **TASK-056 (optional email copies) was deliberately not
+built.** After the push the user reported it was working ("its okay now"); **I did not see the Actions run, Vercel or staging**, and was not told which job logs
+were checked. Before the push the user's localhost showed "Notifications could not be loaded": `.env.local` points at the staging database, which did not have the
+migration yet (CI's `db-push` applies it on a push to `main`). Demo: the user says it is **TOMORROW, Tue 2026-10-20**. **Next is EPIC-7 (HR calendar), in a new
+session.** TASK-041 (the last EPIC-6 task) is still **deferred by the user's decision**.
+
+**Dates.** The system date this session was 2026-10-19. The EPIC-9 retros and the migration are named `2026-10-20` / `20261020000000` (my error). The files keep
+their names because commits, retros and this file refer to them; the migration version only has to sort after `20261019000100`.
+
+**How notifications work (retro: `knowledge/retros/2026-10-20-epic-9-notifications.md`, plus one retro per task).**
+
+| Event                                | Notified                                                        | Never notified                   |
+| ------------------------------------ | --------------------------------------------------------------- | -------------------------------- |
+| Employee submits                     | the employee's manager, only if that person's role is `manager` | the employee, HR, any other team |
+| Manager approves or rejects          | the employee                                                    | the manager, HR, any other team  |
+| HR overrides (approves over balance) | the employee and their manager                                  | HR (the actor), any other team   |
+| HR rejects an over-balance request   | the employee                                                    | the manager, HR                  |
+
+- **Table** `notifications` (migration `20261020000000_notifications.sql`): recipient, `kind` (text + CHECK: submitted, approved, rejected, overridden), request,
+  `created_at`, `read_at`. RLS on, no policy; never deleted or truncated; `read_at` settable once (trigger). `kind` is text, not an enum, so a value can be removed;
+  `NOTIFICATION_KINDS` in `types.ts` and the CHECK list must be edited together (a test fails on drift). No uniqueness on (recipient, request, kind).
+- **Writes** (`src/lib/leave/notify.ts`): `notifyLeaveEvent(tx, ...)` is ONE statement run inside each event's own `sql.begin`, so a failed notification rolls the
+  whole event back. Recipients come from the database (the employee's own `manager_id`), never from the caller; the actor is never a recipient.
+  **Coupling to remember: `createLeaveRequest`, `decideLeaveRequest` and `overrideLeaveRequest` now FAIL on a database without the migration** (nothing is left
+  half-saved). A migration must reach a database before the code that uses it; on a push, Vercel can deploy before `db-push` finishes, so watch the Actions run.
+- **Routes** (`src/lib/leave/notifications.ts`): `GET /api/notifications` (latest 20 plus the unread count, one statement, `no-store`) and
+  `POST /api/notifications/read` (all or one id, one statement). Scoped to the session user in SQL. A foreign, unknown or already-read id all answer
+  `{ marked: 0, unread: n }`. Any role may call them. A notification shows the employee's name, the leave type and the dates; never a reason or a decision note.
+- **The bell** (`src/components/ui/notification-bell.tsx`, the only client piece; text in `notification-text.ts`, state in `notification-state.ts`, rows in
+  `notification-panel.tsx`): in the top bar of every signed-in page. **It reads in the browser, not in the layout**, because the three dashboards already use all
+  4 allowed parallel statements (`POOL_MAX - 1`); a layout statement would be a fifth, the number that stalled pages in October. It reads once after the page loads,
+  when the panel opens and when the tab becomes visible, never on navigation and never by polling, so a new notification shows on the next of those. This differs
+  from the CSV text for TASK-055 (a streamed Suspense section), which is **not edited**. `query-budget.test.ts` has a guard that fails if the layout or the bell
+  reaches the database or a read depends on the pathname. A failed read leaves the bell without a count and an alert with Retry; the page is unaffected.
+  Design came from a ChatGPT mockup the user pasted; there is no Figma for it.
+- **A bug worth remembering:** a read in flight when "Mark all as read" was clicked answered with the old list and brought the badge back. A mark now invalidates
+  older reads and reads again once it settles; proven by a test that serves a stale answer late.
+
+**Validation done.** Gated real-database tests on PostgreSQL 18.4 (table 5, events 12, routes 9, end to end through the real route handlers 9) with mutation proofs
+(7 + 11 + 10 + 8, every mutation caught by at least one suite); a real-browser check (headless Chrome, a production build of the exported `HEAD`, employee,
+manager and HR at 1440, 375 and 320 px): **199 checks, 0 failed**; screenshots compared with the mockup. Gate on `HEAD`: lint, format and typecheck clean,
+**963 tests passed, 147 skipped** (gated), build passed. Gated files: 18 together pass (134 tests); `override-count` alone 3 of 3; `dashboard-lists` alone 10 of 10.
+
+**Not seen:** GitHub Actions, Vercel and staging for these commits; the **real sign-in path** (every browser and HTTP check used the mock `mock-role` cookie, which
+maps to Elena, Marco and Hana only; Leo and the short-balance employee were tested through the route handlers, not in a browser); a screen reader.
+
+**Open (the user's; nothing done).**
+
+- **CSV and handoff bookkeeping:** the CSV rows for TASK-052 to 055 and 057, the EPIC-9 header and the TASK-055 text are **not updated** (only when asked).
+  `epic-9-notifications-tasks.csv` still says Open.
+- **Gated tests do not run in CI** (no `TEST_DATABASE_URL`). Turning them on needs `override-count.integration` to stop racing (see Harness notes).
+- Backlog: a date range can break after the dash at 375 px in the bell ("Feb 1–" then "26"); the bell shows the latest 20 (no "see all"); if an employee changes
+  manager, the old manager's earlier notification still shows that name and those dates.
+- The earlier open items below still stand (orphaned pending requests on staging, accrual still crediting managers and HR, the supervisor's questions, TASK-041).
+
+### NEXT SESSION: EPIC-7, the HR calendar (start with `/evaluate EPIC-7`)
+
+- Priority order after it: EPIC-8 (user management with email invites; the biggest and riskiest; see the email decision further down). EPIC-9's TASK-056 (email
+  copies) stays optional and would reuse the Gmail SMTP decision.
+- EPIC-7 (`docs/dev-tasks/epic-7-hr-calendar-tasks.csv`, TASK-042 to 044): an HR Admin page `/calendar` with the number of people out per day (counts, not a bar per
+  person), filters for team and leave type kept in the address, a day opens a list of who is out; read-only, HR Admin only; additive, no change to existing pages.
+- **The HR dashboard already uses 4 of the 4 allowed parallel statements.** The new page must stay within `POOL_MAX - 1` on its own (the month read and the day
+  read are each ONE statement), and the layout adds none (the bell reads in the browser). Extend `query-budget.test.ts` for the new page.
+- TASK-044 builds a throwaway database with 800 users and about 8,000 requests (scratchpad only, never staging) and records the timings and `EXPLAIN` plans.
+- Follow the patterns in `knowledge/patterns/implement-and-test.md`: the canonical data-page pattern, the pool-budget pattern, the new-table, notify-in-transaction,
+  shared-chrome and route-level end-to-end sections (the last four were added this session).
+
+**Suggested opening prompt for the EPIC-7 session:**
+
+> Read AGENTS.md, knowledge/HANDOFF.md and the newest retros in knowledge/retros/, then run git log and git status. Tell me the current state in a few
+> lines and what's next. Don't start any work. (Then: `/evaluate EPIC-7`.)
+
+---
+
+## Earlier the same day: EPIC-6 and EPIC-10 session (still true unless the block above says otherwise)
 
 **State in a few lines.** EPIC-6 (the HR override) and **EPIC-10 (role scope tone-down) are built, validated and committed; both are pushed to `origin/main`**
 (EPIC-6 at `ac71e64`; EPIC-10 as `87edcea` TASK-058 and 059, `58c0ce7` TASK-060, then the docs commit of this handoff, which also holds the TASK-061 retro).
 The user reported GitHub Actions green and Vercel with no error for the EPIC-6 push (**reported, not seen by me**: `gh` is not installed). **For the EPIC-10
 push nothing is seen yet**: the new CI steps ("Seed twice" row-count comparison and "Verify seed data") have only run locally, so ask the user to look at
-the Actions run first. Demo: the user says it is **TOMORROW, Tue 2026-10-20**. **Next is EPIC-9 (in-app notifications bell), in a new session.** TASK-041
+the Actions run first. Demo: the user says it is **TOMORROW, Tue 2026-10-20**. **Next was EPIC-9 (built since, see the block above).** TASK-041
 (the last EPIC-6 task) is **deferred by the user's decision**.
 
 **Golden rule (the supervisor, 2026-10-19, relayed by the user): do not change the required features, such as the user roles defined in the docs; stick
@@ -33,16 +111,16 @@ PRD US-01 AC3 says an over-balance request "may still submit for HR override" an
 
 ### Epics (CSVs in `docs/dev-tasks/`)
 
-| Epic                         | File                               | Status                                                                 |
-| ---------------------------- | ---------------------------------- | ---------------------------------------------------------------------- |
-| EPIC-6 HR override           | `epic-6-hr-override-tasks.csv`     | TASK-037 to 040 **Done** (shipped); **TASK-041 deferred**; header Open |
-| EPIC-10 Role scope tone-down | `epic-10-role-scope-tasks.csv`     | **Done** (TASK-058 to 061 and the header; pushed)                      |
-| EPIC-9 Notifications         | `epic-9-notifications-tasks.csv`   | **NEXT.** Open (TASK-052 to 057)                                       |
-| EPIC-7 HR calendar           | `epic-7-hr-calendar-tasks.csv`     | Open (TASK-042 to 044)                                                 |
-| EPIC-8 User management       | `epic-8-user-management-tasks.csv` | Open (TASK-045 to 051)                                                 |
+| Epic                         | File                               | Status                                                                          |
+| ---------------------------- | ---------------------------------- | ------------------------------------------------------------------------------- |
+| EPIC-6 HR override           | `epic-6-hr-override-tasks.csv`     | TASK-037 to 040 **Done** (shipped); **TASK-041 deferred**; header Open          |
+| EPIC-10 Role scope tone-down | `epic-10-role-scope-tasks.csv`     | **Done** (TASK-058 to 061 and the header; pushed)                               |
+| EPIC-9 Notifications         | `epic-9-notifications-tasks.csv`   | **Built and pushed** (TASK-052 to 055, 057); TASK-056 not built; CSV still Open |
+| EPIC-7 HR calendar           | `epic-7-hr-calendar-tasks.csv`     | **NEXT.** Open (TASK-042 to 044)                                                |
+| EPIC-8 User management       | `epic-8-user-management-tasks.csv` | Open (TASK-045 to 051)                                                          |
 
-**PRIORITY ORDER (agreed with the user 2026-10-19; one epic at a time, evaluate, plan, apply, validate per task):** 1. EPIC-6 (done). 2. EPIC-10 (done). 3. **EPIC-9 in-app notifications bell** (closes the biggest gap against the PRD: US-01 AC1 manager notified, US-03 employee notified; the bell is on every
-page, so its unread count must be ONE indexed statement within the page query budget `POOL_MAX - 1`; TASK-056 email copies only if time). 4. EPIC-7 HR
+**PRIORITY ORDER (agreed with the user 2026-10-19; one epic at a time, evaluate, plan, apply, validate per task):** 1. EPIC-6 (done). 2. EPIC-10 (done). 3. **EPIC-9 in-app notifications bell (DONE 2026-10-19)** (closed the biggest gap against the PRD: US-01 AC1 manager notified, US-03 employee notified; the bell
+reads in the browser so the layout adds no statement; TASK-056 email copies not built). 4. EPIC-7 HR
 calendar (counts per day, not a bar per person). 5. EPIC-8 user management with email invites (biggest and riskiest: server-only service-role key, SMTP, a
 new audit table, forced password change; needs the user's Supabase custom SMTP and `SUPABASE_SERVICE_ROLE_KEY` as a server-only Vercel variable; start the
 SMTP setup early; needs the supervisor's OK). **Email provider decision (user, 2026-10-19: "pick one free tier"):** Gmail SMTP for the demo (a dedicated
@@ -50,7 +128,9 @@ Google account, 2-step verification, an app password; no domain needed; non-prod
 sender only reaches project team members at 2 messages per hour. Production needs a provider with a verified domain. No-email fallback: HR copies an invite
 link. The user does the Supabase and Vercel steps; I cannot.
 
-### NEXT SESSION: EPIC-9 (start with `/evaluate EPIC-9`)
+### (Done) the EPIC-9 notes that were written before it was built
+
+Superseded by the block at the top: the design questions below were answered there (an override notifies the employee and their manager; the bell reads in the browser).
 
 - EPIC-9 edits `createLeaveRequest` and `decideLeaveRequest`; both now carry their role check (employee only, manager only) in SQL: keep those intact and
   their tests (`service.test.ts`, `decide.test.ts`, `request-role` and `decide-role` gated tests) passing.
@@ -144,6 +224,10 @@ Commits on `main`: `d41cef7` TASK-037, `e5c08a4` TASK-038, `82e66a1` TASK-039, `
   that expect constraint errors.
 - **Gated suites:** run each file on a fresh, seedless database. `dashboard-lists` is **racy against the other gated suites** even then (failed 2, 1, 1
   and 0 tests over four runs without any EPIC-6 file), so run it alone. CI never sets `TEST_DATABASE_URL`, so they do not run there.
+  **`override-count.integration` is racy too** (it counts HR-wide, so any file that inserts over-balance requests moves it; it failed 2 of 2 combined runs with no
+  EPIC-9 file). Run it alone as well. Combined run that works: `TEST_DATABASE_URL=... npx vitest run .integration.test --exclude '**/node_modules/**' --exclude
+'**/{dashboard-lists,override-count}*'` (18 files, 134 tests). `vitest run <many paths>` can print "No test files found", and two `--exclude` flags swallow the
+  filter, so use the one brace pattern. `git checkout --` is refused by the harness; restore a mutated file with `cp` from a saved copy and `cmp`.
 - **Browser check:** `puppeteer-core` in a scratchpad with `/Applications/Google Chrome.app`, against `next start` of a throwaway copy (a symlinked
   `node_modules` breaks Turbopack, copy it), mock sessions (`ALLOW_MOCK_LOGIN=true`, cookie `mock-role` = employee, manager or hr_admin; users Elena,
   Marco, Hana) and the seeded embedded database. **The user's own server holds port 3000**, so use another port. Put a long unbroken word in a reason.
@@ -151,6 +235,10 @@ Commits on `main`: `d41cef7` TASK-037, `e5c08a4` TASK-038, `82e66a1` TASK-039, `
   migrations shows "could not be loaded" notes on the pages that read the new columns (`column a.days_requested does not exist`).
 - **Permissions:** `git checkout --` that discards uncommitted edits and `rm -rf $VAR/...` were refused by the harness; the first needed the user's explicit
   OK, the second needs a literal path. Do not work around a refusal.
+- **Browser check on the pushed code:** `git archive HEAD | tar -x -C <scratchpad dir>`, copy `node_modules` in, `npm run build`, `next start` on a free port with
+  `APP_ENV=development ALLOW_MOCK_LOGIN=true DATABASE_URL=<embedded db> APP_TIMEZONE=Asia/Manila`; create data through the real API (cookie `mock-role`), one browser
+  context per role, intercept requests to force a 500, and test a stale answer by fetching it from Node before the click and delivering it late through
+  `request.respond` (delaying the request instead proves nothing). The scripts live in the session scratchpad and are gone afterwards; recreate from the patterns file.
 - **Mutation proofs:** patch one rule per copy with a small script that asserts the pattern exists, run the gated file on a fresh database, restore and
   `cmp`. When two guards back each other up, remove both.
 

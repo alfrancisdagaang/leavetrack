@@ -245,3 +245,16 @@ Learned in TASK-037 (2026-10-19), adding the `override_approved` audit action to
   delivering it later through request interception: delaying the REQUEST is not enough, the server then answers after the click.
 - **An anchored dropdown next to the avatar can leave the viewport at 320 px.** Below `sm` use `fixed inset-x-4` under the bar; from `sm`
   `absolute right-0 w-96`. Assert the panel's rect is inside the viewport at 1440, 375 and 320.
+
+## Canonical route-level end-to-end test pattern (learned in TASK-057, 2026-10-20)
+
+- **Go through the real route handlers, services and SQL, and replace only two things:** `vi.mock("@/lib/auth/session")` (who is signed in, a
+  `holder.session` you set per call) and `@/lib/leave/service`'s `requireDb` (return the test client; keep the rest with `importOriginal`).
+  Import the route modules with `await import(...)` after the mocks, call `POST(new Request(...), { params: Promise.resolve({ id }) })`, and
+  assert on the real `Response` (status and the standard envelope). No Next server is needed.
+- **Prove the mock does not leak to the real `getDb()`** by reading back from the test client in the same test (a count of what the routes
+  wrote); if the routes had reached another database that query would not see the rows.
+- **Assert exactness, not only presence:** one `group by` query over everything the flow created must equal the expected set, so a notification
+  to the wrong person or a duplicate fails even when each step's own check passes.
+- **Mutation-test it at the route level too:** the same mutation scripts used for the services must each fail this file; a mutation that only
+  the unit tests catch means the end-to-end flow has a hole.
