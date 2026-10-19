@@ -111,13 +111,15 @@ describe("decideLeaveRequest", () => {
     expect(upd?.values).toEqual(["approved", MANAGER, null, REQ]);
     const [audit] = touched(/^insert into public\.audit_log/);
     expect(audit?.values).toEqual([REQ, MANAGER, "approved"]);
-    // Order matters: decider role, lookup, balance, request, audit, all inside the one transaction.
+    // Order matters: decider role, lookup, balance, request, audit, notification, all inside the one
+    // transaction.
     expect(calls.map((c) => c.text.split(" ").slice(0, 2).join(" "))).toEqual([
       "select role",
       "select r.id,",
       "update public.leave_balances",
       "update public.leave_requests",
-      "insert into",
+      "insert into", // audit_log
+      "insert into", // notifications
     ]);
   });
 
@@ -269,5 +271,71 @@ describe("decideLeaveRequest", () => {
       code: "CONFLICT",
     });
     expect(calls).toHaveLength(2); // the role check and the lookup; nothing written
+  });
+
+  // TASK-053 (US-03): the employee hears about the decision, in the same transaction.
+  // Values of the one notifications statement: kind, request, employee, toEmployee, employee,
+  // toManager, actor.
+  describe("notifications (TASK-053)", () => {
+    const notified = (t: ReturnType<typeof fakeSql>["touched"]) =>
+      t(/^insert into public\.notifications/);
+
+    it("AC2: approving notifies the employee only, with kind approved, written after the audit row", async () => {
+      const { sql, calls, touched } = fakeSql({
+        lookup: [pending()],
+        balanceUpdate: [{ balance: "7.00" }],
+      });
+      await decideLeaveRequest(sql, MANAGER, REQ, approve);
+      const found = notified(touched);
+      expect(found).toHaveLength(1);
+      expect(found[0]?.values).toEqual(["approved", REQ, ELENA, true, ELENA, false, MANAGER]);
+      const at = (re: RegExp) => calls.findIndex((c) => re.test(c.text));
+      expect(at(/^insert into public\.audit_log/)).toBeLessThan(
+        at(/^insert into public\.notifications/),
+      );
+      expect(at(/^insert into public\.notifications/)).toBe(calls.length - 1);
+    });
+
+    it("AC2: rejecting notifies the employee only, with kind rejected", async () => {
+      const { sql, touched } = fakeSql({
+        lookup: [pending()],
+        requestUpdate: [{ ...DECIDED, status: "rejected", decision_note: "No cover" }],
+      });
+      await decideLeaveRequest(sql, MANAGER, REQ, { decision: "reject", note: "No cover" });
+      expect(notified(touched)[0]?.values).toEqual([
+        "rejected",
+        REQ,
+        ELENA,
+        true,
+        ELENA,
+        false,
+        MANAGER,
+      ]);
+    });
+
+    it("AC5: the statement never lets the actor be a recipient, and the recipients come from the database", async () => {
+      const { sql, touched } = fakeSql({
+        lookup: [pending()],
+        balanceUpdate: [{ balance: "7.00" }],
+      });
+      await decideLeaveRequest(sql, MANAGER, REQ, approve);
+      const text = notified(touched)[0]!.text;
+      expect(text).toMatch(/where r\.id <> \?$/);
+      expect(text).toMatch(/m\.role = 'manager'/);
+    });
+
+    it("a refused or lost decision writes no notification", async () => {
+      for (const script of [
+        { role: "hr_admin" as const, lookup: [pending()] },
+        { lookup: [] },
+        { lookup: [pending({ status: "approved" })] },
+        { lookup: [pending()], balanceUpdate: [], balanceRow: [{ balance: "1.00" }] },
+        { lookup: [pending()], balanceUpdate: [{ balance: "7" }], requestUpdate: [] },
+      ]) {
+        const { sql, touched } = fakeSql(script);
+        await expect(decideLeaveRequest(sql, MANAGER, REQ, approve)).rejects.toBeDefined();
+        expect(notified(touched)).toHaveLength(0);
+      }
+    });
   });
 });

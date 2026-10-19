@@ -2,6 +2,7 @@ import type { Sql } from "postgres";
 import type { LeaveRequest } from "@/lib/db/types";
 import { AppError } from "@/lib/errors/app-error";
 import type { DecidedRequestView } from "@/lib/leave/decide";
+import { notifyLeaveEvent } from "@/lib/leave/notify";
 import type { DecisionInput } from "@/lib/leave/schemas";
 import { countWorkingDays } from "@/lib/leave/working-days";
 
@@ -102,6 +103,15 @@ export async function overrideLeaveRequest(
       await tx`
         insert into public.audit_log (leave_request_id, actor_id, action)
         values (${requestId}, ${deciderId}, 'rejected')`;
+      // An HR rejection tells the employee only; the manager can already see it in their queue.
+      await notifyLeaveEvent(tx, {
+        kind: "rejected",
+        requestId,
+        employeeId: req.user_id,
+        actorId: deciderId,
+        toEmployee: true,
+        toManager: false,
+      });
       return { request: row, balance: null, shortfall: null };
     }
 
@@ -126,6 +136,16 @@ export async function overrideLeaveRequest(
       values (${requestId}, ${deciderId}, 'override_approved', ${requested},
               ${current.balance}::numeric, ${requested}::numeric - ${current.balance}::numeric)
       returning shortfall::text as shortfall`;
+
+    // The employee and their manager both hear that HR approved it over the balance.
+    await notifyLeaveEvent(tx, {
+      kind: "overridden",
+      requestId,
+      employeeId: req.user_id,
+      actorId: deciderId,
+      toEmployee: true,
+      toManager: true,
+    });
 
     return {
       request: row,

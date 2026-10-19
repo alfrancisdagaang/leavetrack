@@ -2,6 +2,7 @@ import type { Sql } from "postgres";
 import type { LeaveRequest, User } from "@/lib/db/types";
 import { APPROVERS_ONLY_MESSAGE, canApproveLeave } from "@/lib/auth/roles";
 import { AppError } from "@/lib/errors/app-error";
+import { notifyLeaveEvent } from "@/lib/leave/notify";
 import type { DecisionInput } from "@/lib/leave/schemas";
 import { countWorkingDays } from "@/lib/leave/working-days";
 
@@ -125,6 +126,16 @@ export async function decideLeaveRequest(
     await tx`
       insert into public.audit_log (leave_request_id, actor_id, action)
       values (${requestId}, ${deciderId}, ${status})`;
+
+    // US-03: the employee hears about the decision, in the same transaction.
+    await notifyLeaveEvent(tx, {
+      kind: status,
+      requestId,
+      employeeId: req.user_id,
+      actorId: deciderId,
+      toEmployee: true,
+      toManager: false,
+    });
 
     return { request: row, balance: balanceAfter };
   });

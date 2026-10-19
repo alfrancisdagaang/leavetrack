@@ -171,7 +171,10 @@ describe("overrideLeaveRequest", () => {
     expect(balanceAt).toBeGreaterThan(-1);
     expect(balanceAt).toBeLessThan(requestAt);
     expect(requestAt).toBeLessThan(auditAt);
-    expect(auditAt).toBe(s.calls.length - 1);
+    // The notification is the last statement, still inside the same transaction.
+    const notifyAt = at(/^insert into public\.notifications/);
+    expect(auditAt).toBeLessThan(notifyAt);
+    expect(notifyAt).toBe(s.calls.length - 1);
   });
 
   it("AC2: reject needs no balance change, records the note and a rejected audit row", async () => {
@@ -200,5 +203,45 @@ describe("overrideLeaveRequest", () => {
     });
     await expect(run(s, approve)).rejects.toMatchObject({ code: "CONFLICT" });
     expect(s.touched(/^insert into public\.audit_log/)).toHaveLength(0);
+  });
+
+  // TASK-053. Values of the one notifications statement: kind, request, employee, toEmployee,
+  // employee, toManager, actor.
+  describe("notifications (TASK-053)", () => {
+    it("AC3: an override notifies the employee and their manager, with kind overridden", async () => {
+      const s = fakeSql({ lookup: [pending()], balanceRow: [{ balance: "1.00" }] });
+      await run(s, approve);
+      const found = s.touched(/^insert into public\.notifications/);
+      expect(found).toHaveLength(1);
+      expect(found[0]?.values).toEqual(["overridden", REQ, ELENA, true, ELENA, true, HR]);
+    });
+
+    it("an HR rejection notifies the employee only, with kind rejected", async () => {
+      const s = fakeSql({
+        lookup: [pending()],
+        balanceRow: [{ balance: "1.00" }],
+        requestUpdate: [{ ...DECIDED, status: "rejected", decision_note: "Not enough cover" }],
+      });
+      await run(s, reject);
+      const found = s.touched(/^insert into public\.notifications/);
+      expect(found).toHaveLength(1);
+      expect(found[0]?.values).toEqual(["rejected", REQ, ELENA, true, ELENA, false, HR]);
+    });
+
+    it("a refused override writes no notification", async () => {
+      for (const script of [
+        { lookup: [] },
+        { lookup: [pending({ status: "approved" })] },
+        { lookup: [pending({ tracks_balance: false })] },
+        { lookup: [pending()], balanceRow: [] },
+        { lookup: [pending()], balanceRow: [{ balance: "-2.00" }] },
+        { lookup: [pending()], balanceRow: [{ balance: "5.00" }] }, // within balance
+        { lookup: [pending()], balanceRow: [{ balance: "1.00" }], requestUpdate: [] },
+      ]) {
+        const s = fakeSql(script);
+        await expect(run(s, approve)).rejects.toBeDefined();
+        expect(s.touched(/^insert into public\.notifications/)).toHaveLength(0);
+      }
+    });
   });
 });

@@ -97,6 +97,56 @@ const input = (leave_type_id: string) => ({
   reason: "",
 });
 
+describe("createLeaveRequest notifications (TASK-053, US-01 AC1)", () => {
+  // Values of the one notifications statement: kind, request, employee, toEmployee, employee,
+  // toManager, actor.
+  it("AC1: submitting notifies the employee's manager only, after the audit row, in the same transaction", async () => {
+    const { sql, calls, touched } = fakeSql([{ leave_type_id: VAC, balance: "10.00" }]);
+    const result = await createLeaveRequest(sql, ELENA, input(VAC));
+    const found = touched(/^insert into public\.notifications/);
+    expect(found).toHaveLength(1);
+    expect(found[0]?.values).toEqual([
+      "submitted",
+      result.request.id,
+      ELENA,
+      false,
+      ELENA,
+      true,
+      ELENA,
+    ]);
+    const at = (re: RegExp) => calls.findIndex((c) => re.test(c.text));
+    expect(at(/^insert into public\.audit_log/)).toBeLessThan(
+      at(/^insert into public\.notifications/),
+    );
+  });
+
+  it("AC5: the actor is never a recipient and the manager must be a manager (in the SQL)", async () => {
+    const { sql, touched } = fakeSql([{ leave_type_id: VAC, balance: "10.00" }]);
+    await createLeaveRequest(sql, ELENA, input(VAC));
+    const text = touched(/^insert into public\.notifications/)[0]!.text;
+    expect(text).toMatch(/where r\.id <> \?$/);
+    expect(text).toMatch(/m\.role = 'manager'/);
+  });
+
+  it("a refused submit writes no notification", async () => {
+    for (const opts of [
+      { role: "manager" as const },
+      { role: "hr_admin" as const },
+      { managerId: null },
+    ]) {
+      const { sql, touched } = fakeSql([{ leave_type_id: VAC, balance: "10.00" }], opts);
+      await expect(createLeaveRequest(sql, ELENA, input(VAC))).rejects.toBeDefined();
+      expect(touched(/^insert into public\.notifications/)).toHaveLength(0);
+    }
+    const { sql, touched } = fakeSql([]);
+    // An id that is not one of the three leave types.
+    await expect(
+      createLeaveRequest(sql, ELENA, input("10000000-0000-4000-8000-0000000000ff")),
+    ).rejects.toBeDefined();
+    expect(touched(/^insert into public\.notifications/)).toHaveLength(0);
+  });
+});
+
 describe("createLeaveRequest (US-08 AC2: submit is never blocked by a balance)", () => {
   it("Unpaid with no balance row is accepted, with no warning, a pending row and a submitted audit row", async () => {
     const { sql, touched } = fakeSql([]);

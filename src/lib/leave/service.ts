@@ -16,6 +16,7 @@ import {
   type UsedRange,
   type YearBounds,
 } from "@/lib/leave/breakdown";
+import { notifyLeaveEvent } from "@/lib/leave/notify";
 import type { CreateLeaveRequestInput } from "@/lib/leave/schemas";
 import { countWorkingDays } from "@/lib/leave/working-days";
 
@@ -187,6 +188,16 @@ export async function createLeaveRequest(
     await tx`
       insert into public.audit_log (leave_request_id, actor_id, action)
       values (${row.id}, ${userId}, 'submitted')`;
+
+    // US-01 AC1: the employee's manager hears about it, in the same transaction.
+    await notifyLeaveEvent(tx, {
+      kind: "submitted",
+      requestId: row.id,
+      employeeId: userId,
+      actorId: userId,
+      toEmployee: false,
+      toManager: true,
+    });
 
     return { request: toView(row), warnings: warning ? [warning] : [] };
   });
