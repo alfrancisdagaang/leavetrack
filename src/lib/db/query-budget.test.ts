@@ -87,6 +87,7 @@ const { AuditBody } = await import("@/app/(app)/audit/audit-body");
 const { OverrideQueueSection, RecentOverridesSection } =
   await import("@/app/(app)/approvals/overrides/override-sections");
 const { RosterSection } = await import("@/app/(app)/approvals/team/roster-section");
+const { MemberPopup } = await import("@/app/(app)/approvals/team/member-popup");
 const { CalendarBody } = await import("@/app/(app)/calendar/calendar-body");
 const { default: TeamMemberRoute } = await import("@/app/(app)/approvals/team/[userId]/page");
 
@@ -171,6 +172,20 @@ describe("query budget (parallel statements per page)", () => {
   it("My Team (the roster) reads everything in ONE statement, however many people report to the manager", async () => {
     await RosterSection({ managerId: "m1", today: "2026-10-18" });
     expect(tracker.peak()).toBe(1);
+    expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it("My Team with a member open reads the roster and the person: two statements", async () => {
+    await Promise.all([
+      RosterSection({ managerId: "m1", today: "2026-10-18" }),
+      MemberPopup({
+        managerId: "m1",
+        memberParam: "00000000-0000-4000-8000-000000000003",
+        searchParams: {},
+        today: "2026-10-18",
+      }),
+    ]);
+    expect(tracker.peak()).toBe(2);
     expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
   });
 

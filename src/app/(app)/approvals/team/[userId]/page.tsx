@@ -9,7 +9,6 @@ import { memberIdSchema, parseTeamMemberQuery } from "@/lib/leave/schemas";
 import { requireDb } from "@/lib/leave/service";
 import { getTeamMemberPage, type TeamMemberPage } from "@/lib/leave/team-member";
 import { logger } from "@/lib/logger";
-import { MemberBalances } from "./member-balances";
 import { FilterShell, ResultsRegion } from "@/components/ui/filter-shell";
 import { MemberFilters } from "./member-filters";
 import { BackToTeam, MemberHeader } from "./member-header";
@@ -24,7 +23,7 @@ export const dynamic = "force-dynamic";
 type SearchParams = Record<string, string | string[] | undefined>;
 
 /**
- * US-13. One direct report's balances and requests, with filters. Managers only.
+ * US-13. One direct report's requests, with filters (no balances: managers do not see them). Managers only.
  * The person comes from the address and is never trusted: the read finds them only if they report to
  * the signed-in user (in SQL), and a malformed address, another team's member, a missing person, a
  * deleted one and the caller themselves all end the same way: `notFound()`.
@@ -67,7 +66,6 @@ export default async function TeamMemberRoute({
   return (
     <div>
       <MemberHeader member={data.member} />
-      <MemberBalances balances={data.balances} />
       {ignored.length > 0 ? (
         <div className="mb-4">
           <Alert variant="info">

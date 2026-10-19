@@ -25,7 +25,8 @@ describe("PendingSection", () => {
     team.getTeamQueue.mockResolvedValue([]);
     const out = await html(PendingSection({ managerId: "m1" }));
     expect(team.getTeamQueue).toHaveBeenCalledWith({}, "m1");
-    expect(out).toContain("Pending requests (0)");
+    expect(out).toContain("Pending requests");
+    expect(out).toContain("0 pending");
     expect(out).toContain("No pending requests from your team.");
   });
 

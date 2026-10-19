@@ -33,7 +33,8 @@ function frame(role: Parameters<typeof navItemsFor>[0]) {
 describe("AppFrame", () => {
   it("lists only the items the role may open, and nothing else", () => {
     const manager = frame("manager");
-    for (const label of ["Dashboard", "Team Approvals"]) expect(manager).toContain(label);
+    for (const label of ["Dashboard", "Team Approvals", "My Team"])
+      expect(manager).toContain(label);
     // EPIC-10: only employees request leave and see a balance.
     for (const label of ["Request Leave", "My Balance"]) {
       expect(manager).not.toContain(label);
@@ -44,8 +45,8 @@ describe("AppFrame", () => {
     expect(frame("employee")).not.toContain("Team Approvals");
     // EPIC-10: an HR admin has no team and no normal approvals.
     expect(frame("hr_admin")).not.toContain("Team Approvals");
-    expect(manager).not.toContain("My Team");
     expect(frame("employee")).not.toContain("My Team");
+    expect(frame("hr_admin")).not.toContain("My Team");
     expect(frame("hr_admin")).toContain("Audit History");
     expect(manager).not.toContain("Balance Overrides");
     expect(frame("employee")).not.toContain("Balance Overrides");
@@ -63,12 +64,12 @@ describe("AppFrame", () => {
     expect(html).toMatch(/<p class="[^"]*text-lg[^"]*">Balance Overrides<\/p>/);
   });
 
-  it("for a manager, /approvals/team highlights Team Approvals", () => {
+  it("for a manager, /approvals/team highlights My Team and not Team Approvals", () => {
     path = "/approvals/team";
     const html = frame("manager");
     path = "/approvals";
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
-    expect(html).toMatch(/<a(?=[^>]*aria-current="page")(?=[^>]*href="\/approvals")[^>]*>/);
+    expect(html).toMatch(/<a(?=[^>]*aria-current="page")(?=[^>]*href="\/approvals\/team")[^>]*>/);
   });
 
   it("marks the current page and highlights it", () => {
@@ -78,16 +79,21 @@ describe("AppFrame", () => {
   });
 
   it.each([
-    "/approvals",
-    "/approvals/team",
-    "/approvals/team/00000000-0000-4000-8000-000000000003",
-  ])("keeps Team Approvals highlighted, and titles the top bar, on %s", (p) => {
+    ["/approvals", "/approvals", "Team Approvals"],
+    ["/approvals/team", "/approvals/team", "My Team"],
+    ["/approvals/team/00000000-0000-4000-8000-000000000003", "/approvals/team", "My Team"],
+  ])("on %s highlights %s and titles the top bar %s", (p, href, title) => {
     path = p;
     const html = frame("manager");
     path = "/approvals";
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
-    expect(html).toMatch(/<a(?=[^>]*aria-current="page")(?=[^>]*href="\/approvals")[^>]*>/);
-    expect(html).toMatch(/<p class="[^"]*text-lg[^"]*">Team Approvals<\/p>/);
+    expect(html).toContain(`href="${href}"`);
+    expect(html).toMatch(
+      new RegExp(
+        `<a(?=[^>]*aria-current="page")(?=[^>]*href="${href.replaceAll("/", "\\/")}")[^>]*>`,
+      ),
+    );
+    expect(html).toMatch(new RegExp(`<p class="[^"]*text-lg[^"]*">${title}</p>`));
   });
 
   it("starts expanded with a labelled collapse control and a closed navigation drawer", () => {

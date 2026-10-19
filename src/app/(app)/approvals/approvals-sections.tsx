@@ -8,14 +8,16 @@ import {
   type TeamRequestView,
 } from "@/lib/leave/team";
 import { logger } from "@/lib/logger";
+import { ApprovalCard } from "./approval-card";
 import { ApprovalRow } from "./approval-row";
 import { DecidedError, PendingEmpty, PendingError } from "./approvals-states";
 import { DecidedRow } from "./decided-row";
+import { CheckCircleIcon, ClockIcon } from "./overrides/override-icons";
 
 /**
  * US-03 / US-04. Pending requests from the signed-in manager's own direct reports. The scope is in
  * the SQL (`u.manager_id = the session user's id`); the page never receives another team's requests.
- * Streams in under the page header and tabs. One statement; if it cannot be read the section says so
+ * Streams in under the page header. One statement; if it cannot be read the section says so
  * with a way to retry instead of sending the whole page to the error page.
  */
 export async function PendingSection({ managerId }: { managerId: string }) {
@@ -29,10 +31,13 @@ export async function PendingSection({ managerId }: { managerId: string }) {
   }
 
   return (
-    <section aria-labelledby="pending-heading">
-      <h2 id="pending-heading" className="mb-3 text-xl font-semibold text-ink">
-        {`Pending requests (${queue.length})`}
-      </h2>
+    <ApprovalCard
+      headingId="pending-heading"
+      title="Pending requests"
+      chip={`${queue.length} pending`}
+      icon={<ClockIcon size={20} />}
+      chipIcon={<ClockIcon />}
+    >
       {queue.length === 0 ? (
         <PendingEmpty />
       ) : (
@@ -42,7 +47,7 @@ export async function PendingSection({ managerId }: { managerId: string }) {
           ))}
         </ul>
       )}
-    </section>
+    </ApprovalCard>
   );
 }
 
@@ -61,15 +66,18 @@ export async function DecidedSection({ managerId }: { managerId: string }) {
   if (decided.length === 0) return null;
 
   return (
-    <section aria-labelledby="decided-heading">
-      <h2 id="decided-heading" className="mb-3 text-xl font-semibold text-ink">
-        Recently decided
-      </h2>
+    <ApprovalCard
+      headingId="decided-heading"
+      title="Recently decided"
+      chip={`${decided.length} recent`}
+      icon={<CheckCircleIcon size={20} />}
+      chipIcon={<CheckCircleIcon />}
+    >
       <ul aria-label="Recently decided requests" className="space-y-3">
         {decided.map((request) => (
           <DecidedRow key={request.id} request={request} />
         ))}
       </ul>
-    </section>
+    </ApprovalCard>
   );
 }

@@ -35,6 +35,22 @@ describe("RosterSection", () => {
     expect(out.indexOf("Elena Cruz")).toBeLessThan(out.indexOf("Jun Bautista"));
   });
 
+  it("lays the people out as a wrapping grid whose cells grow, so the last row fills the width", async () => {
+    roster.getTeamRoster.mockResolvedValue([member("a", "Elena Cruz")]);
+    const out = await render();
+    expect(out).toMatch(/<ul[^>]*class="flex flex-wrap gap-4"/);
+    expect(out).toContain("grow basis-full");
+    expect(out).toContain("sm:basis-[calc(50%-0.5rem)]");
+    expect(out).toContain("xl:basis-[calc(33.333%-0.667rem)]");
+  });
+
+  it("each card opens that person's popup on this page, not another page", async () => {
+    roster.getTeamRoster.mockResolvedValue([member("a", "Elena Cruz")]);
+    const out = await render();
+    expect(out).toContain('href="/approvals/team?member=a"');
+    expect(out).not.toContain('href="/approvals/team/a"');
+  });
+
   it("reads only for the signed-in manager's id and the server's today, never a client value", async () => {
     roster.getTeamRoster.mockResolvedValue([]);
     await render();

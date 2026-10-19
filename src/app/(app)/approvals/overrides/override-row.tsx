@@ -1,48 +1,9 @@
 import { Badge } from "@/components/ui/badge";
-import { formatRange } from "@/app/(app)/audit/audit-format";
 import { formatActivityTime } from "@/lib/leave/format";
 import type { OverrideQueueRow, RecentOverrideView } from "@/lib/leave/override-queue";
 import { ApprovalActions } from "../approval-actions";
 import { RequestIdentity } from "../approval-row";
-import { CalendarIcon, NoteIcon, PersonIcon } from "./override-icons";
-
-/** A request row inside a section card: four columns from `lg`, with a thin divider before each. */
-const ROW = "rounded-xl border border-line bg-white p-4 sm:p-5";
-const GRID =
-  "grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.15fr)_minmax(0,1.3fr)_auto] lg:items-start lg:gap-0 [&>*]:lg:px-5 [&>*:first-child]:lg:pl-0 [&>*:last-child]:lg:pr-0 [&>*:not(:first-child)]:lg:border-l [&>*:not(:first-child)]:lg:border-line";
-
-/** The dates with a calendar icon, the working days with a person icon, and the manager. */
-function DatesColumn({
-  start,
-  end,
-  days,
-  manager,
-}: {
-  start: string;
-  end: string;
-  days: string;
-  manager?: string | null;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <p className="flex items-center gap-2 font-semibold text-ink">
-        <span className="text-ink-muted">
-          <CalendarIcon />
-        </span>
-        {formatRange(start, end)}
-      </p>
-      <p className="flex items-center gap-2 text-sm text-ink-muted">
-        <PersonIcon />
-        {days}
-      </p>
-      {manager !== undefined ? (
-        <p className="break-words pl-6 text-sm text-ink-muted">
-          Manager: {manager ?? "No manager"}
-        </p>
-      ) : null}
-    </div>
-  );
-}
+import { DatesColumn, GRID3, GRID4, NoteStrip, ROW } from "../row-layout";
 
 /** numeric text such as "3.00" or "0.50" written as people say it: "3", "0.5". */
 const num = (value: string) => String(Number(value));
@@ -59,7 +20,7 @@ const workingDays = (n: number) => `${n} working day${n === 1 ? "" : "s"}`;
 export function OverrideRow({ request: r }: { request: OverrideQueueRow }) {
   return (
     <li className={ROW}>
-      <div className={GRID}>
+      <div className={GRID4}>
         <RequestIdentity name={r.employee_name} leaveTypeName={r.leave_type_name} />
         <DatesColumn
           start={r.start_date}
@@ -87,16 +48,11 @@ export function OverrideRow({ request: r }: { request: OverrideQueueRow }) {
           />
         </div>
       </div>
-      <p className="mt-4 flex items-start gap-2 rounded-lg bg-brand-50/60 px-3 py-2.5 text-sm text-ink-muted">
-        <span className="mt-0.5 shrink-0">
-          <NoteIcon />
-        </span>
-        <span className="min-w-0 break-words">
-          {Number(r.balance) === 0
-            ? `Approving keeps their ${r.leave_type_name} balance at 0 and records a shortfall of ${days(r.shortfall)} in the audit history.`
-            : `Approving uses all of their ${days(r.balance)} of ${r.leave_type_name} and records a shortfall of ${days(r.shortfall)} in the audit history.`}
-        </span>
-      </p>
+      <NoteStrip>
+        {Number(r.balance) === 0
+          ? `Approving keeps their ${r.leave_type_name} balance at 0 and records a shortfall of ${days(r.shortfall)} in the audit history.`
+          : `Approving uses all of their ${days(r.balance)} of ${r.leave_type_name} and records a shortfall of ${days(r.shortfall)} in the audit history.`}
+      </NoteStrip>
     </li>
   );
 }
@@ -113,7 +69,7 @@ export function RecentOverrideRow({
 }) {
   return (
     <li className={ROW}>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1.15fr)_minmax(0,1.3fr)] lg:items-start lg:gap-0 [&>*]:lg:px-5 [&>*:first-child]:lg:pl-0 [&>*:last-child]:lg:pr-0 [&>*:not(:first-child)]:lg:border-l [&>*:not(:first-child)]:lg:border-line">
+      <div className={GRID3}>
         <RequestIdentity name={o.employee_name} leaveTypeName={o.leave_type_name} />
         <DatesColumn
           start={o.start_date}

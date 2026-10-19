@@ -66,11 +66,11 @@ describe("loading states mirror their pages", () => {
     expect(html).toContain("h-12 w-full"); // the note under the cards
   });
 
-  it("approvals: the tabs, pending rows with Approve and Reject placeholders, then decided rows", () => {
+  it("approvals: a pending card and a decided card, each with request rows", () => {
     const html = render(ApprovalsLoading);
-    expect(count(html, "border-b border-line")).toBe(1); // the tab bar
-    expect(count(html, "shadow-tile")).toBe(4); // two pending rows, two decided rows
-    expect(count(html, "sm:w-28")).toBe(4); // two buttons on each of the two pending rows
+    expect(count(html, "border-b border-line")).toBe(0); // no tab bar: My Team is its own nav item
+    expect(count(html, "shadow-tile")).toBe(2); // the pending card and the decided card
+    expect(count(html, "h-32")).toBe(4); // two request rows in each card
   });
 
   it("audit: the filter card, five summary figures and the rows", () => {
@@ -104,20 +104,21 @@ describe("loading states mirror their pages", () => {
 });
 
 describe("team loading states mirror their pages", () => {
-  it("team roster: the header and a row per person with an avatar circle and a chip", () => {
+  it("team roster: the header and a card per person with an avatar circle and a chip", () => {
     const html = render(TeamLoading);
     expect(count(html, "shadow-tile")).toBe(4); // four people
-    expect(count(html, "size-10")).toBe(4); // an avatar circle each
+    expect(html).toContain("flex flex-wrap gap-4"); // the same grid as the real cards
+    expect(count(html, "size-11")).toBe(4); // an avatar circle each
     expect(count(html, "rounded-full")).toBe(8); // the circle and a pending chip each
   });
 
-  it("team member: back link, the person, two balance cards, the filter card and the requests card", () => {
+  it("team member: back link, the person, the filter card and the requests card (no balance cards)", () => {
     const html = render(TeamMemberLoading);
     expect(count(html, 'role="status"')).toBe(1);
     expect(html).toContain('aria-busy="true"');
     expect(html).toContain("size-12"); // the person's avatar
-    expect(count(html, "sm:grid-cols-2")).toBe(1); // the two balance cards
-    expect(count(html, "shadow-tile")).toBe(4); // two balances, the filters, the requests
+    expect(count(html, "sm:grid-cols-2")).toBe(0); // no balance cards
+    expect(count(html, "shadow-tile")).toBe(2); // the filters, the requests
   });
 
   it("team member: purely visual and tokens only", () => {

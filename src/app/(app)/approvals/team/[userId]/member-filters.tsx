@@ -69,15 +69,18 @@ export function MemberFilters({
   query,
   leaveTypes,
   currentYear,
+  popup = false,
 }: {
   memberId: string;
   query: TeamMemberQuery;
   leaveTypes: readonly { id: string; name: string }[];
   currentYear: number;
+  /** True inside the My Team popup: every address keeps `?member=<id>` so the popup stays open. */
+  popup?: boolean;
 }) {
   const { pending, navigate } = useFilterNav();
-  const base = `/approvals/team/${memberId}`;
-  const chips = filterChips(memberId, query, leaveTypes, currentYear);
+  const base = popup ? `/approvals/team?member=${memberId}` : `/approvals/team/${memberId}`;
+  const chips = filterChips(memberId, query, leaveTypes, currentYear, popup);
 
   const types: Option[] = [
     { value: "", label: "All leave types" },
@@ -114,7 +117,7 @@ export function MemberFilters({
       <form
         key={`${query.leaveTypeId ?? ""}|${query.status ?? ""}|${query.year}`}
         method="get"
-        action={base}
+        action={popup ? "/approvals/team" : base}
         aria-label="Filter requests"
         onSubmit={(event) => {
           event.preventDefault();
@@ -128,11 +131,13 @@ export function MemberFilters({
                 year: String(data.get("year") ?? ""),
               },
               currentYear,
+              popup,
             ),
           );
         }}
         className="grid gap-4 sm:grid-cols-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)_auto] lg:items-end"
       >
+        {popup ? <input type="hidden" name="member" value={memberId} /> : null}
         <SelectField
           id="member-filter-type"
           label="Leave type"

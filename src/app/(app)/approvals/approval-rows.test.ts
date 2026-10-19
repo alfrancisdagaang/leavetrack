@@ -47,13 +47,26 @@ describe("ApprovalRow", () => {
     for (const t of [
       "Elena Rossi",
       "Vacation",
-      "2026-11-02 to 2026-11-04",
+      "Nov 2 to Nov 4, 2026",
       "3 working days",
       "Pending",
       "Reason: Family trip",
     ])
       expect(out).toContain(t);
     expect(out).toContain("ER");
+  });
+
+  it("writes the dates with the month name, never as ISO dates", () => {
+    const out = row({ start_date: "2026-12-30", end_date: "2027-01-02" });
+    expect(out).toContain("Dec 30, 2026 to Jan 2, 2027");
+    expect(out).not.toMatch(/\d{4}-\d{2}-\d{2}/);
+  });
+
+  it("an in-balance request shows no balance figure and no note: managers do not see balances", () => {
+    const out = row();
+    expect(out).not.toContain("Approving uses");
+    expect(out).not.toMatch(/balance of|their .* balance|10 days/);
+    expect(out).not.toContain("bg-brand-50/60"); // no note strip at all
   });
 
   it("AC1: an in-balance request has both Approve and Reject, and no balance note", () => {
@@ -119,6 +132,7 @@ describe("DecidedRow", () => {
     const out = drow();
     expect(out).toContain("Rejected");
     expect(out).toContain("Rejection note: Team is short that week");
+    expect(out).toContain("Oct 1, 2026");
     expect(out).not.toContain("Approve");
   });
 

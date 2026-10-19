@@ -10,8 +10,8 @@ describe("navItemsFor", () => {
     expect(keys("employee")).toEqual(["dashboard", "request", "balance"]);
   });
 
-  it("gives managers the dashboard and one Team Approvals item; My Team is a tab inside it", () => {
-    expect(keys("manager")).toEqual(["dashboard", "approvals"]);
+  it("gives managers the dashboard, Team Approvals and My Team as separate items", () => {
+    expect(keys("manager")).toEqual(["dashboard", "approvals", "team"]);
   });
 
   it("offers Request Leave and My Balance to employees only (EPIC-10 AC2)", () => {
@@ -23,7 +23,7 @@ describe("navItemsFor", () => {
 
   it("does not show Team Approvals (or My Team) to an employee", () => {
     expect(keys("employee")).not.toContain("approvals");
-    expect(keys("manager")).not.toContain("team");
+    expect(keys("employee")).not.toContain("team");
     expect(keys("hr_admin")).not.toContain("team");
   });
 
@@ -63,7 +63,11 @@ describe("navItemsFor", () => {
       "Request Leave",
       "My Balance",
     ]);
-    expect(navItemsFor("manager").map((i) => i.label)).toEqual(["Dashboard", "Team Approvals"]);
+    expect(navItemsFor("manager").map((i) => i.label)).toEqual([
+      "Dashboard",
+      "Team Approvals",
+      "My Team",
+    ]);
     expect(navItemsFor("hr_admin").map((i) => i.label)).toEqual([
       "Dashboard",
       "Balance Overrides",
@@ -80,8 +84,8 @@ describe("navItemsFor", () => {
     ];
     const at = (path: string) => currentNavItem(items, path)?.key;
     expect(at("/approvals")).toBe("approvals");
-    expect(at("/approvals/team")).toBe("approvals");
-    expect(at("/approvals/team/00000000-0000-4000-8000-000000000003")).toBe("approvals");
+    expect(at("/approvals/team")).toBe("team");
+    expect(at("/approvals/team/00000000-0000-4000-8000-000000000003")).toBe("team");
     expect(at("/approvals/overrides")).toBe("overrides");
     expect(at("/approvals/overrides/anything")).toBe("overrides");
     // A sibling path that merely starts with the same letters is not under Balance Overrides.
@@ -97,7 +101,7 @@ describe("navItemsFor", () => {
   });
 
   it("gives every item an icon, and the icon file exists (Audit History included)", () => {
-    for (const item of navItemsFor("hr_admin")) {
+    for (const item of [...navItemsFor("hr_admin"), ...navItemsFor("manager")]) {
       const icon = NAV_ICON[item.key];
       expect(icon, `${item.key} has no icon`).toBeTruthy();
       expect(existsSync(`public${icon}`), `${icon} is missing`).toBe(true);
@@ -105,5 +109,7 @@ describe("navItemsFor", () => {
     expect(NAV_ICON.audit).toBe("/icons/nav-history.svg");
     expect(NAV_ICON.calendar).toBe("/icons/nav-calendar.svg");
     expect(NAV_ICON.overrides).toBe("/icons/nav-override.svg");
+    expect(NAV_ICON.team).toBe("/icons/nav-team.svg");
+    expect(NAV_ICON.team).not.toBe(NAV_ICON.approvals);
   });
 });

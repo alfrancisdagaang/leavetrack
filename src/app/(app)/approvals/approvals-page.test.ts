@@ -25,12 +25,11 @@ describe("ApprovalsPage", () => {
     expect(out).toContain("decided for m1");
   });
 
-  it("has the h1, the tabs with Approvals current, and no width cap", async () => {
+  it("has the h1, no tabs (My Team is its own nav item), and no width cap", async () => {
     const out = renderToStaticMarkup(await ApprovalsPage());
-    expect(out).toMatch(/<h1[^>]*>Team approvals<\/h1>/);
-    expect(out).toMatch(
-      /<a(?=[^>]*aria-current="page")(?=[^>]*href="\/approvals")[^>]*>Approvals<\/a>/,
-    );
+    expect(out).toMatch(/<h1[^>]*>Team Approvals<\/h1>/);
+    expect(out).not.toContain("Team approvals sections");
+    expect(out).not.toContain("My team");
     expect(out).not.toContain("max-w-5xl");
   });
 });

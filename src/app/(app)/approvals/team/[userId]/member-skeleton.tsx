@@ -1,6 +1,6 @@
 import { Skeleton, SkeletonCard } from "@/components/ui/skeleton";
 
-/** Mirrors the member page: the back link and the person, two balance cards, the filters, the requests. */
+/** Mirrors the member page: the back link and the person, the filters, the requests. */
 export function MemberSkeleton() {
   return (
     <div>
@@ -13,19 +13,6 @@ export function MemberSkeleton() {
             <Skeleton className="h-4 w-24" />
           </div>
         </div>
-      </div>
-      <div className="mb-6 grid gap-4 sm:grid-cols-2">
-        {[0, 1].map((i) => (
-          <SkeletonCard key={i} className="space-y-3">
-            <div className="flex items-center gap-3">
-              <Skeleton className="size-9 shrink-0 rounded-full" />
-              <Skeleton className="h-6 w-24" />
-            </div>
-            <Skeleton className="h-9 w-24" />
-            <Skeleton className="h-4 w-36" />
-            <Skeleton className="h-4 w-40" />
-          </SkeletonCard>
-        ))}
       </div>
       <SkeletonCard className="mb-6 space-y-4">
         <Skeleton className="h-7 w-24" />

@@ -38,6 +38,15 @@ export function NoteIcon() {
   );
 }
 
+export function CheckCircleIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg {...base} width={size} height={size}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="m8.5 12.3 2.4 2.4 4.6-5" />
+    </svg>
+  );
+}
+
 export function ClockIcon({ size = 16 }: { size?: number }) {
   return (
     <svg {...base} width={size} height={size}>

@@ -24,6 +24,33 @@ describe("memberHref", () => {
   });
 });
 
+describe("popup addresses (My Team popup, ?member=<id>)", () => {
+  it("memberHref opens the popup on the My Team page and keeps the filters and the page", () => {
+    expect(memberHref(ID, ALL, 2026, 1, true)).toBe(`/approvals/team?member=${ID}`);
+    expect(memberHref(ID, { ...ALL, status: "approved" }, 2026, 3, true)).toBe(
+      `/approvals/team?member=${ID}&status=approved&page=3`,
+    );
+  });
+
+  it("filtersHref and the filter chips keep the popup open", () => {
+    expect(filtersHref(ID, { type: VAC, status: "pending", year: "2026" }, 2026, true)).toBe(
+      `/approvals/team?member=${ID}&type=${VAC}&status=pending`,
+    );
+    const chips = filterChips(
+      ID,
+      { ...ALL, status: "pending" },
+      [{ id: VAC, name: "Vacation" }],
+      2026,
+      true,
+    );
+    expect(chips.map((c) => c.removeHref)).toEqual([`/approvals/team?member=${ID}`]);
+  });
+
+  it("the default is still the member page", () => {
+    expect(memberHref(ID, ALL, 2026)).toBe(`/approvals/team/${ID}`);
+  });
+});
+
 describe("filtersHref (applying the form)", () => {
   const VALUES = { type: "", status: "", year: "2026" };
 

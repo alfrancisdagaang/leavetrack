@@ -37,7 +37,15 @@ const APPROVALS: NavItem = {
   key: "approvals",
   label: "Team Approvals",
   href: "/approvals",
-  description: "Review leave requests and see your direct reports.",
+  description: "Review leave requests from your direct reports.",
+  available: true,
+};
+
+const TEAM: NavItem = {
+  key: "team",
+  label: "My Team",
+  href: "/approvals/team",
+  description: "See your direct reports and their leave.",
   available: true,
 };
 
@@ -67,18 +75,18 @@ const AUDIT: NavItem = {
 
 /**
  * Navigation per role (EPIC-10). Only employees request leave and see a balance; only managers
- * have Team Approvals; HR admins get Balance Overrides, the company Calendar and Audit History.
+ * have Team Approvals and My Team; HR admins get Balance Overrides, the company Calendar and Audit History.
  * This only decides what is shown — access is enforced by requireRole()/assertRole() and SQL.
  */
 export function navItemsFor(role: UserRole): NavItem[] {
   if (role === "employee") return [DASHBOARD, REQUEST, BALANCE];
-  if (role === "manager") return [DASHBOARD, APPROVALS];
+  if (role === "manager") return [DASHBOARD, APPROVALS, TEAM];
   return [DASHBOARD, OVERRIDES, CALENDAR, AUDIT];
 }
 
 /**
  * The item for the current page: the one with the longest matching href. A longer href can sit
- * under a shorter one (/approvals/overrides under /approvals), and the longer one must win, both
+ * under a shorter one (/approvals/team and /approvals/overrides under /approvals), and the longer one must win, both
  * for the highlight and for the top bar title.
  */
 export function currentNavItem(items: readonly NavItem[], pathname: string): NavItem | undefined {

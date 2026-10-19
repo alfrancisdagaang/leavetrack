@@ -125,10 +125,11 @@ describe("TeamMemberRoute: access (US-12 AC4, US-13 AC7)", () => {
 });
 
 describe("TeamMemberRoute: the page (US-13 AC1, AC2, AC3, AC6, AC8)", () => {
-  it("shows the person, their balances, the filters and their requests", async () => {
+  it("shows the person, the filters and their requests, and no balances", async () => {
     const out = await render();
     expect(out).toMatch(/<h1[^>]*>Elena Cruz<\/h1>/);
-    expect(out).toContain("Available after pending");
+    expect(out).not.toContain("Available after pending");
+    expect(out).not.toContain("Confirmed 10");
     expect(out).toContain('aria-label="Filter requests"');
     expect(out).toMatch(/<h2[^>]*>1 request<\/h2>/); // the count is the results' heading
     expect(out).toContain("1 request<");

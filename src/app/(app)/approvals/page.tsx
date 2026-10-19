@@ -5,15 +5,14 @@ import { LoadingRegion } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth/guards";
 import { DecidedSection, PendingSection } from "./approvals-sections";
 import { DecidedSkeleton, PendingSkeleton } from "./approvals-skeleton";
-import { TeamTabs } from "./team-tabs";
 
-export const metadata: Metadata = { title: "Team approvals" };
+export const metadata: Metadata = { title: "Team Approvals" };
 export const dynamic = "force-dynamic";
 
 /**
- * US-03 / US-04. The first tab of Team approvals: pending requests from the signed-in manager's
+ * US-03 / US-04. Team Approvals: pending requests from the signed-in manager's
  * direct reports, and the team's recent decisions. Managers only (EPIC-10); the real scope is
- * in the SQL. The header and tabs show at once; the two lists stream in on their own.
+ * in the SQL. The header shows at once; the two lists stream in on their own.
  */
 export default async function ApprovalsPage() {
   const { user } = await requireRole("manager");
@@ -21,10 +20,9 @@ export default async function ApprovalsPage() {
   return (
     <div>
       <PageHeader
-        title="Team approvals"
+        title="Team Approvals"
         description="Pending leave requests from your direct reports."
       />
-      <TeamTabs active="approvals" />
       <div className="space-y-8">
         <Suspense
           fallback={

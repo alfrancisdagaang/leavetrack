@@ -2,7 +2,6 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { TeamMemberQuery } from "@/lib/leave/schemas";
-import { MemberBalances } from "./member-balances";
 import { FilterShell } from "@/components/ui/filter-shell";
 import { MemberFilters } from "./member-filters";
 import { MemberHeader } from "./member-header";
@@ -43,46 +42,6 @@ describe("MemberHeader (US-13 AC1)", () => {
   });
 });
 
-describe("MemberBalances (US-13 AC1)", () => {
-  const balances = [
-    {
-      leaveTypeId: VAC,
-      leaveTypeName: "Vacation",
-      tracksBalance: true,
-      confirmed: 10,
-      pending: 2,
-      available: 8,
-    },
-    {
-      leaveTypeId: SICK,
-      leaveTypeName: "Sick",
-      tracksBalance: true,
-      confirmed: 7,
-      pending: 2,
-      available: 5,
-    },
-  ];
-  const out = renderToStaticMarkup(MemberBalances({ balances }));
-
-  it("shows what is available after pending, with confirmed and pending, per tracked type", () => {
-    expect(out).toContain("8 days");
-    expect(out).toContain("Confirmed 10 · Pending 2");
-    expect(out).toContain("5 days");
-    expect(out).toContain("Confirmed 7 · Pending 2");
-    expect(out.match(/Available after pending/g)).toHaveLength(2);
-  });
-
-  it("has an icon tile per type and no chevron (there is nowhere to go)", () => {
-    expect(out).toContain("sun.svg");
-    expect(out).toContain("heart-pulse.svg");
-    expect(out).not.toContain("chevron");
-  });
-
-  it("renders nothing when there are no tracked types", () => {
-    expect(renderToStaticMarkup(MemberBalances({ balances: [] }))).toBe("");
-  });
-});
-
 describe("MemberFilters (US-13 AC2)", () => {
   const render = (query: TeamMemberQuery = QUERY) =>
     renderToStaticMarkup(
@@ -100,6 +59,26 @@ describe("MemberFilters (US-13 AC2)", () => {
         /<option[^>]*selected=""[^>]*>/.exec(m[2] ?? "")?.[0].match(/value="([^"]*)"/)?.[1],
       ]),
     );
+
+  it("inside the popup the form posts to My Team with the person as a hidden field, and clear keeps the popup", () => {
+    const out = renderToStaticMarkup(
+      createElement(
+        FilterShell,
+        null,
+        createElement(MemberFilters, {
+          memberId: ID,
+          query: { ...QUERY, status: "pending" },
+          leaveTypes: TYPES,
+          currentYear: 2026,
+          popup: true,
+        }),
+      ),
+    );
+    expect(out).toContain('action="/approvals/team"');
+    expect(out).toContain(`name="member" value="${ID}"`);
+    expect(out).toContain(`href="/approvals/team?member=${ID}"`);
+    expect(out).not.toContain(`/approvals/team/${ID}`);
+  });
 
   it("is a card titled Filters holding a GET form, so it also works without JavaScript", () => {
     const out = render();

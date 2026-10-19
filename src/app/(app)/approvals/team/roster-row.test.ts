@@ -54,10 +54,11 @@ describe("RosterRow (US-12 AC2)", () => {
     expect(zero).not.toContain("bg-pending-bg");
   });
 
-  it("shows the days left per tracked type under its name", () => {
+  it("never shows a balance: managers do not see balances (the member has balances in its data)", () => {
     const out = html();
-    expect(out).toMatch(/<dt[^>]*>Vacation<\/dt><dd[^>]*>8 days<\/dd>/);
-    expect(out).toMatch(/<dt[^>]*>Sick<\/dt><dd[^>]*>5 days<\/dd>/);
+    expect(out).not.toContain("<dl");
+    expect(out).not.toMatch(/8 days|5 days|<dt/);
+    expect(out).not.toContain("Vacation</dt>");
   });
 
   it("shows the last request with its type and its status written out", () => {
@@ -71,8 +72,9 @@ describe("RosterRow (US-12 AC2)", () => {
   it("is a link with a chevron only when it has somewhere to go", () => {
     expect(html()).not.toContain("<a ");
     expect(html()).not.toContain("chevron-right");
-    const linked = html(MEMBER, "/approvals/team/abc");
-    expect(linked).toMatch(/<a [^>]*href="\/approvals\/team\/abc"/);
+    const linked = html(MEMBER, "/approvals/team?member=abc");
+    expect(linked).toMatch(/<a [^>]*href="\/approvals\/team\?member=abc"/);
+    expect(linked).toContain('aria-label="Elena Cruz: open their leave and requests"');
     expect(linked).toContain("chevron-right.svg");
     // The chevron shows on phones too (top right), not only from the sm breakpoint.
     expect(linked).toContain("absolute right-4");
@@ -80,7 +82,7 @@ describe("RosterRow (US-12 AC2)", () => {
   });
 
   it("uses tokens only (no hard-coded colour or inline style)", () => {
-    expect(html(MEMBER, "/approvals/team/abc")).not.toMatch(
+    expect(html(MEMBER, "/approvals/team?member=abc")).not.toMatch(
       /#[0-9a-fA-F]{3,6}\b|rgb\(|hsl\(|style="(?!color:transparent")/,
     );
   });

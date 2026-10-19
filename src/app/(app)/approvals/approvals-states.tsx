@@ -1,6 +1,5 @@
 import { Alert } from "@/components/ui/alert";
 import { ButtonLink } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { CenteredCard } from "./team/team-states";
 
 /** The pending queue could not be read: say so, and offer a way to try again. */
@@ -20,11 +19,7 @@ export function PendingError() {
 
 /** Nothing is waiting for the manager. */
 export function PendingEmpty() {
-  return (
-    <Card>
-      <p className="text-ink-muted">No pending requests from your team.</p>
-    </Card>
-  );
+  return <p className="text-ink-muted">No pending requests from your team.</p>;
 }
 
 /** Recently decided is secondary, so its failure is a note, not a card; the queue above still works. */
