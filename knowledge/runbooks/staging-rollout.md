@@ -14,7 +14,9 @@ your own shell. No secret goes into chat, a file or a commit.
 
 ## 2. Demo data (Supabase SQL editor)
 
-Run the whole of `supabase/seed.sql` once. It is idempotent: safe to run again. Nothing is deleted or changed.
+Run the whole of `supabase/seed.sql` once. It is idempotent: safe to run again. Nothing is deleted. One thing is changed on a
+database seeded earlier: Hana, Marco and Priya's old manager (Sam, then Hana) is cleared, because only employees have a manager
+(the organization chart then shows managers and HR admins at the top). Re-run it before the demo if you saw Sam above Hana.
 
 **Three roles (EPIC-10).** The seed gives leave policies, balances and requests to **employees only**. On a database seeded earlier
 it adds one request: Elena's pending **Sick** request of 8 working days (23 Nov to 2 Dec), over her balance, for the HR override demo.

@@ -5,16 +5,16 @@
 -- approve their direct reports' requests; HR admins run overrides and audits and have no team.
 -- So the rows below that are about leave (policies, balances, requests) belong to employees only.
 --
--- Org chart (exercises US-03/US-04 scoping from day one). Only an employee's manager_id means
--- "approver"; the manager_id of Marco, Priya and Hana is kept so existing databases and the seed
--- parser stay as they are, and is not used for any approval:
---   Sam Okafor (hr_admin)
---   └── Hana Reyes (hr_admin)       ← mock "hr_admin" session
---       ├── Marco Santos (manager)  ← mock "manager" session
---       │   ├── Elena Cruz (employee)   ← mock "employee" session
---       │   └── Jun Bautista (employee)
---       └── Priya Nair (manager)
---           └── Leo Garcia (employee)   ← OTHER team: must never appear in Marco's queue
+-- Org chart (exercises US-03/US-04 scoping from day one). `manager_id` is an EMPLOYEE's approver
+-- (BRD BR-02, PRD US-03/US-04, ARCH): only employees have a manager. Managers and HR admins have
+-- none, so nobody sits above them in the organization chart (EPIC-11):
+--   Marco Santos (manager)          ← mock "manager" session
+--   ├── Elena Cruz (employee)       ← mock "employee" session
+--   └── Jun Bautista (employee)
+--   Priya Nair (manager)
+--   └── Leo Garcia (employee)       ← OTHER team: must never appear in Marco's queue
+--   Hana Reyes (hr_admin)           ← mock "hr_admin" session; no manager, no team
+--   Sam Okafor (hr_admin)           ← second HR admin (not a mock login); no manager, no team
 
 -- Leave types (Vacation/Sick/Unpaid) are reference data: they ship in
 -- migrations/20261014000000_seed_leave_types.sql, not here.
@@ -22,19 +22,21 @@
 -- Insert parents before children (manager_id FK).
 insert into public.users (id, name, email, role, manager_id) values
   ('00000000-0000-4000-8000-000000000007', 'Sam Okafor',   'sam.okafor@leavetrack.example',   'hr_admin', null),
-  ('00000000-0000-4000-8000-000000000001', 'Hana Reyes',   'hana.reyes@leavetrack.example',   'hr_admin', '00000000-0000-4000-8000-000000000007'),
-  ('00000000-0000-4000-8000-000000000002', 'Marco Santos', 'marco.santos@leavetrack.example', 'manager',  '00000000-0000-4000-8000-000000000001'),
-  ('00000000-0000-4000-8000-000000000004', 'Priya Nair',   'priya.nair@leavetrack.example',   'manager',  '00000000-0000-4000-8000-000000000001'),
+  ('00000000-0000-4000-8000-000000000001', 'Hana Reyes',   'hana.reyes@leavetrack.example',   'hr_admin', null),
+  ('00000000-0000-4000-8000-000000000002', 'Marco Santos', 'marco.santos@leavetrack.example', 'manager',  null),
+  ('00000000-0000-4000-8000-000000000004', 'Priya Nair',   'priya.nair@leavetrack.example',   'manager',  null),
   ('00000000-0000-4000-8000-000000000003', 'Elena Cruz',   'elena.cruz@leavetrack.example',   'employee', '00000000-0000-4000-8000-000000000002'),
   ('00000000-0000-4000-8000-000000000005', 'Jun Bautista', 'jun.bautista@leavetrack.example', 'employee', '00000000-0000-4000-8000-000000000002'),
   ('00000000-0000-4000-8000-000000000006', 'Leo Garcia',   'leo.garcia@leavetrack.example',   'employee', '00000000-0000-4000-8000-000000000004')
 on conflict (id) do nothing;
 
--- Databases seeded before Sam existed have Hana at the top. `on conflict do nothing` cannot change
--- an existing row, so point her at Sam explicitly (a no-op on re-runs).
+-- Older seeds put Hana under Sam and Marco and Priya under Hana (the roles-stack model, now gone).
+-- `on conflict do nothing` cannot change an existing row, so clear those three explicitly (a no-op
+-- on re-runs). It names the three seed ids only: nobody else's manager is touched. Do NOT add an
+-- update here that sets a manager on a manager or HR admin: it would run on every seed.
 update public.users
-set manager_id = '00000000-0000-4000-8000-000000000007'
-where id = '00000000-0000-4000-8000-000000000001' and manager_id is null;
+set manager_id = null
+where id in ('00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000004') and manager_id is not null;
 
 -- Only employees have leave, so only employees get the demo policy: 1.25 days/month Vacation,
 -- 1.00 day/month Sick. Unpaid has no policy and no balance. Rows that an older seed created for

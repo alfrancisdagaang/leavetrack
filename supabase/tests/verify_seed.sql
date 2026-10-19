@@ -3,6 +3,7 @@
 --   psql -v ON_ERROR_STOP=1 -f supabase/tests/verify_seed.sql
 -- Read-only. It checks what the seed creates, so it is expected to fail on a database seeded by an
 -- older seed (managers and HR admins still hold balances and requests there; the seed never deletes).
+-- The reporting-line checks also fail on a database that still has the old lines until the seed is run again.
 
 do $$
 declare
@@ -35,6 +36,17 @@ begin
   if n <> 0 then raise exception '% submitted audit rows are by a manager or HR admin', n; end if;
   select count(*) into n from public.audit_log;
   if n <> 5 then raise exception 'expected 5 audit rows, found %', n; end if;
+
+  -- Reporting lines: manager_id is an employee's approver (BRD BR-02), so only employees have a
+  -- manager. A manager or HR admin has none, and every employee reports to a manager.
+  select count(*) into n from public.users
+  where role in ('manager', 'hr_admin') and manager_id is not null;
+  if n <> 0 then raise exception '% managers or HR admins have a manager', n; end if;
+
+  select count(*) into n
+  from public.users e left join public.users m on m.id = e.manager_id
+  where e.role = 'employee' and (e.manager_id is null or m.role <> 'manager');
+  if n <> 0 then raise exception '% employees have no manager, or a manager who is not a manager', n; end if;
 
   -- AC2: Leo is on another team. The team queue's scope (u.manager_id = Marco) finds Elena's and
   -- Jun's pending requests and never Leo's.

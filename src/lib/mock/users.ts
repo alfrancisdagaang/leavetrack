@@ -10,15 +10,15 @@ export const MOCK_USERS = {
     name: "Hana Reyes",
     email: "hana.reyes@leavetrack.example",
     role: "hr_admin",
-    // Sam Okafor, a second hr_admin (seed.sql only; not a mock login) approves Hana's own leave.
-    manager_id: "00000000-0000-4000-8000-000000000007",
+    // Only employees have a manager (it is their approver): an HR admin has none.
+    manager_id: null,
   },
   manager: {
     id: "00000000-0000-4000-8000-000000000002",
     name: "Marco Santos",
     email: "marco.santos@leavetrack.example",
     role: "manager",
-    manager_id: "00000000-0000-4000-8000-000000000001",
+    manager_id: null, // a manager has none either: nobody sits above them in the organization chart
   },
   employee: {
     id: "00000000-0000-4000-8000-000000000003",

@@ -25,11 +25,11 @@ begin
   select count(*) into n from public.users;
   if n <> 7 then raise exception 'expected 7 users, found %', n; end if;
 
-  -- Hana (top of the org chart) has an approver: a second hr_admin, never herself
-  select count(*) into n from public.users h
-  join public.users s on s.id = h.manager_id
-  where h.id = '00000000-0000-4000-8000-000000000001' and s.role = 'hr_admin';
-  if n <> 1 then raise exception 'Hana must have a second hr_admin as her manager'; end if;
+  -- Only employees have a manager (manager_id is an employee's approver, BRD BR-02): Hana, an HR
+  -- admin, has none. The full reporting-line rules are in verify_seed.sql.
+  select count(*) into n from public.users
+  where id = '00000000-0000-4000-8000-000000000001' and role = 'hr_admin' and manager_id is null;
+  if n <> 1 then raise exception 'Hana, an HR admin, must have no manager'; end if;
 
   -- RLS enabled everywhere
   select count(*) into n from pg_tables

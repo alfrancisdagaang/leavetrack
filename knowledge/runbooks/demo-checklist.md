@@ -5,7 +5,8 @@ result. Use the shared demo password (yours alone; never paste it anywhere).
 
 Three roles (EPIC-10). **Employees** request leave and see their balance. **Managers** approve or reject their direct reports'
 requests. **HR admins** override over-balance requests and read the audit history; they have no team and no normal approvals.
-Seed teams: Marco (manager) -> Elena, Jun; Priya (manager) -> Leo. Hana and Sam are HR admins.
+Seed teams: Marco (manager) -> Elena, Jun; Priya (manager) -> Leo. Hana and Sam are HR admins. **Only employees have a
+manager**: Marco, Priya, Hana and Sam have none, so they sit at the top of the organization chart.
 
 **Known limitation (say it if asked):** a manager or HR admin who needs leave has no way to request it in LeaveTrack.
 
@@ -25,6 +26,14 @@ Seed teams: Marco (manager) -> Elena, Jun; Priya (manager) -> Leo. Hana and Sam 
 | `leo.garcia@...`   | Own request (9-10 Nov) only; no approvals link; calendar shows only Leo                                                                                 | [ ] |
 
 (Emails end in `@leavetrack.example`.)
+
+## AC1b: reporting lines (My Profile, Organization tab)
+
+- [ ] `elena.cruz@...`: Marco above her, her card highlighted "You", "No direct reports".
+- [ ] `marco.santos@...`: the tab reads "No manager: you are at the top of the chart" and lists Elena and Jun under him (no Priya, no Leo);
+      the Overview tab says "No manager".
+- [ ] `hana.reyes@...`: "The company" lists Hana, Marco, Priya and Sam at the top; Marco opens to Elena and Jun, Priya to Leo; "Your manager"
+      says she has none.
 
 ## AC2: Marco never sees Leo's request
 
