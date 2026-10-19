@@ -21,7 +21,7 @@ const pending: TeamRequestView = {
   created_at: new Date("2026-10-18T00:00:00Z"),
   working_days: 3,
   balance: 10,
-  insufficient: false,
+  balanceCheck: { kind: "ok" },
 };
 const decided: DecidedTeamRequestView = {
   id: "r2",
@@ -33,6 +33,7 @@ const decided: DecidedTeamRequestView = {
   decision_note: "Team is short that week",
   decided_at: new Date("2026-10-02T00:00:00Z"),
   working_days: 1,
+  overridden: false,
 };
 
 const row = (r: Partial<TeamRequestView> = {}) =>
@@ -55,21 +56,53 @@ describe("ApprovalRow", () => {
     expect(out).toContain("ER");
   });
 
-  it("has the Approve and Reject controls", () => {
+  it("AC1: an in-balance request has both Approve and Reject, and no balance note", () => {
     const out = row();
-    expect(out).toContain("Approve");
-    expect(out).toContain("Reject");
+    expect(out).toContain(">Approve<");
+    expect(out).toContain(">Reject<");
+    expect(out).not.toContain("Waiting for HR override");
+    expect(out).not.toContain("Over balance");
   });
 
-  it("insufficient balance: warns, and disables Approve", () => {
-    const out = row({ insufficient: true, balance: 1 });
-    expect(out).toContain("Cannot be approved");
-    expect(out).toContain("Vacation balance is 1 day.");
-    expect(out).toMatch(/<button(?=[^>]*disabled)[^>]*>\s*Approve/);
+  it("AC1: an over-balance request says how far over and that it waits for HR, with Reject only", () => {
+    const out = row({ balanceCheck: { kind: "over", balance: 1, shortfall: 2 }, balance: 1 });
+    expect(out).toContain("Over balance by 2 days");
+    expect(out).toContain("Waiting for HR override");
+    expect(out).toContain("balance is 1 day");
+    expect(out).toContain(">Reject<");
+    // No Approve at all (not a disabled one), and nothing offers to approve it.
+    expect(out).not.toContain(">Approve<");
+    expect(out).not.toContain("not available yet");
   });
 
-  it("no balance record: says so", () => {
-    expect(row({ insufficient: true, balance: null })).toContain("no balance record");
+  it("no balance record: says so, asks HR to set it up, Reject only (HR cannot override it either)", () => {
+    const out = row({ balanceCheck: { kind: "no_balance_record" }, balance: null });
+    expect(out).toContain("No balance record");
+    expect(out).toContain("Ask HR to set it up");
+    expect(out).not.toContain("Waiting for HR override");
+    expect(out).not.toContain(">Approve<");
+    expect(out).toContain(">Reject<");
+  });
+
+  it("a negative balance: says so, Reject only, no override promised", () => {
+    const out = row({ balanceCheck: { kind: "negative", balance: -2 }, balance: -2 });
+    expect(out).toContain("Balance is negative");
+    expect(out).toContain("−2 days");
+    expect(out).not.toContain("Waiting for HR override");
+    expect(out).not.toContain(">Approve<");
+  });
+
+  it("AC4: a long unbroken word in the reason wraps instead of forcing a horizontal scroll at 375 px", () => {
+    const out = row({ reason: "Supercalifragilisticexpialidocious".repeat(2) });
+    const reasonParagraph = out.match(/<p class="[^"]*">Reason: [^<]*<\/p>/)?.[0] ?? "";
+    expect(reasonParagraph).toContain("break-words");
+    // The grid cell that holds it may shrink below the word's width.
+    expect(out).toMatch(/<div class="min-w-0 space-y-1"><span[^>]*>Pending/);
+  });
+
+  it("AC4: the balance note is written text, with no colour hard-coded", () => {
+    const out = row({ balanceCheck: { kind: "over", balance: 1, shortfall: 2 } });
+    expect(out).not.toMatch(/#[0-9a-f]{3,6}|rgb\(/i);
   });
 
   it("omits the reason when there is none, and is a card row with tokens only", () => {
@@ -87,6 +120,13 @@ describe("DecidedRow", () => {
     expect(out).toContain("Rejected");
     expect(out).toContain("Rejection note: Team is short that week");
     expect(out).not.toContain("Approve");
+  });
+
+  it("AC3: an approval HR made as an override reads Approved (HR override); an ordinary one does not", () => {
+    expect(drow({ status: "approved", decision_note: null, overridden: true })).toContain(
+      "Approved (HR override)",
+    );
+    expect(drow({ status: "approved", decision_note: null })).not.toContain("HR override");
   });
 
   it("approved shows no note and never a reason", () => {

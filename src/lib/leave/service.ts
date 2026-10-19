@@ -35,7 +35,11 @@ export type LeaveRequestView = Pick<
   | "created_at"
   | "decided_at"
   | "decision_note"
-> & { working_days: number };
+> & {
+  working_days: number;
+  /** True when HR approved this request as an override (TASK-040): an `override_approved` audit row exists. */
+  overridden: boolean;
+};
 
 export type CreatedLeaveRequest = { request: LeaveRequestView; warnings: LeaveWarning[] };
 export type MySummary = { requests: LeaveRequestView[]; balances: BalanceSummaryItem[] };
@@ -170,7 +174,8 @@ export async function createLeaveRequest(
       insert into public.leave_requests (user_id, leave_type_id, start_date, end_date, reason)
       values (${userId}, ${input.leave_type_id}, ${input.start_date}, ${input.end_date}, ${input.reason})
       returning id, leave_type_id, start_date::text as start_date, end_date::text as end_date,
-                reason, status, created_at, decided_at, decision_note`;
+                reason, status, created_at, decided_at, decision_note,
+                false as overridden`;
     if (!row) throw new AppError("INTERNAL", "The request could not be saved.");
 
     await tx`
@@ -184,11 +189,15 @@ export async function createLeaveRequest(
 /** The user's own non-deleted requests, newest first (one statement). Scoped by `userId` in SQL. */
 function listMyRequests(sql: Sql, userId: string): Promise<RequestRow[]> {
   return sql<RequestRow[]>`
-    select id, leave_type_id, start_date::text as start_date, end_date::text as end_date,
-           reason, status, created_at, decided_at, decision_note
-    from public.leave_requests
-    where user_id = ${userId} and is_deleted = false
-    order by created_at desc
+    select r.id, r.leave_type_id, r.start_date::text as start_date, r.end_date::text as end_date,
+           r.reason, r.status, r.created_at, r.decided_at, r.decision_note,
+           exists (
+             select 1 from public.audit_log a
+             where a.leave_request_id = r.id and a.action = 'override_approved'
+           ) as overridden
+    from public.leave_requests r
+    where r.user_id = ${userId} and r.is_deleted = false
+    order by r.created_at desc
     limit 50`;
 }
 

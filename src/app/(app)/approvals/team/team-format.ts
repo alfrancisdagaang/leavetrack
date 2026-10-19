@@ -23,6 +23,17 @@ export const STATUS_BADGE: Record<LeaveStatus, { variant: BadgeVariant; label: s
   rejected: { variant: "rejected", label: "Rejected" },
 };
 
+/** The badge for a request. An approval HR made as an override says so, in text (TASK-040). */
+export function requestBadge(
+  status: LeaveStatus,
+  overridden: boolean,
+): { variant: BadgeVariant; label: string } {
+  if (status === "approved" && overridden) {
+    return { variant: "approved", label: "Approved (HR override)" };
+  }
+  return STATUS_BADGE[status];
+}
+
 /** The line under a person's name on the roster (US-12 AC2): written as text, from approved leave. */
 export function rosterStatusText(status: RosterStatus): string {
   if (status.kind === "out_today") return "Out today";

@@ -45,7 +45,7 @@ function TypeName({ row }: { row: AuditListRow }) {
 }
 
 function Status({ row }: { row: AuditListRow }) {
-  const badge = statusBadge(row.status, row.isDeleted);
+  const badge = statusBadge(row.status, row.isDeleted, row.overridden);
   return <Badge variant={badge.variant}>{badge.label}</Badge>;
 }
 

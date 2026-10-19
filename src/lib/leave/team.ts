@@ -1,5 +1,6 @@
 import type { Sql } from "postgres";
 import type { LeaveRequest } from "@/lib/db/types";
+import { checkOverBalance, type BalanceCheck } from "@/lib/leave/over-balance";
 import { countWorkingDays } from "@/lib/leave/working-days";
 
 /**
@@ -23,11 +24,15 @@ export type TeamRequestView = {
   working_days: number;
   /** The employee's confirmed balance for this type; null for untracked types or a missing row. */
   balance: number | null;
-  /** True when approving would be refused: tracked type and no row or too few days (option A). */
-  insufficient: boolean;
+  /**
+   * Whether the manager can approve it. `over` means HR can override it (the manager can only
+   * reject); `no_balance_record` and `negative` need the balance fixed first (TASK-040). Anything
+   * but `ok` is refused by the decision route.
+   */
+  balanceCheck: BalanceCheck;
 };
 
-type TeamRow = Omit<TeamRequestView, "working_days" | "balance" | "insufficient"> & {
+type TeamRow = Omit<TeamRequestView, "working_days" | "balance" | "balanceCheck"> & {
   balance: string | null;
 };
 
@@ -51,7 +56,7 @@ export async function getTeamQueue(sql: Sql, managerId: string): Promise<TeamReq
       ...row,
       working_days: days,
       balance,
-      insufficient: row.tracks_balance && (balance === null || balance < days),
+      balanceCheck: checkOverBalance({ tracksBalance: row.tracks_balance, balance, days }),
     };
   });
 }
@@ -66,6 +71,8 @@ export type DecidedTeamRequestView = {
   decision_note: string | null;
   decided_at: Date;
   working_days: number;
+  /** True when HR approved it as an override (an `override_approved` audit row exists). */
+  overridden: boolean;
 };
 
 /**
@@ -79,7 +86,11 @@ export async function getRecentlyDecided(
   const rows = await sql<Omit<DecidedTeamRequestView, "working_days">[]>`
     select r.id, u.name as employee_name, lt.name as leave_type_name,
            r.start_date::text as start_date, r.end_date::text as end_date,
-           r.status, r.decision_note, r.decided_at
+           r.status, r.decision_note, r.decided_at,
+           exists (
+             select 1 from public.audit_log a
+             where a.leave_request_id = r.id and a.action = 'override_approved'
+           ) as overridden
     from public.leave_requests r
     join public.users u on u.id = r.user_id
     join public.leave_types lt on lt.id = r.leave_type_id

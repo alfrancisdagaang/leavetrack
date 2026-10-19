@@ -28,14 +28,18 @@ export const days = (n: number) => `${n} working day${n === 1 ? "" : "s"}`;
 
 /**
  * The status shown for a request. A soft-deleted request is shown as removed whatever its status was,
- * and written out, so the table never relies on colour alone.
+ * and written out, so the table never relies on colour alone. An approval that HR made as an
+ * override says so (TASK-040); the summary buckets still count it as approved.
  */
 export function statusBadge(
   status: LeaveStatus,
   isDeleted: boolean,
+  overridden = false,
 ): { variant: BadgeVariant; label: string } {
   if (isDeleted) return { variant: "neutral", label: "Removed (soft-deleted)" };
-  if (status === "approved") return { variant: "approved", label: "Approved" };
+  if (status === "approved") {
+    return { variant: "approved", label: overridden ? "Approved (HR override)" : "Approved" };
+  }
   if (status === "rejected") return { variant: "rejected", label: "Rejected" };
   return { variant: "pending", label: "Pending" };
 }

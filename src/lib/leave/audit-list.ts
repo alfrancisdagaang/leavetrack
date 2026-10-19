@@ -28,6 +28,8 @@ export type AuditListRow = {
   /** ISO timestamp, or null while pending. */
   decidedAt: string | null;
   createdAt: string;
+  /** True when HR approved it as an override (an `override_approved` audit row exists). */
+  overridden: boolean;
 };
 
 /** Every request matching the filters (not only this page), split so the buckets add up to `total`. */
@@ -101,7 +103,11 @@ export async function getAuditPage(sql: Sql, query: AuditListQuery): Promise<Aud
     ),
     page as (
       select f.*, u.name as employee_name, u.role as employee_role, lt.name as leave_type_name,
-             d.name as decided_by_name, d.role as decided_by_role
+             d.name as decided_by_name, d.role as decided_by_role,
+             exists (
+               select 1 from public.audit_log a
+               where a.leave_request_id = f.id and a.action = 'override_approved'
+             ) as overridden
       from f
       join public.users u on u.id = f.user_id
       join public.leave_types lt on lt.id = f.leave_type_id
@@ -121,7 +127,8 @@ export async function getAuditPage(sql: Sql, query: AuditListQuery): Promise<Aud
                       'startDate', p.start_date::text, 'endDate', p.end_date::text,
                       'status', p.status, 'isDeleted', p.is_deleted,
                       'decidedByName', p.decided_by_name, 'decidedByRole', p.decided_by_role,
-                      'decidedAt', p.decided_at, 'createdAt', p.created_at)
+                      'decidedAt', p.decided_at, 'createdAt', p.created_at,
+                      'overridden', p.overridden)
                     order by p.created_at desc, p.id)
              from page p
            ), '[]'::json) as rows

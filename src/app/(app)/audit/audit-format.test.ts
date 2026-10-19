@@ -19,6 +19,18 @@ describe("audit format", () => {
     expect(statusBadge("approved", true).label).toBe("Removed (soft-deleted)");
   });
 
+  it("AC3: an approval HR made as an override says so; nothing else changes", () => {
+    expect(statusBadge("approved", false, true)).toEqual({
+      variant: "approved",
+      label: "Approved (HR override)",
+    });
+    expect(statusBadge("approved", false, false).label).toBe("Approved");
+    // Removed still wins, and the flag means nothing on a request that was not approved.
+    expect(statusBadge("approved", true, true).label).toBe("Removed (soft-deleted)");
+    expect(statusBadge("rejected", false, true).label).toBe("Rejected");
+    expect(statusBadge("pending", false, true).label).toBe("Pending");
+  });
+
   it("writes a day as month, day and year, with no leading zero", () => {
     expect(formatDay("2026-11-02")).toBe("Nov 2, 2026");
     expect(formatDay("2025-01-12")).toBe("Jan 12, 2025");

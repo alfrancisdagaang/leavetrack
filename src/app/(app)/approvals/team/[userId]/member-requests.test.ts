@@ -16,7 +16,8 @@ const req = (over: Partial<MemberRequest> = {}): MemberRequest => ({
   status: "approved",
   decisionNote: null,
   reason: null,
-  insufficient: false,
+  balanceCheck: { kind: "ok" },
+  overridden: false,
   ...over,
 });
 const REQUESTS = [
@@ -87,12 +88,53 @@ describe("MemberRequests table (US-13 AC1, AC4)", () => {
   });
 });
 
-describe("MemberRequests: a request the balance cannot cover", () => {
-  it("says it cannot be approved and disables Approve, leaving Reject available", () => {
-    const out = html([req({ id: "p", status: "pending", insufficient: true, reason: "Trip" })]);
-    expect(out).toContain("Cannot be approved: not enough balance.");
-    expect(out).toMatch(/<button[^>]*disabled=""[^>]*>[\s\S]*?Approve/);
+describe("MemberRequests: a request the balance cannot cover (TASK-040)", () => {
+  const pendingWith = (balanceCheck: MemberRequest["balanceCheck"]) =>
+    html([req({ id: "p", status: "pending", balanceCheck, reason: "Trip", workingDays: 3 })]);
+
+  it("AC1: over balance says how far over and that it waits for HR, with Reject only", () => {
+    const out = pendingWith({ kind: "over", balance: 1, shortfall: 2 });
+    expect(out).toContain("Over balance by 2 days");
+    expect(out).toContain("Waiting for HR override");
     expect(out).toContain(">Reject<");
+    expect(out).not.toContain(">Approve<");
+  });
+
+  it("no balance record and a negative balance each say so, Reject only, no override promised", () => {
+    const none = pendingWith({ kind: "no_balance_record" });
+    expect(none).toContain("No balance record");
+    expect(none).not.toContain(">Approve<");
+    expect(none).not.toContain("Waiting for HR override");
+    const negative = pendingWith({ kind: "negative", balance: -2 });
+    expect(negative).toContain("Balance is negative");
+    expect(negative).not.toContain(">Approve<");
+    expect(negative).not.toContain("Waiting for HR override");
+  });
+
+  it("AC4: a long unbroken word in the reason or the rejection note wraps (no horizontal scroll at 375 px)", () => {
+    const word = "Supercalifragilisticexpialidocious".repeat(2);
+    const out = html([
+      req({ id: "p", status: "pending", reason: word }),
+      req({ id: "r", status: "rejected", decisionNote: word }),
+    ]);
+    for (const label of ["Reason:", "Rejection note:"]) {
+      const span = out.match(new RegExp(`<span class="[^"]*">\\s*${label}`))?.[0] ?? "";
+      expect(span, label).toContain("break-words");
+      expect(span, label).toContain("min-w-0");
+    }
+  });
+
+  it("AC1: an in-balance pending request keeps Approve and Reject", () => {
+    const out = pendingWith({ kind: "ok" });
+    expect(out).toContain(">Approve<");
+    expect(out).toContain(">Reject<");
+    expect(out).not.toContain("Over balance");
+  });
+
+  it("AC3: an approval HR made as an override reads Approved (HR override)", () => {
+    const out = html([req({ id: "o", status: "approved", overridden: true })]);
+    expect(out).toContain(">Approved (HR override)<");
+    expect(html([req({ id: "n", status: "approved" })])).not.toContain("HR override");
   });
 });
 

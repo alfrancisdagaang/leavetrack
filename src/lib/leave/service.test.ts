@@ -193,6 +193,17 @@ describe("My Balance page read (pool budget: one statement for the breakdown)", 
     expect(calls.filter((c) => BREAKDOWN.test(c.text))).toHaveLength(1);
   });
 
+  it("TASK-040: the request list asks, in the same statement, which approvals were HR overrides", async () => {
+    const { sql, calls } = fakeSql([]);
+    await getBalancePage(sql, ELENA, YEAR);
+    const list = calls.find((c) =>
+      /from public\.leave_requests r where r\.user_id = \?/.test(c.text),
+    )!;
+    expect(list.text).toContain("a.action = 'override_approved'");
+    expect(list.text).toContain("as overridden");
+    expect(list.values).toEqual([ELENA]);
+  });
+
   it("B9: every user-scoped part filters by the given user id in SQL", async () => {
     const { sql, calls } = fakeSql([]);
     await getBalancePage(sql, ELENA, YEAR);

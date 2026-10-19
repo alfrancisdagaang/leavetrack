@@ -59,9 +59,23 @@ describe("getTeamQueue", () => {
       row({ id: "missing", balance: null }),
     ]);
     const [ok, short, missing] = await getTeamQueue(sql, MARCO);
-    expect(ok).toMatchObject({ working_days: 3, balance: 3, insufficient: false });
-    expect(short).toMatchObject({ balance: 2, insufficient: true });
-    expect(missing).toMatchObject({ balance: null, insufficient: true });
+    expect(ok).toMatchObject({ working_days: 3, balance: 3, balanceCheck: { kind: "ok" } });
+    // 3 working days against 2 confirmed: over by exactly 1 (HR can override it).
+    expect(short).toMatchObject({
+      balance: 2,
+      balanceCheck: { kind: "over", balance: 2, shortfall: 1 },
+    });
+    // No balance row: HR cannot override it either, so it is its own state.
+    expect(missing).toMatchObject({ balance: null, balanceCheck: { kind: "no_balance_record" } });
+  });
+
+  it("a negative balance is its own state, not 'over'", async () => {
+    const { sql } = fakeSql([row({ balance: "-2.00" })]);
+    const [negative] = await getTeamQueue(sql, MARCO);
+    expect(negative).toMatchObject({
+      balance: -2,
+      balanceCheck: { kind: "negative", balance: -2 },
+    });
   });
 
   it("never flags Unpaid (no balance is tracked)", async () => {
@@ -69,7 +83,7 @@ describe("getTeamQueue", () => {
       row({ leave_type_name: "Unpaid", tracks_balance: false, balance: null }),
     ]);
     const [unpaid] = await getTeamQueue(sql, MARCO);
-    expect(unpaid).toMatchObject({ balance: null, insufficient: false });
+    expect(unpaid).toMatchObject({ balance: null, balanceCheck: { kind: "ok" } });
   });
 });
 
@@ -82,6 +96,14 @@ describe("getRecentlyDecided", () => {
     expect(calls[0]?.text).toContain("r.is_deleted = false");
     expect(calls[0]?.text).toContain("limit 10");
     expect(calls[0]?.values).toEqual([MARCO]);
+  });
+
+  it("asks, in the same statement, whether HR approved each request as an override (TASK-040)", async () => {
+    const { sql, calls } = fakeSql([]);
+    await getRecentlyDecided(sql, MARCO);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.text).toContain("a.action = 'override_approved'");
+    expect(calls[0]?.text).toContain("as overridden");
   });
 
   it("adds working days to each row", async () => {

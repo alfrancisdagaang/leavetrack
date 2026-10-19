@@ -36,6 +36,7 @@ const request = (over: Record<string, unknown> = {}) => ({
   status: "approved",
   decision_note: null,
   reason: null,
+  overridden: false,
   ...over,
 });
 const row = (over: Record<string, unknown> = {}) => ({
@@ -159,6 +160,27 @@ describe("getTeamMemberPage: balances and the approval rule (US-13 AC1, AC5)", (
     expect(page?.leaveTypes.map((t) => t.name)).toEqual(["Vacation", "Sick", "Unpaid"]);
   });
 
+  it("carries whether HR approved a request as an override, and asks for it in the same statement", async () => {
+    const { sql, calls } = fakeSql([
+      row({ requests: [request({ id: "o", overridden: true }), request({ id: "n" })] }),
+    ]);
+    const page = await getTeamMemberPage(sql, MARCO, ELENA, QUERY);
+    expect(page?.requests.map((r) => r.overridden)).toEqual([true, false]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.text).toContain("a.action = 'override_approved'");
+  });
+
+  it("a negative balance is its own state, not 'over' (HR cannot override it)", async () => {
+    const { sql } = fakeSql([
+      row({
+        balances: [{ leave_type_id: VAC, balance: "-2.00" }],
+        requests: [request({ id: "a", status: "pending" })],
+      }),
+    ]);
+    const page = await getTeamMemberPage(sql, MARCO, ELENA, QUERY);
+    expect(page?.requests[0]?.balanceCheck).toEqual({ kind: "negative", balance: -2 });
+  });
+
   it("flags a pending request the balance cannot cover, as the approvals queue does", async () => {
     const { sql } = fakeSql([
       row({
@@ -169,7 +191,8 @@ describe("getTeamMemberPage: balances and the approval rule (US-13 AC1, AC5)", (
       }),
     ]);
     const page = await getTeamMemberPage(sql, MARCO, ELENA, QUERY);
-    expect(page?.requests[0]?.insufficient).toBe(true);
+    // Nov 2 to Nov 6 is 5 working days against 2 confirmed: over by exactly 3.
+    expect(page?.requests[0]?.balanceCheck).toEqual({ kind: "over", balance: 2, shortfall: 3 });
   });
 
   it("flags a tracked type with no balance row, never Unpaid, and never a decided request", async () => {
@@ -190,7 +213,11 @@ describe("getTeamMemberPage: balances and the approval rule (US-13 AC1, AC5)", (
       }),
     ]);
     const page = await getTeamMemberPage(sql, MARCO, ELENA, QUERY);
-    expect(page?.requests.map((r) => r.insufficient)).toEqual([true, false, false]);
+    expect(page?.requests.map((r) => r.balanceCheck.kind)).toEqual([
+      "no_balance_record",
+      "ok",
+      "ok",
+    ]);
   });
 
   it("carries the manager's rejection note", async () => {

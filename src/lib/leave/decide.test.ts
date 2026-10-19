@@ -191,7 +191,24 @@ describe("decideLeaveRequest", () => {
     const err = await decideLeaveRequest(sql, MANAGER, REQ, approve).catch((e) => e);
     expect(err).toMatchObject({ code: "CONFLICT", status: 409 });
     expect(err.message).toContain("only 2 are available");
-    expect(err.message).toContain("HR override");
+    // TASK-040: it names the override and where HR does it, and no longer says "not available yet".
+    expect(err.message).toContain("needs an HR override");
+    expect(err.message).toContain("HR Overrides");
+    expect(err.message).not.toContain("not available yet");
+    expect(touched(/^update public\.leave_requests/)).toHaveLength(0);
+    expect(touched(/^insert into public\.audit_log/)).toHaveLength(0);
+  });
+
+  it("a negative balance is a 409 that does not promise an override (HR cannot override it)", async () => {
+    const { sql, touched } = fakeSql({
+      lookup: [pending()],
+      balanceUpdate: [],
+      balanceRow: [{ balance: "-2.00" }],
+    });
+    const err = await decideLeaveRequest(sql, MANAGER, REQ, approve).catch((e) => e);
+    expect(err).toMatchObject({ code: "CONFLICT", status: 409 });
+    expect(err.message).toContain("negative");
+    expect(err.message).not.toContain("needs an HR override");
     expect(touched(/^update public\.leave_requests/)).toHaveLength(0);
     expect(touched(/^insert into public\.audit_log/)).toHaveLength(0);
   });

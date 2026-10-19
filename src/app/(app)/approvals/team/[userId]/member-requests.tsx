@@ -1,11 +1,12 @@
 import Image from "next/image";
 import type { ReactNode } from "react";
 import { ApprovalActions } from "@/app/(app)/approvals/approval-actions";
+import { balanceText } from "@/app/(app)/approvals/balance-text";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { leaveTypeLook } from "@/components/ui/leave-type-icon";
 import type { MemberRequest } from "@/lib/leave/team-member";
-import { formatDays, STATUS_BADGE } from "../team-format";
+import { formatDays, requestBadge } from "../team-format";
 
 const HEADER = "pb-2 pr-4 text-sm font-medium text-ink-muted";
 
@@ -15,26 +16,32 @@ const HEADER = "pb-2 pr-4 text-sm font-medium text-ink-muted";
  * rejected one, the manager's own note. Status is always written out.
  */
 function StatusCell({ request }: { request: MemberRequest }) {
-  const badge = STATUS_BADGE[request.status];
+  const badge = requestBadge(request.status, request.overridden);
+  const note = balanceText(request.balanceCheck, request.workingDays, request.leaveTypeName);
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={badge.variant}>{badge.label}</Badge>
         {request.status === "pending" && request.reason ? (
-          <span className="text-sm text-ink-muted">Reason: {request.reason}</span>
+          <span className="min-w-0 break-words text-sm text-ink-muted">
+            Reason: {request.reason}
+          </span>
         ) : null}
         {request.status === "rejected" && request.decisionNote ? (
-          <span className="text-sm text-rejected-fg">Rejection note: {request.decisionNote}</span>
+          <span className="min-w-0 break-words text-sm text-rejected-fg">
+            Rejection note: {request.decisionNote}
+          </span>
         ) : null}
       </div>
       {request.status === "pending" ? (
         <>
-          {request.insufficient ? (
-            <p className="text-sm font-medium text-pending-fg">
-              Cannot be approved: not enough balance. Reject it, or ask HR for an override.
-            </p>
+          {note ? (
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-pending-fg">{note.headline}</p>
+              <p className="text-sm text-ink-muted">{note.detail}</p>
+            </div>
           ) : null}
-          <ApprovalActions requestId={request.id} canApprove={!request.insufficient} />
+          <ApprovalActions requestId={request.id} canApprove showApprove={note === null} />
         </>
       ) : null}
     </div>

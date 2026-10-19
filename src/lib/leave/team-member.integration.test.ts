@@ -212,8 +212,8 @@ describe.skipIf(!url)("team member page (US-13, real database)", () => {
   it("flags a pending request whose balance cannot cover it (the approvals queue's rule)", async () => {
     const result = await page(marco, jun, { status: "pending" });
     expect(result?.requests).toEqual([]); // Jun has none: nothing flagged by accident
-    expect((await page(marco, elena, { status: "pending" }))?.requests[0]?.insufficient).toBe(
-      false,
-    ); // 2 days vs 10
+    expect((await page(marco, elena, { status: "pending" }))?.requests[0]?.balanceCheck).toEqual({
+      kind: "ok",
+    }); // 2 days vs 10
   });
 });

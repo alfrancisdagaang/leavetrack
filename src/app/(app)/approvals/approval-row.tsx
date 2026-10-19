@@ -5,6 +5,7 @@ import { initialsOf } from "@/components/ui/initials";
 import { leaveTypeLook } from "@/components/ui/leave-type-icon";
 import type { TeamRequestView } from "@/lib/leave/team";
 import { ApprovalActions } from "./approval-actions";
+import { balanceText } from "./balance-text";
 
 export const ROW = "rounded-tile border border-brand-50 bg-white p-4 shadow-tile sm:p-5";
 /** Columns shared by both lists so the pending and the decided rows line up from `lg`. */
@@ -40,18 +41,15 @@ export function RequestIdentity({ name, leaveTypeName }: { name: string; leaveTy
   );
 }
 
-function balanceNote(r: TeamRequestView): string {
-  if (r.balance === null) return "There is no balance record for this leave type.";
-  return `${r.leave_type_name} balance is ${r.balance} day${r.balance === 1 ? "" : "s"}.`;
-}
-
 /**
  * One pending request from a direct report (US-03, US-04), as a row in the same structure as the My
  * team roster. The employee's reason is shown here, on a pending request only, because the manager
- * needs it to decide. Approve and Reject are the existing controls, unchanged; the server decides
+ * needs it to decide. When the balance does not allow approving it (TASK-040) the row says why in
+ * text and offers Reject only; otherwise Approve and Reject as before. The server decides
  * everything that matters (scope, balance, status).
  */
 export function ApprovalRow({ request: r }: { request: TeamRequestView }) {
+  const note = balanceText(r.balanceCheck, r.working_days, r.leave_type_name);
   return (
     <li className={ROW}>
       <div className={ROW_GRID}>
@@ -62,20 +60,22 @@ export function ApprovalRow({ request: r }: { request: TeamRequestView }) {
           </p>
           <p className="text-sm text-ink-muted">{workingDays(r.working_days)}</p>
         </div>
-        <div className="space-y-1">
+        {/* min-w-0 and break-words: a long unbroken word in the reason must wrap, not scroll sideways. */}
+        <div className="min-w-0 space-y-1">
           <Badge variant="pending">Pending</Badge>
-          {r.reason ? <p className="text-sm text-ink-muted">Reason: {r.reason}</p> : null}
+          {r.reason ? (
+            <p className="break-words text-sm text-ink-muted">Reason: {r.reason}</p>
+          ) : null}
         </div>
         {/* ApprovalActions brings its own top margin; the grid gap spaces it here instead. */}
         <div className="[&>div]:mt-0">
-          <ApprovalActions requestId={r.id} canApprove={!r.insufficient} />
+          <ApprovalActions requestId={r.id} canApprove showApprove={note === null} />
         </div>
       </div>
-      {r.insufficient ? (
+      {note ? (
         <div className="mt-3">
-          <Alert variant="warning" title="Cannot be approved">
-            This request is {workingDays(r.working_days)}. {balanceNote(r)} Reject it, or ask HR for
-            an override (not available yet).
+          <Alert variant="warning" title={note.headline}>
+            {note.detail}
           </Alert>
         </div>
       ) : null}

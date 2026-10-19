@@ -47,6 +47,7 @@ const row = (over: Partial<AuditListRow> = {}): AuditListRow => ({
   decidedByRole: "manager",
   decidedAt: "2026-10-18T09:12:00+00:00",
   createdAt: "2026-10-17T08:00:00+00:00",
+  overridden: false,
   ...over,
 });
 

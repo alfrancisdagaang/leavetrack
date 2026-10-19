@@ -85,9 +85,16 @@ export async function decideLeaveRequest(
           );
         }
         const available = Number(current.balance);
+        if (available < 0) {
+          // HR cannot override a negative balance either (override.ts refuses it), so do not point there.
+          throw new AppError(
+            "CONFLICT",
+            `This balance is negative (${current.balance}), so the request cannot be approved. Ask HR to correct the balance, or reject the request.`,
+          );
+        }
         throw new AppError(
           "CONFLICT",
-          `Insufficient balance: this request is ${days} working day${days === 1 ? "" : "s"} but only ${available} ${available === 1 ? "is" : "are"} available. An HR override is not available yet; you can reject the request instead.`,
+          `Insufficient balance: this request is ${days} working day${days === 1 ? "" : "s"} but only ${available} ${available === 1 ? "is" : "are"} available. It needs an HR override: HR can approve it from HR Overrides, or you can reject the request.`,
         );
       }
       balanceAfter = { leaveTypeId: req.leave_type_id, balance: Number(updated.balance) };

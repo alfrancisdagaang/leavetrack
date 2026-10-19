@@ -79,7 +79,7 @@ export async function BalanceSection({ userId, today }: { userId: string; today:
           </>
         )}
 
-        <BalanceRequests requests={requests} typeNames={typeNames} />
+        <BalanceRequests requests={requests} typeNames={typeNames} balances={balances} />
       </div>
     </>
   );

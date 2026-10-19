@@ -3,6 +3,7 @@ import type { LeaveBalance, LeaveStatus, LeaveType, UserRole } from "@/lib/db/ty
 import { summarizeBalances, type BalanceSummaryItem } from "@/lib/leave/balance";
 import { yearBounds, type UsedRange } from "@/lib/leave/breakdown";
 import type { IsoDate } from "@/lib/leave/calendar-layout";
+import { checkOverBalance, type BalanceCheck } from "@/lib/leave/over-balance";
 import { MEMBER_PAGE_SIZE, type TeamMemberQuery } from "@/lib/leave/schemas";
 import { countWorkingDays } from "@/lib/leave/working-days";
 
@@ -31,8 +32,13 @@ export type MemberRequest = {
   decisionNote: string | null;
   /** The employee's reason, for a PENDING request only; always null once it is decided. */
   reason: string | null;
-  /** True when approving would be refused: a tracked type with no balance row or too few days. */
-  insufficient: boolean;
+  /**
+   * For a PENDING request: whether the manager can approve it (`ok`), only reject it because HR can
+   * override it (`over`), or needs the balance fixed first. `ok` for every decided request.
+   */
+  balanceCheck: BalanceCheck;
+  /** True when HR approved it as an override (an `override_approved` audit row exists). */
+  overridden: boolean;
 };
 
 export type TeamMemberPage = {
@@ -57,6 +63,7 @@ type RequestRow = {
   status: LeaveStatus;
   decision_note: string | null;
   reason: string | null;
+  overridden: boolean;
 };
 
 type MemberRow = {
@@ -120,7 +127,10 @@ export async function getTeamMemberPage(
           'id', p.id, 'leave_type_id', p.leave_type_id, 'leave_type_name', p.leave_type_name,
           'tracks_balance', p.tracks_balance, 'start_date', p.start_date::text,
           'end_date', p.end_date::text, 'status', p.status, 'decision_note', p.decision_note,
-          'reason', p.reason)
+          'reason', p.reason,
+          'overridden', exists (
+            select 1 from public.audit_log a
+            where a.leave_request_id = p.id and a.action = 'override_approved'))
           order by p.start_date desc, p.id desc)
         from (
           select * from filtered order by start_date desc, id desc
@@ -143,11 +153,17 @@ export async function getTeamMemberPage(
       status: r.status,
       decisionNote: r.decision_note,
       reason: r.reason,
-      // Same rule as the approvals queue: a tracked type with no balance row, or too few days.
-      insufficient:
-        r.status === "pending" &&
-        r.tracks_balance &&
-        (confirmed === undefined || confirmed < workingDays),
+      // Same rule as the approvals queue and the HR override queue (one shared function). Only a
+      // pending request can be decided, so every other status is `ok`.
+      balanceCheck:
+        r.status === "pending"
+          ? checkOverBalance({
+              tracksBalance: r.tracks_balance,
+              balance: confirmed ?? null,
+              days: workingDays,
+            })
+          : { kind: "ok" },
+      overridden: r.overridden,
     };
   });
 

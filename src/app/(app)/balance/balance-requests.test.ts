@@ -21,8 +21,15 @@ const req = (over: Partial<LeaveRequestView>): LeaveRequestView => ({
   decided_at: null,
   decision_note: null,
   working_days: 3,
+  overridden: false,
   ...over,
 });
+type Balances = Parameters<typeof BalanceRequests>[0]["balances"];
+/** Enough confirmed balance for everything in REQUESTS. */
+const BALANCES: Balances = [
+  { leaveTypeId: VAC, tracksBalance: true, confirmed: 10 },
+  { leaveTypeId: SICK, tracksBalance: true, confirmed: 5 },
+];
 const REQUESTS = [
   req({ id: "a" }),
   req({
@@ -42,9 +49,52 @@ const REQUESTS = [
     end_date: "2026-01-21",
   }),
 ];
-const html = (requests: LeaveRequestView[] = REQUESTS) =>
-  renderToStaticMarkup(BalanceRequests({ requests, typeNames: NAMES }));
+const html = (requests: LeaveRequestView[] = REQUESTS, balances: Balances = BALANCES) =>
+  renderToStaticMarkup(BalanceRequests({ requests, typeNames: NAMES, balances }));
 const count = (text: string, needle: string) => text.split(needle).length - 1;
+
+describe("BalanceRequests: HR override states (TASK-040)", () => {
+  const pendingSick = req({
+    id: "p",
+    leave_type_id: SICK,
+    status: "pending",
+    working_days: 2,
+    start_date: "2026-02-10",
+    end_date: "2026-02-11",
+  });
+
+  it("AC2: a pending request over the confirmed balance says it waits for an HR override", () => {
+    const out = html([pendingSick], [{ leaveTypeId: SICK, tracksBalance: true, confirmed: 1 }]);
+    expect(out).toContain("Waiting for HR override: over your balance by 1 day.");
+    expect(out).toContain(">Pending<");
+  });
+
+  it("AC2: no note when the balance covers it, for an untracked type, or when it is not pending", () => {
+    expect(html([pendingSick])).not.toContain("Waiting for HR override");
+    expect(
+      html([pendingSick], [{ leaveTypeId: SICK, tracksBalance: false, confirmed: null }]),
+    ).not.toContain("Waiting for HR override");
+    const decided = [
+      req({ id: "d", status: "rejected", working_days: 9 }),
+      req({ id: "e", status: "approved", working_days: 9 }),
+    ];
+    expect(html(decided, [{ leaveTypeId: VAC, tracksBalance: true, confirmed: 0 }])).not.toContain(
+      "Waiting for HR override",
+    );
+  });
+
+  it("AC3: an approval HR made as an override reads Approved (HR override); an ordinary one does not", () => {
+    const out = html([req({ id: "o", overridden: true })]);
+    expect(out).toContain(">Approved (HR override)<");
+    expect(html([req({ id: "n" })])).not.toContain("HR override");
+  });
+
+  it("AC4: the note is text and nothing is hard-coded in colour", () => {
+    const out = html([pendingSick], [{ leaveTypeId: SICK, tracksBalance: true, confirmed: 0 }]);
+    expect(out).toContain("over your balance by 2 days");
+    expect(out).not.toMatch(/#[0-9a-fA-F]{3,6}\b|rgb\(/);
+  });
+});
 
 describe("BalanceRequests table (R8)", () => {
   const out = html();

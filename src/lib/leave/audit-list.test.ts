@@ -57,6 +57,26 @@ describe("getAuditPage (US-14)", () => {
     expect(calls).toHaveLength(1);
   });
 
+  it("TASK-040: flags an override approval per page row from the audit log, in the same statement", async () => {
+    const { sql, calls } = fakeSql([
+      raw({
+        rows: [
+          { ...raw().rows[0], overridden: true },
+          { ...raw().rows[0], id: "r2" },
+        ],
+      }),
+    ]);
+    const page = await getAuditPage(sql, NONE);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]!.text).toContain("a.action = 'override_approved'");
+    expect(calls[0]!.text).toContain("as overridden");
+    expect(page.rows[0]?.overridden).toBe(true);
+    // The counts are still computed from the request status alone, so the buckets cannot change.
+    expect(calls[0]!.text).toContain(
+      "case when r.is_deleted then 'deleted' else r.status::text end as bucket",
+    );
+  });
+
   it("only reads: it issues a select and never writes", async () => {
     const { sql, calls } = fakeSql([raw()]);
     await getAuditPage(sql, NONE);

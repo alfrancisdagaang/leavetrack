@@ -48,6 +48,7 @@ const REQUEST = {
   decided_at: null,
   decision_note: null,
   working_days: 3,
+  overridden: false,
 };
 const PAGE: BalancePage = { balances: [VACATION, UNPAID], requests: [REQUEST] };
 const render = async () =>

@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import type { DecidedTeamRequestView } from "@/lib/leave/team";
 import { RequestIdentity, ROW, ROW_GRID } from "./approval-row";
-import { STATUS_BADGE } from "./team/team-format";
+import { requestBadge } from "./team/team-format";
 
 const workingDays = (n: number) => `${n} working day${n === 1 ? "" : "s"}`;
 
@@ -10,7 +10,7 @@ const workingDays = (n: number) => `${n} working day${n === 1 ? "" : "s"}`;
  * own note. There is no employee reason here (a decided request never carries it) and no actions.
  */
 export function DecidedRow({ request: r }: { request: DecidedTeamRequestView }) {
-  const badge = STATUS_BADGE[r.status];
+  const badge = requestBadge(r.status, r.overridden);
   return (
     <li className={ROW}>
       <div className={ROW_GRID}>
