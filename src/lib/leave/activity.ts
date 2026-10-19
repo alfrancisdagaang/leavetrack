@@ -19,7 +19,8 @@ export type ActivityQuery = {
   userId: string;
 };
 
-export type ActivityAction = "submitted" | "approved" | "rejected" | "soft_deleted";
+export type ActivityAction =
+  "submitted" | "approved" | "rejected" | "soft_deleted" | "override_approved";
 
 export type ActivityEvent = {
   id: string;

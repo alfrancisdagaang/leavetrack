@@ -7,6 +7,11 @@ const EVENT: Record<ActivityAction, { label: string; icon: string; color: string
   approved: { label: "Approved", icon: "/icons/check.svg", color: "text-event-approved" },
   rejected: { label: "Rejected", icon: "/icons/x.svg", color: "text-event-rejected" },
   soft_deleted: { label: "Cancelled", icon: "/icons/x.svg", color: "text-ink-muted" },
+  override_approved: {
+    label: "Approved (HR override)",
+    icon: "/icons/check.svg",
+    color: "text-event-approved",
+  },
 };
 
 /**

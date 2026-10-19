@@ -69,6 +69,8 @@ export function describeActivity(event: ActivityEvent): string {
       return `${event.actorName} approved ${owner} ${what}`;
     case "rejected":
       return `${event.actorName} rejected ${owner} ${what}`;
+    case "override_approved":
+      return `${event.actorName} approved ${owner} ${what} (HR override)`;
     case "soft_deleted":
       return `${event.actorName} cancelled ${owner} ${what}`;
   }

@@ -97,6 +97,20 @@ describe("describeActivity", () => {
     );
   });
 
+  it("override_approved: says it was an HR override (TASK-038)", () => {
+    expect(
+      describeActivity(
+        event({
+          action: "override_approved",
+          actorId: "hana",
+          actorName: "Hana Reyes",
+          ownerId: "ana",
+          ownerName: "Ana Lopez",
+        }),
+      ),
+    ).toBe("Hana Reyes approved Ana’s Vacation · Oct 19–21 (HR override)");
+  });
+
   it("cancelled: 'their' when the owner cancelled it, the owner's name otherwise", () => {
     expect(describeActivity(event({ action: "soft_deleted" }))).toBe(
       "Priya Shah cancelled their Vacation · Oct 19–21",

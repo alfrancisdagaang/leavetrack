@@ -6,11 +6,12 @@ import { describe, expect, it } from "vitest";
 /**
  * US-08 guard. `leave_balances` holds the confirmed balance per type, so every statement that
  * changes it must be reviewed against "touches only the request's own leave type". Today only
- * a decision (decide.ts) and the monthly accrual (accrual.ts) write it. A new writer fails
- * this test until someone has reviewed it and added it here on purpose.
+ * a decision (decide.ts), an HR override (override.ts, TASK-038: sets only the request's own
+ * leave type to 0, proven by a break-the-filter test) and the monthly accrual (accrual.ts) write
+ * it. A new writer fails this test until someone has reviewed it and added it here on purpose.
  */
 const SRC = fileURLToPath(new URL("../../", import.meta.url));
-const ALLOWED = ["lib/leave/accrual.ts", "lib/leave/decide.ts"];
+const ALLOWED = ["lib/leave/accrual.ts", "lib/leave/decide.ts", "lib/leave/override.ts"];
 const WRITE = /\b(insert\s+into|update|delete\s+from)\s+public\.leave_balances\b/i;
 
 function sourceFiles(dir: string): string[] {

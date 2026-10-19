@@ -45,6 +45,22 @@ describe("RecentActivityCard", () => {
     }
   });
 
+  it("an HR override reads Approved (HR override) in text and does not break the card (TASK-038)", () => {
+    const out = render([
+      event({
+        id: "o",
+        action: "override_approved",
+        actorId: "hana",
+        actorName: "Hana Reyes",
+        ownerId: "elena",
+        ownerName: "Elena Cruz",
+      }),
+    ]);
+    expect(out).toContain(">Approved (HR override)<");
+    expect(out).toContain("Hana Reyes approved Elena’s Vacation · Oct 19–21 (HR override)");
+    expect(out).toContain("check.svg");
+  });
+
   it("uses the Figma icons, decorative (the label carries the meaning)", () => {
     const out = render([
       event({ id: "a", action: "submitted" }),
