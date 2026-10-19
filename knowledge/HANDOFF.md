@@ -1,6 +1,94 @@
 # LeaveTrack — Session Handoff
 
-## READ FIRST: end of session 2026-10-19, evening (EPIC-9 notifications; supersedes every older note below where they disagree)
+## READ FIRST: end of session 2026-10-19, night (EPIC-7 calendar, dashboard rework, Balance Overrides; supersedes every older note below where they disagree)
+
+**State in a few lines.** Everything below is **built, validated and committed locally on `main`; NOT pushed** (the user said "not yet"). `origin/main` is at `0cdc2de`; the local commits ahead
+of it are `38d25f3` (the EPIC-11 docs, from the previous session) and this session's four commits (`git log origin/main..HEAD`). Ask before pushing, and watch the Actions run afterwards: `db-push`
+is not involved (no new migration this session).
+Demo: **Tue 2026-10-20**. Gate at the end of the session (exit codes read, not trimmed): lint 0, prettier 0, tsc 0, **1,015 tests passed, 164 skipped (gated)**, build
+passed on a throwaway copy of the final code. Gated real-PostgreSQL files for this session: `hr-calendar.integration` (12) and `out-figures.integration` (5), both pass.
+**Next (decided with the user, not started): split the manager's "Team approvals" into two nav items, polish Team Approvals like Balance Overrides, and turn My Team into
+a grid of cards (see "NEXT SESSION" below).** EPIC-11 (My Profile) and EPIC-8 (user management) are still ahead; TASK-041 is still deferred; TASK-056 still not built.
+
+**What shipped this session (retro: `knowledge/retros/2026-10-19-epic-7-hr-calendar.md`, which also holds the dashboard and Balance Overrides sections).**
+
+1. **EPIC-7 HR Company Calendar** (`/calendar`, HR Admin only; nav item "Calendar" with a white `nav-calendar.svg`). Reads in `src/lib/leave/hr-calendar.ts` (ONE statement each:
+   `getMonthCounts`, `getDayPeople`, `getHrCalendarChoices`); **every read takes `viewerId` and returns nothing unless that user is an `hr_admin` (checked in the SQL)**, the page's
+   `requireRole` is only the first gate. Counts are distinct people (approved or pending, weekdays only, soft-deleted and rejected never), the day list is by request (25 a page,
+   literal name search, page clamped in SQL). Page: Month + nav + Today (always shown) + Team (managers with reports) + Leave type + Apply in one row from `lg`; a full-width Monday-to-Friday
+   month (text counts for every leave type, zeros included, "N pending"), a phone list of the busy days; a day opens as a **modal `<dialog>` popup** (`day-dialog.tsx`, the only client piece:
+   centred card from `sm`, bottom sheet below; Escape, backdrop click and the X all return to the month; rendered open by the server so it also works without JS) with summary tiles
+   (Vacation, Sick, Unpaid, Pending), a search box, a list with a header row, and pagination. State lives in the address (`month`, `team`, `type`, `day`, `q`, `page`), bad values
+   are ignored with a notice. Left out on purpose: a "per page" selector, department lines (no such data), a collapsible Filters row on phones. Load check at 800 users: month read
+   2.1 ms at 8,000 requests, 3.0 ms at about 21,600 (a month-overlap predicate cut the first version from 5.6 ms); no index or migration was needed.
+2. **Dashboard rework.** The HR dashboard **no longer has the calendar** (confirmed by the user; employee and manager keep theirs). HR row: Awaiting HR override, **Out today**, **Pending
+   requests** (every pending request company-wide, including the over-balance ones), then a **"Next 7 days" strip** (weekdays, "N out", "N pending"; a day with people links to
+   `/calendar?month=..&day=..`, which opens that day's popup). Manager row: Pending approvals, **Out today (my team)**, **Out in the next 7 days (my team)**. "Out today" says **Weekend**
+   on Saturday and Sunday. One new read, `getOutFigures` (`out-figures.ts`), scope chosen in the SQL from the user's own role (`company` only for `hr_admin`, `team` only for `manager`
+   and only their `manager_id` reports); for managers it also returns the pending-approvals count, so it **replaced** the balance summary read and every dashboard is still at exactly
+   **4** parallel statements (asserted with `toBe(4)` for HR and manager in `query-budget.test.ts`). The summary row's grid now lets an odd last card take the whole row below `xl`
+   (`cardsGridClass`, also fixes the employee's three cards at 375 and 768 px).
+3. **Balance Overrides** (renamed from "HR Overrides" by the user's decision; `/approvals/overrides` unchanged; "Approved (HR override)" and "Awaiting HR override" unchanged).
+   Polished from a ChatGPT reference: each section is a white card with an icon, title and count chip ("3 pending", "1 recent"); each request is a row inside it with four columns and
+   dividers from `lg` (stacked below), calendar and person icons, a bold "Over balance by N days", the effect of approving in a light note strip; dates read "Nov 2 to Nov 6, 2026" (the Audit
+   format; ISO dates broke mid-date). New files stay inside the overrides folder (`override-card.tsx`, `override-icons.tsx`, `override-skeleton.tsx`); the shared approval row pieces
+   (`approval-row.tsx`: `ROW`, `ROW_GRID`, `RequestIdentity`) were NOT changed, so the manager's Team approvals page is as before. Left out: the reference's ">" and "..." (no detail page or menu).
+   Known: at 320 px the top bar title is cut off with an ellipsis (it fits at 375 px).
+
+**Browser checks this session** (headless Chrome, a production build of the final code, one context per role, seeded PostgreSQL): calendar **191/191**, dashboards **87/87**, Balance
+Overrides **60/60**, at 1440, 768, 375 and 320 px. **Not seen:** GitHub Actions and Vercel (nothing pushed), the real sign-in path (every browser check used the mock cookie: Elena,
+Marco, Hana only), a screen reader, real Supabase latency for the new reads.
+
+**Decisions taken this session (defaults, no objection).** "N out" counts distinct people; the calendar's day list is by request (so one person can appear twice, and the panel says so);
+"Pending requests" on the HR dashboard is company-wide and overlaps the override card; the HR "Next 7 days" strip shows only weekdays; the popup is a modal dialog, not a side panel;
+no index for the calendar; the month name is NOT centred any more (the second reference put it in the controls row).
+
+### NEXT SESSION: the manager's Team approvals and My Team (decided with the user; is it possible? Yes, and most pieces exist)
+
+The user asked for three things; **none is started**:
+
+1. **Separate the two into their own nav items for managers**: "Team Approvals" and "My Team" (today `/approvals` has two tabs, `TeamTabs`, and `/approvals/team` is the second tab).
+   The nav's `currentNavItem` already picks the longest matching href (that is how `/approvals/overrides` works under `/approvals`), so **keeping the URLs `/approvals` and
+   `/approvals/team` needs no redirects**; moving My Team to `/team` is possible but would need a redirect and test changes (open decision: default is keep the URLs). Remove `TeamTabs`
+   (or keep it only if the user wants it). Update `nav.ts`, `nav-icons.ts` (a white `nav-*.svg`, like `nav-calendar.svg`, for My Team: `nav-users.svg` is Team Approvals' icon today, so pick a
+   different white icon for one of them), `nav.test.ts`, `app-frame.test.ts`, the demo checklist, and the `welcomeSubtitle`/messages that mention "Team approvals".
+2. **Polish Team Approvals like Balance Overrides** ("using actual name, month etc."): cards per section (icon, title, count chip), rows with four columns and dividers, icons on the dates,
+   the employee's real name and **dates written with the month name** ("Nov 2 to Nov 6, 2026" via `formatRange` from `audit/audit-format.ts`, not ISO), the effect or balance note in a light strip,
+   Approve and Reject as now, plus "Recently decided". Rows live in `approvals/approval-row.tsx`, `decided-row.tsx`, `approvals-sections.tsx`, `approvals-skeleton.tsx` (shared pieces are
+   used by the override page's `RequestIdentity` only, so changing the rows does not touch Balance Overrides). Keep every existing rule: over-balance requests show "Waiting for HR override" with
+   Reject only (`balance-text.ts`, `over-balance.ts`), the manager never approves an over-balance request, scope stays `u.manager_id = ${session.user.id}` in the SQL.
+3. **My Team as a grid of cards, one per direct report, and a click shows that person's information and their requests.** The roster read already exists (`getTeamRoster`, ONE statement:
+   name, role, status out today / next leave / none, pending count, balances, last request) and so does the member page (`/approvals/team/[userId]`: header, balances, request filters,
+   list, pagination, ONE statement, not-found for another team). Two ways, **recommend the first** because the user said "show it there": (a) a **popup like the calendar's** (`?member=<id>`
+   opening a modal `<dialog>` with the member header, balances and their requests, reusing the member page's components; budget is 2 statements, the roster plus the member); (b) cards
+   simply link to the existing member page (the smallest change). Either keeps the scope rule (another team's id shows the same not-found as a missing person) and the card grid must
+   fill its row (use the odd-last-card rule from `cardsGridClass`). Do not add department or job title (no such data). Decide the popup versus page with the user first.
+
+Start with `/evaluate` (it will need a `/plan` approval gate as usual), one task at a time: nav split first, then Team Approvals polish, then My Team cards. Run the browser check as manager
+and as another-team manager if one exists (Leo's team has no manager login in the mock; the route handlers and gated tests cover other-team scoping). The mock `mock-role=manager` is Marco.
+
+**Suggested opening prompt for the next session:**
+
+> Read AGENTS.md, knowledge/HANDOFF.md and the newest retros in knowledge/retros/, then run git log and git status. Tell me the current state in a few lines and what's next. Don't
+> start any work yet. (Then: `/evaluate` the manager split: Team Approvals and My Team.)
+
+**Open items (the user's; nothing done).**
+
+- **Push** the local commits (ask first; then ask the user to read the Actions run).
+- **CSV and handoff bookkeeping:** `docs/dev-tasks/epic-7-hr-calendar-tasks.csv` (TASK-042 to 044 and the header), `epic-9-notifications-tasks.csv`, and the new dashboard and Balance Overrides work are NOT
+  marked or added in any CSV (only when asked; the docs rule keeps new decisions in `knowledge/` and the CSVs only).
+- Backlog: "Pending requests" on the HR dashboard can look large (a split into "with managers" and "waiting for HR" is the fix); the calendar's team filter lists managers only; Today
+  on the current month links to the same page; the search and close icons are drawn inline in `day-panel.tsx`; the 320 px top bar title; the HR rows' ">" and "..." were left out.
+- The older open items still stand (orphaned pending requests on staging, accrual still crediting managers and HR, the supervisor's questions, TASK-041, TASK-056, EPIC-11, EPIC-8).
+
+**Harness notes added this session.** `embedded-postgres` and `puppeteer-core` in the session scratchpad again; the scripts are gone afterwards: recreate from
+`knowledge/patterns/implement-and-test.md` (the new sections at its end hold the HR read pattern, the dialog pattern, the budget rule, and **"judge the gate by exit codes, not by `tail -1`"**:
+a lint error was hidden once). `date -v`/`timeout` do not exist on this Mac. Mutation proofs: copy the module, apply one replacement with an assertion that the pattern exists, run the gated
+file on a FRESH database (a script that drops and recreates the database and applies the migrations is the fastest), restore and `cmp`.
+
+---
+
+## Earlier the same evening: EPIC-9 notifications (still true unless the block above says otherwise)
 
 **State in a few lines.** **EPIC-9 (in-app notifications) is built, validated and pushed to `origin/main`**: `6588ba3` TASK-052 (the table), `59c8503` TASK-053
 (notifications written in the leave transactions), `52055f4` TASK-054 (read and mark-read routes), `bf50ff9` TASK-055 (the bell), `1932bdb` docs (patterns).
@@ -123,7 +211,7 @@ PRD US-01 AC3 says an over-balance request "may still submit for HR override" an
 | EPIC-6 HR override           | `epic-6-hr-override-tasks.csv`     | TASK-037 to 040 **Done** (shipped); **TASK-041 deferred**; header Open          |
 | EPIC-10 Role scope tone-down | `epic-10-role-scope-tasks.csv`     | **Done** (TASK-058 to 061 and the header; pushed)                               |
 | EPIC-9 Notifications         | `epic-9-notifications-tasks.csv`   | **Built and pushed** (TASK-052 to 055, 057); TASK-056 not built; CSV still Open |
-| EPIC-7 HR calendar           | `epic-7-hr-calendar-tasks.csv`     | **NEXT.** Open (TASK-042 to 044)                                                |
+| EPIC-7 HR calendar           | `epic-7-hr-calendar-tasks.csv`     | **Built and committed locally** (TASK-042 to 044); CSV still Open               |
 | EPIC-11 My Profile           | `epic-11-profile-tasks.csv`        | Open (TASK-062 to 066); **after EPIC-7, before EPIC-8** (decided 2026-10-19)    |
 | EPIC-8 User management       | `epic-8-user-management-tasks.csv` | Open (TASK-045 to 051)                                                          |
 

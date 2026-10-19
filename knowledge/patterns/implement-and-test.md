@@ -258,3 +258,27 @@ Learned in TASK-037 (2026-10-19), adding the `override_approved` audit action to
   to the wrong person or a duplicate fails even when each step's own check passes.
 - **Mutation-test it at the route level too:** the same mutation scripts used for the services must each fail this file; a mutation that only
   the unit tests catch means the end-to-end flow has a hole.
+
+## HR-wide read pages (EPIC-7, the company calendar)
+
+- **A read whose scope is "everyone" still carries the role in its SQL.** Each read takes the signed-in user's id from the server session and starts with
+  `exists (select 1 from public.users h where h.id = ${viewerId}::uuid and h.role = 'hr_admin')`; `requireRole` on the page is only the first gate. A gated test runs every
+  read as a manager, an employee and an unknown id and expects empty answers, and the same read as HR must be non-empty (otherwise the empty answers prove nothing).
+- **Count people and requests separately.** The grid said 35 out and the day list said 42 because one person can hold two requests. Count `distinct user_id` for "out"
+  (grouping sets give the per-type rows and the day total in one statement) and say "N requests" on the list.
+- **Bound a date-range join by the range itself.** Joining every live request to each generated day read 6,803 rows for a one-month view; adding
+  `start_date <= month end and end_date >= month start` read 700 (5.6 ms to 2.1 ms). It cannot change a result, so only a timing proves it.
+- **Filters as a plain GET form** keep a page free of client code, and the browser script must wait for the streamed body after a client navigation (a Next `<Link>`
+  click does not fire `waitForNavigation`): wait for the URL to change, the network to go idle, and a known element to appear.
+- **A detail panel beside a grid leaves dead space when nothing is open: use a modal `<dialog>`.** Render it open on the server (it still shows without JavaScript) and reopen it with
+  `close()` then `showModal()` in an effect; `cancel` (Escape) and a click on the dialog element itself (the backdrop) both go back to the list address. Keep the Suspense key free of
+  the open item so the page behind stays on screen while the popup loads. **The page behind a modal is inert**, so a browser test must start from the closed page before it uses
+  the filters, and a check for a centred title must keep a side button out of the same flex row.
+- **Judge the gate by exit codes, not by the last line of output.** `npm run lint | tail -1` printed an empty line while ESLint had reported an error higher up (a `react/no-children-prop`
+  in a test written the same session), so "lint clean" was claimed wrongly once. Run `npm run lint; echo "exit $?"` (and the same for `tsc` and `prettier --check`), and read the exit code.
+- **A page that must stay inside the parallel-statement budget gets new figures by replacing a read, not adding one.** The manager dashboard already used all 4, so the new "out" figures
+  and the pending-approvals count came back from ONE statement that replaced the balance summary (managers have no balances), and the HR dashboard's removed calendar paid for its new read.
+  Assert the exact count per role in `query-budget.test.ts` (`toBe(4)`), not only `<= 4`.
+- **An odd last card takes the whole row below the breakpoint:** `[&>*:last-child:nth-child(odd)]:col-span-2` with `xl:...:col-span-1`, in the one helper that builds both the cards and
+  their skeleton. It fixes every role's row at once (an employee's three cards had a hole at 375 and 768 px).
+- **A predicate that only narrows rows an inner join already excludes cannot be proven by a data test** (the "window starts a week early" mutant survives). Say so in the retro and prove it with a timing instead of pretending the test covers it.
