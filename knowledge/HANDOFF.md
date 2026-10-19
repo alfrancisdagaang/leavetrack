@@ -76,7 +76,31 @@ error). The reworked TASK-037 keeps only the `override_approved` audit action an
 **Do not push any migration until the enum name `override_approved` is agreed: enum values can never be removed, and the CI `db-push`
 job applies migrations to staging on the next push to `main`.**
 
-**Next step: `/evaluate TASK-037`** (the rework). Open defaults awaiting the user's explicit OK: the manager can still reject an
+**TASK-037 evaluate findings (done 2026-10-19; next is `/plan TASK-037`, or re-run `/evaluate TASK-037` in a fresh session):**
+
+- Rework in place (the two migrations were never applied anywhere and nothing is committed or pushed, so editing them is allowed). File 1
+  becomes only `alter type public.audit_action add value if not exists 'override_approved'` (rename it, for example
+  `20261019000000_add_override_approved_action.sql`). File 2 drops the `leave_requests_decision_consistent` change and keeps the three
+  nullable `audit_log` columns (`days_requested`, `balance_before`, `shortfall`) with a simpler CHECK: the three are present exactly when
+  `action = 'override_approved'` (`balance_before >= 0`, `shortfall > 0`, `shortfall = days_requested - balance_before`) and null for every other
+  action (rename it, for example `20261019000100_audit_log_override_shortfall.sql`). Two files stay: a new enum value cannot be used in the
+  transaction that adds it (reproduced).
+- Revert the `pending_hr` parts: `src/lib/db/types.ts` (LEAVE_STATUSES back to three, AUDIT_ACTIONS gains only `override_approved`,
+  AuditLogEntry keeps the three nullable fields, restore the `decided_by` comment), the two "Waiting for HR" labels in
+  `src/app/(app)/approvals/team/team-format.ts` and `src/app/(app)/balance/balance-requests.tsx`, the extra label in `team-format.test.ts`, the
+  pending_hr probes in `supabase/tests/verify_schema.sql`, and `src/lib/db/override-schema.integration.test.ts` (rewrite for override_approved;
+  keep the enum-vs-types.ts test). After the revert a search for `pending_hr`, `escalated` and `Waiting for HR` in `src` and `supabase` must
+  find nothing. Rewrite the retro `knowledge/retros/2026-10-19-task-037-pending-hr-schema.md` at /validate (rename it).
+- Validate on real PostgreSQL 18 (embedded-postgres in the scratchpad), apply each migration file as one multi-statement query, seed twice,
+  run `verify_schema.sql`, run the gated test, and prove the probes can fail with mutations (weaken the CHECK arithmetic, drop the
+  "absent on other actions" half, drop `override_approved` from `types.ts`). Then the full gate (a build in a throwaway copy; check port 3000
+  first).
+- Note for TASK-038: the audit CHECK needs `balance_before >= 0` but `leave_balances` has no such constraint, so a negative balance row would
+  make the override insert fail with a constraint error; TASK-038 should refuse that case with a clear message.
+- `override_approved` is permanent once pushed (enum values cannot be removed); the CI `db-push` job applies migrations to staging on the
+  next push to `main`. Confirm the name with the user before any push.
+
+**Next step: `/plan TASK-037`.** Open defaults awaiting the user's explicit OK: the manager can still reject an
 over-balance request and the first decision wins; HR overrides only over-balance requests. Questions for the supervisor: who
 approves the top HR Admin's leave (moot after EPIC-10), may HR Admin manage users (EPIC-8), the role tone-down itself (EPIC-10).
 
