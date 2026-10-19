@@ -8,16 +8,30 @@ import { Field, Textarea } from "@/components/ui/field";
 
 type Mode = "idle" | "rejecting";
 
+/** `decision` is the manager's route (direct reports); `override` is HR's (TASK-038). */
+export type DecisionEndpoint = "decision" | "override";
+
+export const decisionUrl = (requestId: string, endpoint: DecisionEndpoint) =>
+  `/api/leave-requests/${requestId}/${endpoint}`;
+
 /**
  * Approve / reject controls for one pending request. The server decides everything that matters
  * (scope, balance, status); `canApprove` only avoids offering a button the server would refuse.
+ * The HR override page passes `endpoint="override"` and its own approve label.
  */
 export function ApprovalActions({
   requestId,
   canApprove,
+  endpoint = "decision",
+  approveLabel = "Approve",
+  showApprove = true,
 }: {
   requestId: string;
   canApprove: boolean;
+  endpoint?: DecisionEndpoint;
+  approveLabel?: string;
+  /** False when the manager cannot approve at all (over balance: HR decides): only Reject is offered. */
+  showApprove?: boolean;
 }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("idle");
@@ -29,7 +43,7 @@ export function ApprovalActions({
     setPending(true);
     setError(null);
     try {
-      const res = await fetch(`/api/leave-requests/${requestId}/decision`, {
+      const res = await fetch(decisionUrl(requestId, endpoint), {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
@@ -56,14 +70,16 @@ export function ApprovalActions({
     <div className="mt-4 space-y-3">
       {mode === "idle" ? (
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button
-            onClick={() => void send({ decision: "approve" })}
-            pending={pending}
-            disabled={!canApprove}
-            className="w-full sm:w-auto"
-          >
-            Approve
-          </Button>
+          {showApprove ? (
+            <Button
+              onClick={() => void send({ decision: "approve" })}
+              pending={pending}
+              disabled={!canApprove}
+              className="w-full sm:w-auto"
+            >
+              {approveLabel}
+            </Button>
+          ) : null}
           <Button
             variant="secondary"
             onClick={() => setMode("rejecting")}

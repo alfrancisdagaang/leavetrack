@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AccountMenu } from "@/components/ui/account-menu";
 import { initialsOf } from "@/components/ui/initials";
-import type { NavItem } from "@/components/ui/nav";
+import { currentNavItem, type NavItem } from "@/components/ui/nav";
 import { NAV_ICON } from "@/components/ui/nav-icons";
 
 interface AppFrameProps {
@@ -18,9 +18,6 @@ interface AppFrameProps {
   signOutAction: () => Promise<void>;
   children: ReactNode;
 }
-
-const isCurrent = (pathname: string, href: string) =>
-  pathname === href || pathname.startsWith(`${href}/`);
 
 const ROW =
   "group relative flex min-h-12 items-center gap-3 rounded-lg px-3 text-sm text-nav-text transition-colors";
@@ -42,12 +39,13 @@ interface NavListProps {
 
 /** The role's navigation. The current page is highlighted and marked aria-current. */
 function NavList({ items, pathname, collapsed = false }: NavListProps) {
+  const currentKey = currentNavItem(items, pathname)?.key;
   return (
     <nav aria-label="Main">
       <ul className="flex flex-col gap-2">
         {items.map((item) => {
           const icon = NAV_ICON[item.key];
-          const current = isCurrent(pathname, item.href);
+          const current = item.key === currentKey;
           const content = (
             <>
               {icon ? <Image src={icon} alt="" width={23} height={23} unoptimized /> : null}
@@ -146,7 +144,7 @@ export function AppFrame({
     };
   }, [drawerOpen]);
 
-  const title = items.find((item) => isCurrent(pathname, item.href))?.label ?? "LeaveTrack";
+  const title = currentNavItem(items, pathname)?.label ?? "LeaveTrack";
 
   return (
     <div className="min-h-dvh lg:flex">

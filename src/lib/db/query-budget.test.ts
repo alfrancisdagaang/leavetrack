@@ -82,6 +82,8 @@ const { RequestFormSection } = await import("@/app/(app)/requests/new/request-fo
 const { BalanceSection } = await import("@/app/(app)/balance/balance-section");
 const { PendingSection, DecidedSection } = await import("@/app/(app)/approvals/approvals-sections");
 const { AuditBody } = await import("@/app/(app)/audit/audit-body");
+const { OverrideQueueSection, RecentOverridesSection } =
+  await import("@/app/(app)/approvals/overrides/override-sections");
 const { RosterSection } = await import("@/app/(app)/approvals/team/roster-section");
 const { default: TeamMemberRoute } = await import("@/app/(app)/approvals/team/[userId]/page");
 
@@ -138,6 +140,15 @@ describe("query budget (parallel statements per page)", () => {
   it("Team approvals stays within the budget", async () => {
     await Promise.all([PendingSection({ managerId: "m1" }), DecidedSection({ managerId: "m1" })]);
     expect(tracker.peak()).toBeGreaterThan(0);
+    expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it("HR overrides reads the queue and the recent overrides: two statements", async () => {
+    await Promise.all([
+      OverrideQueueSection({ hrId: "h1" }),
+      RecentOverridesSection({ now: new Date("2026-10-19T09:00:00Z"), timeZone: "UTC" }),
+    ]);
+    expect(tracker.peak()).toBe(2);
     expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
   });
 

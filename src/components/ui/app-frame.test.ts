@@ -39,6 +39,28 @@ describe("AppFrame", () => {
     expect(manager).not.toContain("My Team");
     expect(frame("employee")).not.toContain("My Team");
     expect(frame("hr_admin")).toContain("Audit History");
+    expect(manager).not.toContain("HR Overrides");
+    expect(frame("employee")).not.toContain("HR Overrides");
+    expect(frame("hr_admin")).toContain("HR Overrides");
+  });
+
+  it("on /approvals/overrides only HR Overrides is current, and it titles the top bar (not Team Approvals)", () => {
+    path = "/approvals/overrides";
+    const html = frame("hr_admin");
+    path = "/approvals";
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(html).toMatch(
+      /<a(?=[^>]*aria-current="page")(?=[^>]*href="\/approvals\/overrides")[^>]*>/,
+    );
+    expect(html).toMatch(/<p class="[^"]*text-lg[^"]*">HR Overrides<\/p>/);
+  });
+
+  it("for HR, /approvals/team still highlights Team Approvals, not HR Overrides", () => {
+    path = "/approvals/team";
+    const html = frame("hr_admin");
+    path = "/approvals";
+    expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+    expect(html).toMatch(/<a(?=[^>]*aria-current="page")(?=[^>]*href="\/approvals")[^>]*>/);
   });
 
   it("marks the current page and highlights it", () => {
