@@ -1,6 +1,42 @@
 # LeaveTrack — Session Handoff
 
-## READ FIRST: end of session 2026-10-19, night (EPIC-7 calendar, dashboard rework, Balance Overrides; supersedes every older note below where they disagree)
+## READ FIRST: end of session 2026-10-19, late night (EPIC-12 manager split; supersedes every older note below where they disagree)
+
+**State in a few lines.** The manager split is **built, validated and committed on `main`**, and pushed together with the earlier local commits (the EPIC-11 docs, EPIC-7, the dashboard rework and Balance Overrides) when the user asked
+("commit and push it"). Ask the user to read the GitHub Actions run (`gh` is not installed, so I cannot see it); `db-push` has no new migration to apply. Demo: **Tue 2026-10-20**. Gate on the final code (exit codes read): lint 0, prettier 0,
+tsc 0, `npm test` 0 with **1,023 passed, 164 skipped** (gated), build 0 on a throwaway copy. Browser check (headless Chrome, production build, seeded PostgreSQL 18.4, mock cookie, one context per role) **140 checks, 0 failed** at 1440, 768, 375 and 320 px.
+Retro: `knowledge/retros/2026-10-19-manager-split.md`. Tasks: `docs/dev-tasks/epic-12-manager-split-tasks.csv` (EPIC-12, TASK-067 to 069, status `Built`). No query, migration, role or required-feature change.
+
+**What shipped (EPIC-12).**
+
+1. **Two nav items for managers:** Team Approvals (`/approvals`) and **My Team** (`/approvals/team`, new white `nav-team.svg`). `TeamTabs` is gone. URLs are unchanged, so no redirects (`currentNavItem` picks the longest matching href: `/approvals/team/*` highlights My Team).
+2. **Team Approvals in the Balance Overrides style:** a card per section (icon, title, "N pending" / "N recent" chip), rows with four columns and dividers from `lg`, dates as "Nov 2 to Nov 6, 2026". The shared row pieces are in `approvals/row-layout.tsx` (also used by `overrides/override-row.tsx`, refactored, same markup). Approve and Reject, and the over-balance rule (Reject only, "Waiting for HR override"), are as before.
+3. **My Team as a grid of cards** (`roster-row.tsx`, `roster-grid.ts`: a wrapping flex whose cells grow, so the last row always fills the width). A card links to `/approvals/team?member=<id>`, which opens a **modal `<dialog>` popup** (`member-dialog.tsx`, the only client piece, a copy of the calendar's day dialog; `member-popup.tsx` does the read with the same `getTeamMemberPage` as the member page, ONE statement, so My Team with a member open is 2 statements). Filters, pagination and Clear keep `?member=` (`memberHref/filtersHref/filterChips` take a `popup` flag; the filter form posts to `/approvals/team` with a hidden `member` field). Another team's id, a missing or deleted person, the manager themself and a malformed id all show the SAME message in the popup; a malformed id never reaches the database. The old page `/approvals/team/[userId]` still works.
+4. **Decision after validation (the user's): managers do not see balances.** Removed (UI only): the balances on My Team cards, the balance cards in the popup and on `/approvals/team/[userId]` (`member-balances.tsx` deleted), and the in-balance note I had added on Team Approvals rows. **Kept on purpose (the user chose it):** the text on a request that cannot be approved: "Over balance by N days", "the X balance is M days", "No balance record", "Balance is negative" (Reject only). The balance data is still read (the over-balance check needs it); nothing in SQL, types or the API changed. HR's Balance Overrides and the employee's My Balance still show amounts. The docs only say the employee views their own balance (BR-03, US-02) and never give managers a balance view; the My Team balances were our own addition (US-12/13). **Say this plainly if the supervisor asks:** a manager sees a balance figure only on a request that is blocked, never as a general view.
+
+**Decisions taken (defaults, no objection).** Popup, not a link to the member page; URLs kept; the old member route kept; an EPIC-12 CSV added.
+
+**Not seen:** GitHub Actions and Vercel for these commits, the real sign-in path (every check used the mock cookie: Marco, Hana, Elena), a screen reader, another team's manager in a browser (the mock has no such login; the not-found path is covered by tests and by Leo's id). The gated real-database tests were not rerun (no SQL changed).
+
+**Next (not started):** EPIC-11 (My Profile, `docs/dev-tasks/epic-11-profile-tasks.csv`, TASK-062 to 066), then EPIC-8 (user management with email invites; the biggest and riskiest). TASK-041 is still deferred, TASK-056 not built. Start each with `/evaluate`, then `/plan` (approval gate), `/apply`, `/validate`.
+
+**Open items (the user's; nothing done).**
+
+- **Read the Actions run** for the push (and Vercel). Nothing about it has been seen.
+- **CSV and handoff bookkeeping:** `epic-7-hr-calendar-tasks.csv` (TASK-042 to 044 and the header), `epic-9-notifications-tasks.csv`, and the dashboard and Balance Overrides work are NOT marked in any CSV (only when asked). EPIC-12's rows are `Built`, not `Done`.
+- **Backlog (from the retro):** the request table in the popup and on the old member page still shows ISO dates ("2026-11-23 to 2026-12-02"; `formatRange` would fix it, but some tests assert the ISO text); two ways to open a member (popup and the old page: redirect or delete later); `member-dialog.tsx` duplicates `calendar/day-dialog.tsx`; the popup's Close button shows a focus ring when it opens; the roster card's last-request badge says "Approved" for an overridden request; a card's `aria-label` replaces its text for screen readers. Older backlog items below still stand (HR "Pending requests" can look large, the 320 px top bar title for Balance Overrides, and so on).
+- The older open items still stand (orphaned pending requests on staging, accrual still crediting managers and HR, the supervisor's questions, TASK-041, TASK-056, EPIC-11, EPIC-8).
+
+**Harness notes added this session.** `embedded-postgres`, `postgres` and `puppeteer-core` in the session scratchpad again (scripts gone afterwards; recreate from `knowledge/patterns/implement-and-test.md`). **Copy the repo to the scratchpad with `.env.local` removed** (it points at staging) before building or serving, and give the server its own `DATABASE_URL`; use another port than 3000. `timeout` does not exist on this Mac (a `timeout ... | grep` prints nothing), and zsh refuses `grep --include=*.ts` unquoted. A `pkill -f embedded-postgres` after the run stops the database.
+
+**Suggested opening prompt for the next session:**
+
+> Read AGENTS.md, knowledge/HANDOFF.md and the newest retros in knowledge/retros/, then run git log and git status. Tell me the current state in a few lines and what's next. Don't
+> start any work yet. (Then: `/evaluate` EPIC-11, My Profile.)
+
+---
+
+## Earlier the same night: EPIC-7 calendar, dashboard rework, Balance Overrides (still true unless the block above says otherwise)
 
 **State in a few lines.** Everything below is **built, validated and committed locally on `main`; NOT pushed** (the user said "not yet"). `origin/main` is at `0cdc2de`; the local commits ahead
 of it are `38d25f3` (the EPIC-11 docs, from the previous session) and this session's four commits (`git log origin/main..HEAD`). Ask before pushing, and watch the Actions run afterwards: `db-push`
@@ -43,7 +79,7 @@ Marco, Hana only), a screen reader, real Supabase latency for the new reads.
 "Pending requests" on the HR dashboard is company-wide and overlaps the override card; the HR "Next 7 days" strip shows only weekdays; the popup is a modal dialog, not a side panel;
 no index for the calendar; the month name is NOT centred any more (the second reference put it in the controls row).
 
-### NEXT SESSION: the manager's Team approvals and My Team (decided with the user; is it possible? Yes, and most pieces exist)
+### (Done, see EPIC-12 above) the manager's Team approvals and My Team plan that was written before it was built
 
 The user asked for three things; **none is started**:
 

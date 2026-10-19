@@ -17,12 +17,12 @@ Seed teams: Marco (manager) -> Elena, Jun; Priya (manager) -> Leo. Hana and Sam 
 
 ## AC1: each role signs in and sees only its own data
 
-| User               | Expect                                                                                                            | OK  |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------- | --- |
-| `elena.cruz@...`   | Dashboard; balances Vacation, Sick; own requests on the calendar; **no** approvals link                           | [ ] |
-| `marco.santos@...` | Pending approvals card; **no** Request Leave or My Balance; queue has Jun's and Elena's requests                  | [ ] |
-| `hana.reyes@...`   | "Awaiting HR override" card (1); Balance Overrides, Calendar and Audit History; **no** Team Approvals, no balance | [ ] |
-| `leo.garcia@...`   | Own request (9-10 Nov) only; no approvals link; calendar shows only Leo                                           | [ ] |
+| User               | Expect                                                                                                                                                  | OK  |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| `elena.cruz@...`   | Dashboard; balances Vacation, Sick; own requests on the calendar; **no** approvals link                                                                 | [ ] |
+| `marco.santos@...` | Pending approvals card; **no** Request Leave or My Balance; Team Approvals and My Team are separate sidebar items; queue has Jun's and Elena's requests | [ ] |
+| `hana.reyes@...`   | "Awaiting HR override" card (1); Balance Overrides, Calendar and Audit History; **no** Team Approvals, no balance                                       | [ ] |
+| `leo.garcia@...`   | Own request (9-10 Nov) only; no approvals link; calendar shows only Leo                                                                                 | [ ] |
 
 (Emails end in `@leavetrack.example`.)
 
