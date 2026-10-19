@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { initialsOf } from "@/components/ui/initials";
@@ -87,6 +88,14 @@ export function AccountMenu({ name, roleLabel, email, signOutAction }: AccountMe
           </div>
           <p className="break-all text-xs text-ink-muted">{email}</p>
           <hr className="border-line" />
+          <Link
+            href="/profile"
+            prefetch={false}
+            className="flex min-h-11 w-full items-center gap-2.5 rounded-lg text-[13px] font-semibold text-ink hover:bg-brand-50"
+          >
+            <Image src="/icons/user-dark.svg" alt="" width={20} height={20} unoptimized />
+            Profile
+          </Link>
           <form action={signOutAction}>
             <button
               type="submit"

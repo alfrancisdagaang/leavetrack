@@ -8,4 +8,5 @@ export const NAV_ICON: Record<string, string | undefined> = {
   overrides: "/icons/nav-override.svg",
   calendar: "/icons/nav-calendar.svg",
   audit: "/icons/nav-history.svg",
+  profile: "/icons/nav-profile.svg",
 };

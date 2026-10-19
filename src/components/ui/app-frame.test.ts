@@ -31,6 +31,14 @@ function frame(role: Parameters<typeof navItemsFor>[0]) {
 }
 
 describe("AppFrame", () => {
+  it("shows My Profile in the sidebar for every role, after the role's own items", () => {
+    for (const role of ["employee", "manager", "hr_admin"] as const) {
+      const html = frame(role);
+      expect(html).toMatch(/<a[^>]*href="\/profile"[^>]*>/);
+      expect(html).toContain("/icons/nav-profile.svg");
+    }
+  });
+
   it("lists only the items the role may open, and nothing else", () => {
     const manager = frame("manager");
     for (const label of ["Dashboard", "Team Approvals", "My Team"])
@@ -95,6 +103,18 @@ describe("AppFrame", () => {
     );
     expect(html).toMatch(new RegExp(`<p class="[^"]*text-lg[^"]*">${title}</p>`));
   });
+
+  it.each(["employee", "manager", "hr_admin"] as const)(
+    "on /profile/organization titles the top bar 'My Profile' for %s and highlights only the My Profile item",
+    (role) => {
+      path = "/profile/organization";
+      const html = frame(role);
+      path = "/approvals";
+      expect(html).toMatch(/<p class="[^"]*text-lg[^"]*">My Profile<\/p>/);
+      expect(html.match(/aria-current="page"/g)).toHaveLength(1);
+      expect(html).toMatch(/<a(?=[^>]*aria-current="page")(?=[^>]*href="\/profile")[^>]*>/);
+    },
+  );
 
   it("starts expanded with a labelled collapse control and a closed navigation drawer", () => {
     const html = frame("manager");

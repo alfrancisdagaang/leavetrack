@@ -65,6 +65,14 @@ const CALENDAR: NavItem = {
   available: true,
 };
 
+const PROFILE: NavItem = {
+  key: "profile",
+  label: "My Profile",
+  href: "/profile",
+  description: "Your profile, your place in the organization and your account.",
+  available: true,
+};
+
 const AUDIT: NavItem = {
   key: "audit",
   label: "Audit History",
@@ -76,12 +84,13 @@ const AUDIT: NavItem = {
 /**
  * Navigation per role (EPIC-10). Only employees request leave and see a balance; only managers
  * have Team Approvals and My Team; HR admins get Balance Overrides, the company Calendar and Audit History.
+ * Every role ends with My Profile (EPIC-11): it is each person's own page, so it is not role-gated.
  * This only decides what is shown — access is enforced by requireRole()/assertRole() and SQL.
  */
 export function navItemsFor(role: UserRole): NavItem[] {
-  if (role === "employee") return [DASHBOARD, REQUEST, BALANCE];
-  if (role === "manager") return [DASHBOARD, APPROVALS, TEAM];
-  return [DASHBOARD, OVERRIDES, CALENDAR, AUDIT];
+  if (role === "employee") return [DASHBOARD, REQUEST, BALANCE, PROFILE];
+  if (role === "manager") return [DASHBOARD, APPROVALS, TEAM, PROFILE];
+  return [DASHBOARD, OVERRIDES, CALENDAR, AUDIT, PROFILE];
 }
 
 /**
@@ -96,6 +105,16 @@ export function currentNavItem(items: readonly NavItem[], pathname: string): Nav
     if (matches && (!best || item.href.length > best.href.length)) best = item;
   }
   return best;
+}
+
+/**
+ * The top bar title: the current nav item's label. My Profile and its sub-pages (/profile/organization,
+ * /profile/settings) are all one nav item, and are titled "My Profile" here explicitly so a sub-page
+ * can never fall back to a different label.
+ */
+export function pageTitleFor(items: readonly NavItem[], pathname: string): string {
+  if (pathname === "/profile" || pathname.startsWith("/profile/")) return "My Profile";
+  return currentNavItem(items, pathname)?.label ?? "LeaveTrack";
 }
 
 const WORKSPACE_LABEL: Record<UserRole, string> = {

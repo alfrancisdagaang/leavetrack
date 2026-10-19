@@ -8,7 +8,7 @@ import { AccountMenu } from "@/components/ui/account-menu";
 import { NotificationBell } from "@/components/ui/notification-bell";
 import type { UserRole } from "@/lib/db/types";
 import { initialsOf } from "@/components/ui/initials";
-import { currentNavItem, type NavItem } from "@/components/ui/nav";
+import { currentNavItem, pageTitleFor, type NavItem } from "@/components/ui/nav";
 import { NAV_ICON } from "@/components/ui/nav-icons";
 
 interface AppFrameProps {
@@ -151,7 +151,7 @@ export function AppFrame({
     };
   }, [drawerOpen]);
 
-  const title = currentNavItem(items, pathname)?.label ?? "LeaveTrack";
+  const title = pageTitleFor(items, pathname);
 
   return (
     <div className="min-h-dvh lg:flex">

@@ -48,26 +48,45 @@ function trackingSql() {
     const text = strings.join("?");
     inFlight += 1;
     peak = Math.max(peak, inFlight);
-    const rows = /with f as/.test(text)
-      ? [{ total: 0, approved: 0, rejected: 0, pending: 0, deleted: 0, rows: [] }]
-      : /as "leaveTypes"/.test(text)
-        ? [{ leaveTypes: [], deciders: [], employeeNames: [] }]
-        : /with member as/.test(text)
-          ? [
-              {
-                member: { id: "x", name: "Elena Cruz", role: "employee" },
-                types: [],
-                balances: [],
-                pending: [],
-                total: 0,
-                requests: [],
-              },
-            ]
-          : /from public\.users u\s+where u\.manager_id/.test(text)
-            ? []
-            : /json_agg\(/.test(text)
-              ? [{ types: [], balances: [], pending: [], pending_approvals: 0 }]
-              : [];
+    const rows = /with me as/.test(text)
+      ? [
+          {
+            manager: null,
+            me: { id: "u1", name: "Elena", role: "employee", reports: 0 },
+            reports: [],
+          },
+        ]
+      : /with recursive viewer/.test(text)
+        ? [
+            {
+              manager: null,
+              me: { id: "u1", name: "Marco", role: "manager", reports: 0 },
+              total: 0,
+              people: [],
+            },
+          ]
+        : /u\.manager_id is null/.test(text)
+          ? [{ total: 0, people: [] }]
+          : /with f as/.test(text)
+            ? [{ total: 0, approved: 0, rejected: 0, pending: 0, deleted: 0, rows: [] }]
+            : /as "leaveTypes"/.test(text)
+              ? [{ leaveTypes: [], deciders: [], employeeNames: [] }]
+              : /with member as/.test(text)
+                ? [
+                    {
+                      member: { id: "x", name: "Elena Cruz", role: "employee" },
+                      types: [],
+                      balances: [],
+                      pending: [],
+                      total: 0,
+                      requests: [],
+                    },
+                  ]
+                : /from public\.users u\s+where u\.manager_id/.test(text)
+                  ? []
+                  : /json_agg\(/.test(text)
+                    ? [{ types: [], balances: [], pending: [], pending_approvals: 0 }]
+                    : [];
     return new Promise<unknown[]>((resolve) =>
       setTimeout(() => {
         inFlight -= 1;
@@ -88,6 +107,8 @@ const { OverrideQueueSection, RecentOverridesSection } =
   await import("@/app/(app)/approvals/overrides/override-sections");
 const { RosterSection } = await import("@/app/(app)/approvals/team/roster-section");
 const { MemberPopup } = await import("@/app/(app)/approvals/team/member-popup");
+const { OverviewSection } = await import("@/app/(app)/profile/overview-section");
+const { OrgSection } = await import("@/app/(app)/profile/organization/org-section");
 const { CalendarBody } = await import("@/app/(app)/calendar/calendar-body");
 const { default: TeamMemberRoute } = await import("@/app/(app)/approvals/team/[userId]/page");
 
@@ -166,6 +187,28 @@ describe("query budget (parallel statements per page)", () => {
       RecentOverridesSection({ now: new Date("2026-10-19T09:00:00Z"), timeZone: "UTC" }),
     ]);
     expect(tracker.peak()).toBe(2);
+    expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it.each([
+    ["employee", 1],
+    ["manager", 1],
+    ["hr_admin", 2],
+  ] as const)(
+    "the Organization tab for %s reads %i statement(s), within the budget (TASK-064)",
+    async (role, statements) => {
+      await OrgSection({
+        role,
+        viewer: { id: "u1", name: "Elena Cruz", email: "elena.cruz@leavetrack.example" },
+      });
+      expect(tracker.peak()).toBe(statements);
+      expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+    },
+  );
+
+  it("My Profile Overview reads the person and their manager in ONE statement (TASK-062 AC3)", async () => {
+    await OverviewSection({ userId: "u1" });
+    expect(tracker.peak()).toBe(1);
     expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
   });
 
