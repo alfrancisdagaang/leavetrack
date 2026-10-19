@@ -2,7 +2,9 @@ import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BalanceSummaryItem } from "@/lib/leave/balance";
+import type * as OutFiguresModule from "@/lib/leave/out-figures";
 
+const outf = vi.hoisted(() => ({ getOutFigures: vi.fn() }));
 const svc = vi.hoisted(() => ({ getDashboardSummary: vi.fn() }));
 const ovr = vi.hoisted(() => ({ getOverrideCount: vi.fn() }));
 const cal = vi.hoisted(() => ({ getCalendarRequests: vi.fn() }));
@@ -16,6 +18,10 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/leave/service", () => ({
   requireDb: () => ({}),
   getDashboardSummary: svc.getDashboardSummary,
+}));
+vi.mock("@/lib/leave/out-figures", async (importOriginal) => ({
+  ...(await importOriginal<typeof OutFiguresModule>()),
+  getOutFigures: outf.getOutFigures,
 }));
 vi.mock("@/lib/leave/override-queue", () => ({ getOverrideCount: ovr.getOverrideCount }));
 vi.mock("@/lib/leave/calendar", () => ({ getCalendarRequests: cal.getCalendarRequests }));
@@ -41,57 +47,98 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
+const TODAY = "2026-10-21"; // a Wednesday
+const FIGURES = {
+  days: [
+    { day: "2026-10-21", total: 5, pending: 2 },
+    { day: "2026-10-22", total: 3, pending: 0 },
+    { day: "2026-10-23", total: 0, pending: 0 },
+  ],
+  weekPeople: 7,
+  pendingTotal: 4,
+};
+
 describe("SummarySection", () => {
-  it("shows every card as unavailable when the one summary read fails", async () => {
+  it("shows every employee card as unavailable when the one summary read fails", async () => {
     svc.getDashboardSummary.mockRejectedValue(new Error("boom"));
-    const employee = await html(SummarySection({ role: "employee", userId: "u1" }));
+    const employee = await html(SummarySection({ role: "employee", userId: "u1", today: TODAY }));
     expect(employee.match(/Not available right now\./g)).toHaveLength(3);
-
-    const manager = await html(SummarySection({ role: "manager", userId: "m1" }));
-    expect(manager.match(/Not available right now\./g)).toHaveLength(1);
-    expect(manager).toContain("Pending approvals");
+    expect(outf.getOutFigures).not.toHaveBeenCalled();
   });
 
-  it("reads balances and the pending count in one call, scoped by the given id", async () => {
-    svc.getDashboardSummary.mockResolvedValue({ balances: BALANCES, pendingApprovals: 2 });
-    const out = await html(SummarySection({ role: "manager", userId: "m1" }));
-    expect(svc.getDashboardSummary).toHaveBeenCalledTimes(1);
-    expect(svc.getDashboardSummary).toHaveBeenCalledWith({}, "m1", true);
-    expect(out).toContain("Pending approvals");
-    // A manager has no balance cards (EPIC-10), even if the read returned balances.
-    expect(out).not.toContain("Vacation");
-    expect(out).toContain("2");
-  });
-
-  it("does not ask for the approvals count for an employee", async () => {
+  it("does not ask for the approvals count for an employee, and gives no out figures", async () => {
     svc.getDashboardSummary.mockResolvedValue({ balances: BALANCES, pendingApprovals: null });
-    const out = await html(SummarySection({ role: "employee", userId: "u1" }));
+    const out = await html(SummarySection({ role: "employee", userId: "u1", today: TODAY }));
     expect(svc.getDashboardSummary).toHaveBeenCalledWith({}, "u1", false);
     expect(out).not.toContain("Pending approvals");
+    expect(out).not.toContain("Out today");
   });
 
-  it("gives HR the override count in ONE read, and no approvals or balance read (EPIC-10)", async () => {
+  it("gives a manager three cards from ONE read, scoped to the team by the session id", async () => {
+    outf.getOutFigures.mockResolvedValue(FIGURES);
+    const out = await html(SummarySection({ role: "manager", userId: "m1", today: TODAY }));
+    expect(outf.getOutFigures).toHaveBeenCalledTimes(1);
+    expect(outf.getOutFigures).toHaveBeenCalledWith(
+      {},
+      { viewerId: "m1", scope: "team", today: TODAY },
+    );
+    expect(svc.getDashboardSummary).not.toHaveBeenCalled();
+    expect(ovr.getOverrideCount).not.toHaveBeenCalled();
+    expect(out).toContain("Pending approvals");
+    expect(out).toContain("Out today");
+    expect(out).toContain("Out in the next 7 days");
+    expect(out).toContain("On your team");
+    // A manager has no balance cards (EPIC-10) and no HR strip.
+    expect(out).not.toContain("Vacation");
+    expect(out).not.toContain("Next 7 days</h2>");
+  });
+
+  it("says all three manager cards are unavailable when the one read fails", async () => {
+    outf.getOutFigures.mockRejectedValue(new Error("boom"));
+    const out = await html(SummarySection({ role: "manager", userId: "m1", today: TODAY }));
+    expect(out.match(/Not available right now\./g)).toHaveLength(3);
+  });
+
+  it("gives HR three cards and the Next 7 days strip, with two reads and no balance read (EPIC-10)", async () => {
     ovr.getOverrideCount.mockResolvedValue(3);
-    const out = await html(SummarySection({ role: "hr_admin", userId: "h1" }));
-    expect(ovr.getOverrideCount).toHaveBeenCalledTimes(1);
+    outf.getOutFigures.mockResolvedValue(FIGURES);
+    const out = await html(SummarySection({ role: "hr_admin", userId: "h1", today: TODAY }));
     expect(ovr.getOverrideCount).toHaveBeenCalledWith({}, "h1");
+    expect(outf.getOutFigures).toHaveBeenCalledWith(
+      {},
+      { viewerId: "h1", scope: "company", today: TODAY },
+    );
     expect(svc.getDashboardSummary).not.toHaveBeenCalled();
     expect(out).toContain("Awaiting HR override");
+    expect(out).toContain("Out today");
+    expect(out).toContain("Pending requests");
     expect(out).not.toContain("Pending approvals");
-    expect(out).toContain("3");
+    expect(out).toContain("Next 7 days");
+    expect(out).toContain('href="/calendar?month=2026-10&amp;day=2026-10-21"');
+    expect(out).toContain('href="/calendar"');
   });
 
-  it("says the override count is unavailable when its read fails, instead of throwing", async () => {
+  it("says the override card is unavailable when its read fails, and keeps the other cards", async () => {
     ovr.getOverrideCount.mockRejectedValue(new Error("boom"));
-    const out = await html(SummarySection({ role: "hr_admin", userId: "h1" }));
+    outf.getOutFigures.mockResolvedValue(FIGURES);
+    const out = await html(SummarySection({ role: "hr_admin", userId: "h1", today: TODAY }));
     expect(out.match(/Not available right now\./g)).toHaveLength(1);
     expect(out).toContain("Awaiting HR override");
+    expect(out).toContain("Next 7 days");
   });
 
-  it("does not read the override count for a manager", async () => {
-    svc.getDashboardSummary.mockResolvedValue({ balances: BALANCES, pendingApprovals: 1 });
-    await html(SummarySection({ role: "manager", userId: "m1" }));
-    expect(ovr.getOverrideCount).not.toHaveBeenCalled();
+  it("says the out cards are unavailable and drops the strip when the out read fails", async () => {
+    ovr.getOverrideCount.mockResolvedValue(0);
+    outf.getOutFigures.mockRejectedValue(new Error("boom"));
+    const out = await html(SummarySection({ role: "hr_admin", userId: "h1", today: TODAY }));
+    expect(out.match(/Not available right now\./g)).toHaveLength(2);
+    expect(out).not.toContain("Next 7 days</h2>");
+  });
+
+  it("writes Weekend, not a number, for Out today on a Saturday", async () => {
+    outf.getOutFigures.mockResolvedValue({ ...FIGURES, days: FIGURES.days.slice(1) });
+    const out = await html(SummarySection({ role: "manager", userId: "m1", today: "2026-10-24" }));
+    expect(out).toContain("Weekend");
   });
 });
 

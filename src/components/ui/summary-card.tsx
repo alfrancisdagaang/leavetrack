@@ -6,6 +6,10 @@ const ICON: Record<string, string> = {
   sick: "/icons/heart-pulse.svg",
   unpaid: "/icons/calendar-minus.svg",
   approvals: "/icons/users-card.svg",
+  overrides: "/icons/clipboard-list.svg",
+  "out-today": "/icons/calendar-days.svg",
+  "out-week": "/icons/calendar-days.svg",
+  "pending-all": "/icons/clock-3.svg",
 };
 
 /** One dashboard summary tile. Presentational: all numbers and wording arrive in `card`. */

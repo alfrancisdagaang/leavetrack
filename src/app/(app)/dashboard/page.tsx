@@ -9,7 +9,12 @@ import { getEnv } from "@/lib/env";
 import { monthKey, parseMonthParam, todayIn } from "@/lib/leave/calendar-layout";
 import { welcomeSubtitle } from "@/lib/leave/dashboard";
 import { ActivitySection, CalendarSection, SummarySection, UpcomingSection } from "./sections";
-import { CalendarSkeleton, ListCardSkeleton, SummaryCardsSkeleton } from "./skeletons";
+import {
+  CalendarSkeleton,
+  ListCardSkeleton,
+  OutStripSkeleton,
+  SummaryCardsSkeleton,
+} from "./skeletons";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
@@ -52,28 +57,34 @@ export default async function DashboardPage({
       <Suspense
         fallback={
           <LoadingRegion>
-            <SummaryCardsSkeleton count={canRequestLeave(role) ? 3 : 1} />
+            <div className="space-y-6">
+              <SummaryCardsSkeleton count={3} />
+              {role === "hr_admin" ? <OutStripSkeleton /> : null}
+            </div>
           </LoadingRegion>
         }
       >
-        <SummarySection role={role} userId={user.id} />
+        <SummarySection role={role} userId={user.id} today={today} />
       </Suspense>
-      <Suspense
-        key={`${monthKey(month)}-${showRejected}`}
-        fallback={
-          <LoadingRegion>
-            <CalendarSkeleton />
-          </LoadingRegion>
-        }
-      >
-        <CalendarSection
-          role={role}
-          viewerId={user.id}
-          month={month}
-          today={today}
-          showRejected={showRejected}
-        />
-      </Suspense>
+      {/* The company-wide calendar page replaces the HR dashboard calendar (EPIC-7). */}
+      {role !== "hr_admin" ? (
+        <Suspense
+          key={`${monthKey(month)}-${showRejected}`}
+          fallback={
+            <LoadingRegion>
+              <CalendarSkeleton />
+            </LoadingRegion>
+          }
+        >
+          <CalendarSection
+            role={role}
+            viewerId={user.id}
+            month={month}
+            today={today}
+            showRejected={showRejected}
+          />
+        </Suspense>
+      ) : null}
       <div className="grid gap-6 lg:grid-cols-2">
         <Suspense
           fallback={

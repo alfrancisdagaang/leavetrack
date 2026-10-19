@@ -52,45 +52,113 @@ describe("summaryCards", () => {
     expect(keys).toEqual(["vacation", "sick", "unpaid"]);
   });
 
-  it("gives managers only the pending-approvals card, with no balance cards (EPIC-10)", () => {
-    const cards = summaryCards({ role: "manager", balances: BALANCES, pendingApprovals: 3 });
-    expect(cards.map((c) => c.key)).toEqual(["approvals"]);
-    expect(cards[0]).toMatchObject({
-      key: "approvals",
-      kind: "count",
-      amount: 3,
-      unit: "requests",
+  const OUT = {
+    days: [
+      { day: "2026-10-21", total: 5, pending: 2 },
+      { day: "2026-10-22", total: 3, pending: 0 },
+    ],
+    weekPeople: 7,
+    pendingTotal: 4,
+  };
+  const TODAY = "2026-10-21"; // a Wednesday
+
+  it("gives managers three cards: approvals, out today and out in the next 7 days, no balances", () => {
+    const cards = summaryCards({
+      role: "manager",
+      balances: BALANCES,
+      pendingApprovals: 3,
+      out: OUT,
+      today: TODAY,
     });
-    const one = summaryCards({ role: "manager", balances: BALANCES, pendingApprovals: 1 })[0];
+    expect(cards.map((c) => c.key)).toEqual(["approvals", "out-today", "out-week"]);
+    expect(cards[0]).toMatchObject({ kind: "count", amount: 3, unit: "requests" });
+    expect(cards[1]).toMatchObject({
+      title: "Out today",
+      amount: 5,
+      unit: "people",
+      lines: ["On your team.", "2 still pending."],
+    });
+    expect(cards[2]).toMatchObject({
+      title: "Out in the next 7 days",
+      amount: 7,
+      unit: "people",
+      lines: ["On your team,", "through Tue 27 Oct 2026."],
+    });
+    const one = summaryCards({ role: "manager", balances: null, pendingApprovals: 1 })[0];
     expect(one).toMatchObject({ amount: 1, unit: "request" });
   });
 
-  it("gives HR only the override-count card, never approvals or balances (TASK-059 AC3)", () => {
+  it("gives HR three cards: overrides, out today and pending requests, never approvals or balances", () => {
     const cards = summaryCards({
       role: "hr_admin",
       balances: BALANCES,
       pendingApprovals: 5,
       overrides: 2,
+      out: OUT,
+      today: TODAY,
     });
-    expect(cards.map((c) => c.key)).toEqual(["overrides"]);
+    expect(cards.map((c) => c.key)).toEqual(["overrides", "out-today", "pending-all"]);
     expect(cards[0]).toMatchObject({
       title: "Awaiting HR override",
       kind: "count",
       amount: 2,
       unit: "requests",
     });
+    expect(cards[1]).toMatchObject({
+      amount: 5,
+      unit: "people",
+      lines: ["Across the company.", "2 still pending."],
+    });
+    expect(cards[2]).toMatchObject({ title: "Pending requests", amount: 4, unit: "requests" });
     expect(
       summaryCards({ role: "hr_admin", balances: null, pendingApprovals: null, overrides: 1 })[0],
     ).toMatchObject({ amount: 1, unit: "request" });
-    expect(
-      summaryCards({ role: "hr_admin", balances: null, pendingApprovals: null })[0]?.kind,
-    ).toBe("unavailable");
   });
 
-  it("says so when balances or the count are unavailable instead of inventing numbers", () => {
-    const cards = summaryCards({ role: "manager", balances: null, pendingApprovals: null });
-    expect(cards.map((c) => c.kind)).toEqual(["unavailable"]);
-    expect(cards.every((c) => c.amount === null)).toBe(true);
+  it("says Out today is Weekend, with no number, on a Saturday or Sunday", () => {
+    for (const today of ["2026-10-24", "2026-10-25"]) {
+      const card = summaryCards({
+        role: "hr_admin",
+        balances: null,
+        pendingApprovals: null,
+        overrides: 0,
+        out: OUT,
+        today,
+      })[1];
+      expect(card).toMatchObject({ headline: "Weekend", amount: null });
+    }
+  });
+
+  it("says nobody is out, and 1 person singular, in plain words", () => {
+    const none = summaryCards({
+      role: "manager",
+      balances: null,
+      pendingApprovals: 0,
+      out: { days: [{ day: TODAY, total: 0, pending: 0 }], weekPeople: 0, pendingTotal: 0 },
+      today: TODAY,
+    });
+    expect(none[1]).toMatchObject({ amount: 0, lines: ["Nobody is out on your team."] });
+    const one = summaryCards({
+      role: "manager",
+      balances: null,
+      pendingApprovals: 0,
+      out: { days: [{ day: TODAY, total: 1, pending: 0 }], weekPeople: 1, pendingTotal: 0 },
+      today: TODAY,
+    });
+    expect(one[1]).toMatchObject({
+      amount: 1,
+      unit: "person",
+      lines: ["On your team.", "None pending."],
+    });
+    expect(one[2]).toMatchObject({ amount: 1, unit: "person" });
+  });
+
+  it("says so when balances or the figures are unavailable instead of inventing numbers", () => {
+    const manager = summaryCards({ role: "manager", balances: null, pendingApprovals: null });
+    expect(manager.map((c) => c.kind)).toEqual(["unavailable", "unavailable", "unavailable"]);
+    const hr = summaryCards({ role: "hr_admin", balances: null, pendingApprovals: null });
+    expect(hr.map((c) => c.kind)).toEqual(["unavailable", "unavailable", "unavailable"]);
+    expect([...manager, ...hr].every((c) => c.amount === null)).toBe(true);
   });
 
   it("shows zero days pending in plain words", () => {

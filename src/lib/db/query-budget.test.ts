@@ -87,6 +87,7 @@ const { AuditBody } = await import("@/app/(app)/audit/audit-body");
 const { OverrideQueueSection, RecentOverridesSection } =
   await import("@/app/(app)/approvals/overrides/override-sections");
 const { RosterSection } = await import("@/app/(app)/approvals/team/roster-section");
+const { CalendarBody } = await import("@/app/(app)/calendar/calendar-body");
 const { default: TeamMemberRoute } = await import("@/app/(app)/approvals/team/[userId]/page");
 
 let tracker: ReturnType<typeof trackingSql>;
@@ -97,14 +98,17 @@ beforeEach(() => {
 
 const dashboard = (role: "employee" | "manager" | "hr_admin") =>
   Promise.all([
-    SummarySection({ role, userId: "u1" }),
-    CalendarSection({
-      role,
-      viewerId: "u1",
-      month: { year: 2026, month: 10 },
-      today: "2026-10-18",
-      showRejected: false,
-    }),
+    SummarySection({ role, userId: "u1", today: "2026-10-18" }),
+    // EPIC-7: the HR dashboard has no calendar (the Company Calendar page replaces it).
+    role === "hr_admin"
+      ? null
+      : CalendarSection({
+          role,
+          viewerId: "u1",
+          month: { year: 2026, month: 10 },
+          today: "2026-10-18",
+          showRejected: false,
+        }),
     UpcomingSection({ role, viewerId: "u1", today: "2026-10-18" }),
     ActivitySection({ role, viewerId: "u1", timeZone: "Asia/Manila" }),
   ]);
@@ -124,6 +128,16 @@ describe("query budget (parallel statements per page)", () => {
       expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
     });
   }
+
+  it("the HR dashboard is exactly four statements: override count, who is out, upcoming, activity (no calendar)", async () => {
+    await dashboard("hr_admin");
+    expect(tracker.peak()).toBe(4);
+  });
+
+  it("a manager's dashboard keeps its four: ONE summary read (approvals and who is out), calendar, upcoming, activity", async () => {
+    await dashboard("manager");
+    expect(tracker.peak()).toBe(4);
+  });
 
   it("Request Leave stays within the budget", async () => {
     await RequestFormSection({ userId: "u1" });
@@ -167,6 +181,39 @@ describe("query budget (parallel statements per page)", () => {
     });
     expect(tracker.peak()).toBe(1);
     expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it("The HR calendar reads the choices, the month and a day: three statements at most (EPIC-7 TASK-043)", async () => {
+    await CalendarBody({
+      viewerId: "h1",
+      query: {
+        month: undefined,
+        managerId: undefined,
+        leaveTypeId: undefined,
+        day: "2026-10-14",
+        q: undefined,
+        page: 1,
+      },
+      today: "2026-10-18",
+    });
+    expect(tracker.peak()).toBe(3);
+    expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+    // Without a day open, the day read is not made at all.
+    tracker = trackingSql();
+    holder.sql = tracker.sql;
+    await CalendarBody({
+      viewerId: "h1",
+      query: {
+        month: undefined,
+        managerId: undefined,
+        leaveTypeId: undefined,
+        day: undefined,
+        q: undefined,
+        page: 1,
+      },
+      today: "2026-10-18",
+    });
+    expect(tracker.peak()).toBe(2);
   });
 
   it("The audit list reads the filter choices and one page of requests: two statements", async () => {

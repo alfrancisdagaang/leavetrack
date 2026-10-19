@@ -2,7 +2,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /** One grid for the real cards and their placeholders, so the layout does not jump on load. */
 export function cardsGridClass(count: number): string {
-  return `grid grid-cols-2 gap-4 ${count === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3"}`;
+  // Two columns below xl: an odd last card takes the whole row, so no row has a hole beside it.
+  return `grid grid-cols-2 gap-4 [&>*:last-child:nth-child(odd)]:col-span-2 xl:[&>*:last-child:nth-child(odd)]:col-span-1 ${count === 4 ? "xl:grid-cols-4" : "xl:grid-cols-3"}`;
 }
 
 /** Mirrors the row of summary cards. */
@@ -61,6 +62,20 @@ export function ListCardSkeleton({ rows = 3 }: { rows?: number }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/** Mirrors the HR "Next 7 days" strip. */
+export function OutStripSkeleton() {
+  return (
+    <div aria-hidden="true" className="space-y-4 rounded-tile bg-white p-5 shadow-tile sm:p-6">
+      <Skeleton className="h-5 w-32" />
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+        {[0, 1, 2, 3, 4].map((i) => (
+          <Skeleton key={i} className="h-20 w-full" />
+        ))}
+      </div>
     </div>
   );
 }

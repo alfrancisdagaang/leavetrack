@@ -3,7 +3,7 @@ import { RecentActivityCard } from "@/components/ui/recent-activity";
 import { SummaryCard } from "@/components/ui/summary-card";
 import { UpcomingLeaveCard } from "@/components/ui/upcoming-leave";
 import { timedRead } from "@/lib/db/timed";
-import { canApproveLeave } from "@/lib/auth/roles";
+import { canApproveLeave, canRequestLeave } from "@/lib/auth/roles";
 import type { UserRole } from "@/lib/db/types";
 import { getRecentActivity, type ActivityEvent } from "@/lib/leave/activity";
 import type { BalanceSummaryItem } from "@/lib/leave/balance";
@@ -16,9 +16,11 @@ import {
 } from "@/lib/leave/calendar-layout";
 import { summaryCards } from "@/lib/leave/dashboard";
 import { getOverrideCount } from "@/lib/leave/override-queue";
+import { getOutFigures, type OutFigures, type OutScope } from "@/lib/leave/out-figures";
 import { getDashboardSummary, requireDb } from "@/lib/leave/service";
 import { getUpcomingLeave, type UpcomingLeave } from "@/lib/leave/upcoming";
 import { logger } from "@/lib/logger";
+import { OutStrip } from "./out-strip";
 import { cardsGridClass } from "./skeletons";
 
 /**
@@ -93,27 +95,60 @@ async function overrideCount(hrId: string): Promise<number | null> {
   }
 }
 
+/** Who is out today and this week, company-wide or for the manager's team (one statement). Null if unavailable. */
+async function outFigures(
+  viewerId: string,
+  scope: OutScope,
+  today: IsoDate,
+): Promise<OutFigures | null> {
+  try {
+    return await timedRead("dashboard.out_figures", () =>
+      getOutFigures(requireDb(), { viewerId, scope, today }),
+    );
+  } catch (err) {
+    logger.warn({ err }, "dashboard: out figures unavailable");
+    return null;
+  }
+}
+
 /**
- * The row of summary cards (one read, so the page stays within its connection budget): an
- * employee's balances, a manager's pending approvals, or an HR admin's override count.
+ * The row of summary cards. An employee's balances (one read); a manager's pending approvals, who is
+ * out today and in the next 7 days (one read); an HR admin's override count and who is out today and
+ * every pending request (two reads), with the "Next 7 days" strip under the cards. Each role stays
+ * within the page's parallel-statement budget.
  */
-export async function SummarySection({ role, userId }: { role: UserRole; userId: string }) {
+export async function SummarySection({
+  role,
+  userId,
+  today,
+}: {
+  role: UserRole;
+  userId: string;
+  today: IsoDate;
+}) {
   const hr = role === "hr_admin";
-  const [data, overrides] = await Promise.all([
-    hr ? null : summaryData(userId, approvesLeave(role)),
+  const manager = canApproveLeave(role);
+  const [data, overrides, out] = await Promise.all([
+    canRequestLeave(role) ? summaryData(userId, false) : null,
     hr ? overrideCount(userId) : null,
+    hr || manager ? outFigures(userId, hr ? "company" : "team", today) : null,
   ]);
   const cards = summaryCards({
     role,
     balances: data?.balances ?? null,
-    pendingApprovals: data?.pendingApprovals ?? null,
+    pendingApprovals: manager ? (out?.pendingTotal ?? null) : null,
     overrides,
+    out,
+    today,
   });
   return (
-    <div className={cardsGridClass(cards.length)}>
-      {cards.map((card) => (
-        <SummaryCard key={card.key} card={card} />
-      ))}
+    <div className="space-y-6">
+      <div className={cardsGridClass(cards.length)}>
+        {cards.map((card) => (
+          <SummaryCard key={card.key} card={card} />
+        ))}
+      </div>
+      {hr && out ? <OutStrip days={out.days} today={today} /> : null}
     </div>
   );
 }
