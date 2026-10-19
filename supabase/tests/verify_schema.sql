@@ -7,11 +7,11 @@ declare
   n int;
   req_id uuid;
 begin
-  -- 7 domain tables exist
+  -- 8 domain tables exist
   select count(*) into n from information_schema.tables
   where table_schema = 'public'
-    and table_name in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log','accrual_ledger');
-  if n <> 7 then raise exception 'expected 7 tables, found %', n; end if;
+    and table_name in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log','accrual_ledger','notifications');
+  if n <> 8 then raise exception 'expected 8 tables, found %', n; end if;
 
   -- Seed idempotent: exactly 3 leave types, 7 users
   select count(*) into n from public.leave_types;
@@ -34,8 +34,8 @@ begin
   -- RLS enabled everywhere
   select count(*) into n from pg_tables
   where schemaname = 'public' and rowsecurity
-    and tablename in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log','accrual_ledger');
-  if n <> 7 then raise exception 'expected RLS on 7 tables, found %', n; end if;
+    and tablename in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log','accrual_ledger','notifications');
+  if n <> 8 then raise exception 'expected RLS on 8 tables, found %', n; end if;
 
   -- is_deleted defaults to false
   insert into public.leave_requests (user_id, leave_type_id, start_date, end_date, reason)
@@ -163,6 +163,52 @@ begin
     delete from public.accrual_ledger
     where user_id = '00000000-0000-4000-8000-000000000003';
     raise exception 'accrual_ledger delete was not blocked';
+  exception when restrict_violation then null;
+  end;
+
+  -- notifications (EPIC-9, TASK-052): fixed kinds, read once, never deleted
+  insert into public.notifications (recipient_id, kind, leave_request_id)
+  values ('00000000-0000-4000-8000-000000000002', 'submitted', req_id);
+  begin
+    insert into public.notifications (recipient_id, kind, leave_request_id)
+    values ('00000000-0000-4000-8000-000000000002', 'bogus', req_id);
+    raise exception 'an unknown notification kind was not blocked';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.notifications set kind = 'approved'
+    where leave_request_id = req_id;
+    raise exception 'a notification kind change was not blocked';
+  exception when restrict_violation then null;
+  end;
+  begin
+    update public.notifications set recipient_id = '00000000-0000-4000-8000-000000000003'
+    where leave_request_id = req_id;
+    raise exception 'a notification recipient change was not blocked';
+  exception when restrict_violation then null;
+  end;
+  update public.notifications set read_at = now() where leave_request_id = req_id;
+  if (select read_at from public.notifications where leave_request_id = req_id) is null then
+    raise exception 'read_at was not stored';
+  end if;
+  begin
+    update public.notifications set read_at = null where leave_request_id = req_id;
+    raise exception 'un-reading a notification was not blocked';
+  exception when restrict_violation then null;
+  end;
+  begin
+    update public.notifications set read_at = now() + interval '1 hour' where leave_request_id = req_id;
+    raise exception 'marking a notification read twice was not blocked';
+  exception when restrict_violation then null;
+  end;
+  begin
+    delete from public.notifications where leave_request_id = req_id;
+    raise exception 'notifications delete was not blocked';
+  exception when restrict_violation then null;
+  end;
+  begin
+    truncate public.notifications;
+    raise exception 'notifications truncate was not blocked';
   exception when restrict_violation then null;
   end;
 

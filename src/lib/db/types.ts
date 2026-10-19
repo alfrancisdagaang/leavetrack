@@ -19,6 +19,13 @@ export const AUDIT_ACTIONS = [
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
+/**
+ * Must equal the CHECK list in supabase/migrations/20261020000000_notifications.sql
+ * (notifications_kind_check); notifications-schema.test.ts fails if they drift.
+ */
+export const NOTIFICATION_KINDS = ["submitted", "approved", "rejected", "overridden"] as const;
+export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
+
 export type User = {
   id: string;
   name: string;
@@ -87,4 +94,15 @@ export type AccrualLedgerEntry = {
   period: string;
   amount: string;
   created_at: Date;
+};
+
+export type Notification = {
+  id: string;
+  /** The person told. Every read scopes by this in SQL. */
+  recipient_id: string;
+  kind: NotificationKind;
+  leave_request_id: string;
+  created_at: Date;
+  /** Null until read; settable once (notifications_guard_update). */
+  read_at: Date | null;
 };
