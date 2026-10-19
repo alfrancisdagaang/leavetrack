@@ -59,17 +59,24 @@ maps to Elena, Marco and Hana only; Leo and the short-balance employee were test
   manager, the old manager's earlier notification still shows that name and those dates.
 - The earlier open items below still stand (orphaned pending requests on staging, accrual still crediting managers and HR, the supervisor's questions, TASK-041).
 
+### EPIC-11 My Profile (added 2026-10-19, not started; `docs/dev-tasks/epic-11-profile-tasks.csv`, TASK-062 to 066)
+
+A `/profile` page for every role (Overview, Organization, Account settings), reached from a Profile link in the account menu. Reference: a ChatGPT mockup the user
+pasted (not in the repo). **Decided with the user:** NO department or job title (the `users` table has neither, and only managers and employees exist), NO dark mode and
+no Appearance card (AGENTS.md keeps the UI light-only; the mockup's Light/Dark/System control is dropped, not shown disabled), NO profile pages for other people (the
+manager card is plain text; chart boxes are not links), keep our top bar and role-based sidebar (the mockup's breadcrumb bar and its "My Team / Audit Log" items are
+not ours). **TASK-026 (change password, EPIC-2) is marked `Superseded` by TASK-065** (the only task with that status; a current-password check and a sign-out of
+other sessions are added). The CSV rows and this note are the only changes so far; no code.
+Things to carry into its `/evaluate`: the org chart reads `users.manager_id` live (no cache), a cycle is possible in the data (only self-management is blocked) so the
+recursive read needs a depth cap and a cycle guard, the HR view must load level by level for about 800 people, and the HR children route is a documented exception to
+rule 3 (HR's scope is everyone). Change password must refuse a mock-login session (it has no Supabase account) without changing the `getSession()` contract, goes
+through our server (the CSP allows `connect-src 'self'` only), and needs `current_password` / `new_password` added to the logger's redaction list. The user must check
+the Supabase project's own minimum password length. No department, title or photo data exists, so Overview shows name, role label, email and the manager's name only.
+
 ### NEXT SESSION: EPIC-7, the HR calendar (start with `/evaluate EPIC-7`)
 
-- Priority order after it: EPIC-8 (user management with email invites; the biggest and riskiest; see the email decision further down). EPIC-9's TASK-056 (email
-  copies) stays optional and would reuse the Gmail SMTP decision.
-- EPIC-7 (`docs/dev-tasks/epic-7-hr-calendar-tasks.csv`, TASK-042 to 044): an HR Admin page `/calendar` with the number of people out per day (counts, not a bar per
-  person), filters for team and leave type kept in the address, a day opens a list of who is out; read-only, HR Admin only; additive, no change to existing pages.
-- **The HR dashboard already uses 4 of the 4 allowed parallel statements.** The new page must stay within `POOL_MAX - 1` on its own (the month read and the day
-  read are each ONE statement), and the layout adds none (the bell reads in the browser). Extend `query-budget.test.ts` for the new page.
-- TASK-044 builds a throwaway database with 800 users and about 8,000 requests (scratchpad only, never staging) and records the timings and `EXPLAIN` plans.
-- Follow the patterns in `knowledge/patterns/implement-and-test.md`: the canonical data-page pattern, the pool-budget pattern, the new-table, notify-in-transaction,
-  shared-chrome and route-level end-to-end sections (the last four were added this session).
+- Priority order after it: **EPIC-11 (My Profile, added 2026-10-19; see the block above)**, then EPIC-8 (user management with email invites; the biggest and riskiest;
+  see the email decision further down). EPIC-9's TASK-056 (email copies) stays optional and would reuse the Gmail SMTP decision.
 
 **Suggested opening prompt for the EPIC-7 session:**
 
@@ -117,11 +124,12 @@ PRD US-01 AC3 says an over-balance request "may still submit for HR override" an
 | EPIC-10 Role scope tone-down | `epic-10-role-scope-tasks.csv`     | **Done** (TASK-058 to 061 and the header; pushed)                               |
 | EPIC-9 Notifications         | `epic-9-notifications-tasks.csv`   | **Built and pushed** (TASK-052 to 055, 057); TASK-056 not built; CSV still Open |
 | EPIC-7 HR calendar           | `epic-7-hr-calendar-tasks.csv`     | **NEXT.** Open (TASK-042 to 044)                                                |
+| EPIC-11 My Profile           | `epic-11-profile-tasks.csv`        | Open (TASK-062 to 066); **after EPIC-7, before EPIC-8** (decided 2026-10-19)    |
 | EPIC-8 User management       | `epic-8-user-management-tasks.csv` | Open (TASK-045 to 051)                                                          |
 
 **PRIORITY ORDER (agreed with the user 2026-10-19; one epic at a time, evaluate, plan, apply, validate per task):** 1. EPIC-6 (done). 2. EPIC-10 (done). 3. **EPIC-9 in-app notifications bell (DONE 2026-10-19)** (closed the biggest gap against the PRD: US-01 AC1 manager notified, US-03 employee notified; the bell
 reads in the browser so the layout adds no statement; TASK-056 email copies not built). 4. EPIC-7 HR
-calendar (counts per day, not a bar per person). 5. EPIC-8 user management with email invites (biggest and riskiest: server-only service-role key, SMTP, a
+calendar (counts per day, not a bar per person). 4b. **EPIC-11 My Profile (added later the same day, before EPIC-8).** 5. EPIC-8 user management with email invites (biggest and riskiest: server-only service-role key, SMTP, a
 new audit table, forced password change; needs the user's Supabase custom SMTP and `SUPABASE_SERVICE_ROLE_KEY` as a server-only Vercel variable; start the
 SMTP setup early; needs the supervisor's OK). **Email provider decision (user, 2026-10-19: "pick one free tier"):** Gmail SMTP for the demo (a dedicated
 Google account, 2-step verification, an app password; no domain needed; non-production; Gmail's terms were NOT checked; test first). Supabase's built-in
