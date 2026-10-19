@@ -122,15 +122,18 @@ describe("POST /api/leave-requests/:id/decision", () => {
     expect(decideLeaveRequest).not.toHaveBeenCalled();
   });
 
-  it("HR admins can decide too (for their own direct reports; scope is enforced in SQL)", async () => {
-    getSession.mockResolvedValue({ role: "hr_admin", user: MOCK_USERS.hrAdmin });
-    decideLeaveRequest.mockResolvedValue({ request: {}, balance: null });
-    expect((await decide(REQ, { decision: "approve" })).status).toBe(200);
-    expect(decideLeaveRequest).toHaveBeenCalledWith(
-      FAKE_SQL,
-      MOCK_USERS.hrAdmin.id,
-      REQ,
-      expect.anything(),
-    );
+  it("EPIC-10 AC1: an HR admin and an employee get 403 and a clear message; nothing is decided", async () => {
+    for (const [role, user] of [
+      ["hr_admin", MOCK_USERS.hrAdmin],
+      ["employee", MOCK_USERS.employee],
+    ] as const) {
+      getSession.mockResolvedValue({ role, user });
+      const res = await decide(REQ, { decision: "approve" });
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json).toMatchObject({ success: false, error: { code: "FORBIDDEN" } });
+      expect(json.error.message).toContain("Only managers can approve or reject");
+    }
+    expect(decideLeaveRequest).not.toHaveBeenCalled();
   });
 });

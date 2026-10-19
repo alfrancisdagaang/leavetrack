@@ -18,9 +18,9 @@ beforeEach(() => {
 });
 
 describe("TeamPage (US-12)", () => {
-  it("AC4: is for managers and HR admins only: an employee is sent away by the guard", async () => {
+  it("AC4: is for managers only (EPIC-10): an employee or HR admin is sent away by the guard", async () => {
     await TeamPage();
-    expect(guards.requireRole).toHaveBeenCalledWith("manager", "hr_admin");
+    expect(guards.requireRole).toHaveBeenCalledWith("manager");
   });
 
   it("AC4: a guard that redirects (an employee) stops the page: nothing is read or rendered", async () => {

@@ -12,11 +12,11 @@ export const dynamic = "force-dynamic";
 
 /**
  * US-03 / US-04. The first tab of Team approvals: pending requests from the signed-in manager's
- * direct reports, and the team's recent decisions. Managers and HR admins only; the real scope is
+ * direct reports, and the team's recent decisions. Managers only (EPIC-10); the real scope is
  * in the SQL. The header and tabs show at once; the two lists stream in on their own.
  */
 export default async function ApprovalsPage() {
-  const { user } = await requireRole("manager", "hr_admin");
+  const { user } = await requireRole("manager");
 
   return (
     <div>

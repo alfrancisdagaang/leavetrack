@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BalanceSummaryItem } from "@/lib/leave/balance";
 
 const svc = vi.hoisted(() => ({ getDashboardSummary: vi.fn() }));
+const ovr = vi.hoisted(() => ({ getOverrideCount: vi.fn() }));
 const cal = vi.hoisted(() => ({ getCalendarRequests: vi.fn() }));
 const upc = vi.hoisted(() => ({ getUpcomingLeave: vi.fn() }));
 const act = vi.hoisted(() => ({ getRecentActivity: vi.fn() }));
@@ -16,6 +17,7 @@ vi.mock("@/lib/leave/service", () => ({
   requireDb: () => ({}),
   getDashboardSummary: svc.getDashboardSummary,
 }));
+vi.mock("@/lib/leave/override-queue", () => ({ getOverrideCount: ovr.getOverrideCount }));
 vi.mock("@/lib/leave/calendar", () => ({ getCalendarRequests: cal.getCalendarRequests }));
 vi.mock("@/lib/leave/upcoming", () => ({ getUpcomingLeave: upc.getUpcomingLeave }));
 vi.mock("@/lib/leave/activity", () => ({ getRecentActivity: act.getRecentActivity }));
@@ -46,7 +48,7 @@ describe("SummarySection", () => {
     expect(employee.match(/Not available right now\./g)).toHaveLength(3);
 
     const manager = await html(SummarySection({ role: "manager", userId: "m1" }));
-    expect(manager.match(/Not available right now\./g)).toHaveLength(4);
+    expect(manager.match(/Not available right now\./g)).toHaveLength(1);
     expect(manager).toContain("Pending approvals");
   });
 
@@ -56,7 +58,8 @@ describe("SummarySection", () => {
     expect(svc.getDashboardSummary).toHaveBeenCalledTimes(1);
     expect(svc.getDashboardSummary).toHaveBeenCalledWith({}, "m1", true);
     expect(out).toContain("Pending approvals");
-    expect(out).toContain("12");
+    // A manager has no balance cards (EPIC-10), even if the read returned balances.
+    expect(out).not.toContain("Vacation");
     expect(out).toContain("2");
   });
 
@@ -67,11 +70,28 @@ describe("SummarySection", () => {
     expect(out).not.toContain("Pending approvals");
   });
 
-  it("asks for the approvals count for HR as well", async () => {
-    svc.getDashboardSummary.mockResolvedValue({ balances: BALANCES, pendingApprovals: 0 });
+  it("gives HR the override count in ONE read, and no approvals or balance read (EPIC-10)", async () => {
+    ovr.getOverrideCount.mockResolvedValue(3);
     const out = await html(SummarySection({ role: "hr_admin", userId: "h1" }));
-    expect(svc.getDashboardSummary).toHaveBeenCalledWith({}, "h1", true);
-    expect(out).toContain("Nothing is waiting");
+    expect(ovr.getOverrideCount).toHaveBeenCalledTimes(1);
+    expect(ovr.getOverrideCount).toHaveBeenCalledWith({}, "h1");
+    expect(svc.getDashboardSummary).not.toHaveBeenCalled();
+    expect(out).toContain("Awaiting HR override");
+    expect(out).not.toContain("Pending approvals");
+    expect(out).toContain("3");
+  });
+
+  it("says the override count is unavailable when its read fails, instead of throwing", async () => {
+    ovr.getOverrideCount.mockRejectedValue(new Error("boom"));
+    const out = await html(SummarySection({ role: "hr_admin", userId: "h1" }));
+    expect(out.match(/Not available right now\./g)).toHaveLength(1);
+    expect(out).toContain("Awaiting HR override");
+  });
+
+  it("does not read the override count for a manager", async () => {
+    svc.getDashboardSummary.mockResolvedValue({ balances: BALANCES, pendingApprovals: 1 });
+    await html(SummarySection({ role: "manager", userId: "m1" }));
+    expect(ovr.getOverrideCount).not.toHaveBeenCalled();
   });
 });
 

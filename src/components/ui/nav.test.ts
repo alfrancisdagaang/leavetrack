@@ -10,8 +10,15 @@ describe("navItemsFor", () => {
     expect(keys("employee")).toEqual(["dashboard", "request", "balance"]);
   });
 
-  it("adds one Team Approvals item for managers; My Team is a tab inside it, not a nav item", () => {
-    expect(keys("manager")).toEqual(["dashboard", "request", "balance", "approvals"]);
+  it("gives managers the dashboard and one Team Approvals item; My Team is a tab inside it", () => {
+    expect(keys("manager")).toEqual(["dashboard", "approvals"]);
+  });
+
+  it("offers Request Leave and My Balance to employees only (EPIC-10 AC2)", () => {
+    for (const role of ["manager", "hr_admin"] as const) {
+      expect(keys(role)).not.toContain("request");
+      expect(keys(role)).not.toContain("balance");
+    }
   });
 
   it("does not show Team Approvals (or My Team) to an employee", () => {
@@ -20,15 +27,9 @@ describe("navItemsFor", () => {
     expect(keys("hr_admin")).not.toContain("team");
   });
 
-  it("adds HR Overrides and the audit log for HR admins on top of the manager items", () => {
-    expect(keys("hr_admin")).toEqual([
-      "dashboard",
-      "request",
-      "balance",
-      "approvals",
-      "overrides",
-      "audit",
-    ]);
+  it("gives HR admins the dashboard, HR Overrides and the audit log, and no Team Approvals (EPIC-10 AC2)", () => {
+    expect(keys("hr_admin")).toEqual(["dashboard", "overrides", "audit"]);
+    expect(keys("hr_admin")).not.toContain("approvals");
   });
 
   it("shows HR Overrides to HR admins only (TASK-039 AC3)", () => {
@@ -41,7 +42,7 @@ describe("navItemsFor", () => {
     const linked = navItemsFor("hr_admin")
       .filter((i) => i.available)
       .map((i) => i.key);
-    expect(linked).toEqual(["dashboard", "request", "balance", "approvals", "overrides", "audit"]);
+    expect(linked).toEqual(["dashboard", "overrides", "audit"]);
   });
 
   it("gives every item a unique key and an absolute href", () => {
@@ -51,18 +52,25 @@ describe("navItemsFor", () => {
   });
 
   it("labels the items as in the design", () => {
-    expect(navItemsFor("hr_admin").map((i) => i.label)).toEqual([
+    expect(navItemsFor("employee").map((i) => i.label)).toEqual([
       "Dashboard",
       "Request Leave",
       "My Balance",
-      "Team Approvals",
+    ]);
+    expect(navItemsFor("manager").map((i) => i.label)).toEqual(["Dashboard", "Team Approvals"]);
+    expect(navItemsFor("hr_admin").map((i) => i.label)).toEqual([
+      "Dashboard",
       "HR Overrides",
       "Audit History",
     ]);
   });
 
   it("picks the item with the longest matching href, so HR Overrides wins under /approvals", () => {
-    const items = navItemsFor("hr_admin");
+    // No single role has both items now, so test the rule on the union of the two lists.
+    const items = [
+      ...navItemsFor("manager"),
+      ...navItemsFor("hr_admin").filter((i) => i.key !== "dashboard"),
+    ];
     const at = (path: string) => currentNavItem(items, path)?.key;
     expect(at("/approvals")).toBe("approvals");
     expect(at("/approvals/team")).toBe("approvals");

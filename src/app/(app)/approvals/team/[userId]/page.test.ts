@@ -77,9 +77,9 @@ beforeEach(() => {
 });
 
 describe("TeamMemberRoute: access (US-12 AC4, US-13 AC7)", () => {
-  it("is for managers and HR admins only", async () => {
+  it("is for managers only (EPIC-10)", async () => {
     await render();
-    expect(mocks.requireRole).toHaveBeenCalledWith("manager", "hr_admin");
+    expect(mocks.requireRole).toHaveBeenCalledWith("manager");
   });
 
   it("a guard that redirects (an employee) stops the page before anything is read", async () => {

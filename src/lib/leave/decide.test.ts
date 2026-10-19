@@ -11,6 +11,8 @@ const UNPAID = "10000000-0000-4000-8000-000000000003";
 
 type Call = { text: string; values: unknown[] };
 type Script = {
+  /** The decider's role; defaults to a manager. */
+  role?: "employee" | "manager" | "hr_admin" | null;
   /** Rows the scoped, locking lookup returns; [] = not a direct report / not found. */
   lookup: unknown[];
   /** Rows the balance UPDATE returns; [] = nothing updated. */
@@ -40,7 +42,10 @@ function fakeSql(script: Script) {
     const text = strings.join("?").replace(/\s+/g, " ").trim();
     calls.push({ text, values });
     let rows: unknown[] = [];
-    if (/from public\.leave_requests r join public\.users u/.test(text)) rows = script.lookup;
+    if (/^select role from public\.users/.test(text)) {
+      rows = script.role === null ? [] : [{ role: script.role ?? "manager" }];
+    } else if (/from public\.leave_requests r join public\.users u/.test(text))
+      rows = script.lookup;
     else if (/^update public\.leave_balances/.test(text)) rows = script.balanceUpdate ?? [];
     else if (/^select balance from public\.leave_balances/.test(text)) {
       rows = script.balanceRow ?? [];
@@ -67,6 +72,29 @@ const pending = (over: Record<string, unknown> = {}) => ({
 
 const approve = { decision: "approve" } as const;
 
+describe("decideLeaveRequest: only managers decide (EPIC-10 AC1)", () => {
+  it.each(["hr_admin", "employee"] as const)(
+    "refuses a %s with FORBIDDEN before anything is looked up or written",
+    async (role) => {
+      const { sql, calls, touched } = fakeSql({ role, lookup: [pending()] });
+      await expect(decideLeaveRequest(sql, MANAGER, REQ, approve)).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message: expect.stringContaining("Only managers can approve or reject"),
+      });
+      expect(touched(/^update|^insert/)).toHaveLength(0);
+      expect(touched(/leave_requests r join/)).toHaveLength(0);
+      expect(calls).toHaveLength(1);
+    },
+  );
+
+  it("refuses a decider with no users row", async () => {
+    const { sql } = fakeSql({ role: null, lookup: [pending()] });
+    await expect(decideLeaveRequest(sql, MANAGER, REQ, approve)).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+});
+
 describe("decideLeaveRequest", () => {
   it("US-03 AC1: approve decrements only the owner's balance for the request's own type, then audits", async () => {
     const { sql, calls, touched } = fakeSql({
@@ -83,8 +111,9 @@ describe("decideLeaveRequest", () => {
     expect(upd?.values).toEqual(["approved", MANAGER, null, REQ]);
     const [audit] = touched(/^insert into public\.audit_log/);
     expect(audit?.values).toEqual([REQ, MANAGER, "approved"]);
-    // Order matters: lookup, balance, request, audit, all inside the one transaction.
+    // Order matters: decider role, lookup, balance, request, audit, all inside the one transaction.
     expect(calls.map((c) => c.text.split(" ").slice(0, 2).join(" "))).toEqual([
+      "select role",
       "select r.id,",
       "update public.leave_balances",
       "update public.leave_requests",
@@ -95,9 +124,10 @@ describe("decideLeaveRequest", () => {
   it("the lookup is scoped in SQL to the caller's direct reports and locks the row", async () => {
     const { sql, calls } = fakeSql({ lookup: [pending()], balanceUpdate: [{ balance: "7" }] });
     await decideLeaveRequest(sql, MANAGER, REQ, approve);
-    expect(calls[0]?.text).toContain("u.manager_id = ?");
-    expect(calls[0]?.text).toContain("for update of r");
-    expect(calls[0]?.values).toEqual([REQ, MANAGER]);
+    const lookup = calls.find((c) => /leave_requests r join/.test(c.text));
+    expect(lookup?.text).toContain("u.manager_id = ?");
+    expect(lookup?.text).toContain("for update of r");
+    expect(lookup?.values).toEqual([REQ, MANAGER]);
   });
 
   it("US-03 AC2: reject stores the note, leaves every balance alone and audits", async () => {
@@ -132,7 +162,7 @@ describe("decideLeaveRequest", () => {
       code: "FORBIDDEN",
       status: 403,
     });
-    expect(calls).toHaveLength(1); // only the lookup ran
+    expect(calls).toHaveLength(2); // only the role check and the lookup ran
   });
 
   it("a manager cannot decide their own request (the owner's manager is someone else)", async () => {
@@ -238,6 +268,6 @@ describe("decideLeaveRequest", () => {
     await expect(decideLeaveRequest(sql, MANAGER, REQ, approve)).rejects.toMatchObject({
       code: "CONFLICT",
     });
-    expect(calls).toHaveLength(1);
+    expect(calls).toHaveLength(2); // the role check and the lookup; nothing written
   });
 });

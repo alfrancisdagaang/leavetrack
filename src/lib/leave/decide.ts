@@ -1,5 +1,6 @@
 import type { Sql } from "postgres";
-import type { LeaveRequest } from "@/lib/db/types";
+import type { LeaveRequest, User } from "@/lib/db/types";
+import { APPROVERS_ONLY_MESSAGE, canApproveLeave } from "@/lib/auth/roles";
 import { AppError } from "@/lib/errors/app-error";
 import type { DecisionInput } from "@/lib/leave/schemas";
 import { countWorkingDays } from "@/lib/leave/working-days";
@@ -41,6 +42,15 @@ export async function decideLeaveRequest(
   input: DecisionInput,
 ): Promise<DecisionResult> {
   return sql.begin(async (tx) => {
+    // EPIC-10: only a manager decides a normal request. The role comes from the users row, not the
+    // caller, and is checked before anything is locked, so an HR admin who is somebody's
+    // `manager_id` in the data still cannot decide.
+    const [decider] = await tx<{ role: User["role"] }[]>`
+      select role from public.users where id = ${deciderId}`;
+    if (!decider || !canApproveLeave(decider.role)) {
+      throw new AppError("FORBIDDEN", APPROVERS_ONLY_MESSAGE);
+    }
+
     // Scope is in the query (AGENTS.md rule 3): only a direct report's request is found, and the
     // row lock makes two simultaneous decisions on the same request take turns. A missing,
     // deleted or other-team request all look the same to the caller, so ids cannot be probed.

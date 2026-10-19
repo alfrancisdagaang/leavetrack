@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { PageHeader } from "@/components/ui/page-header";
 import { LoadingRegion } from "@/components/ui/skeleton";
-import { requireSession } from "@/lib/auth/guards";
+import { requireRole } from "@/lib/auth/guards";
 import { RequestFormSection } from "./request-form-section";
 import { RequestFormSkeleton } from "./request-form-skeleton";
 
@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
 
 /** US-01. The session user is the requester; the form never sends a user id. */
 export default async function NewRequestPage() {
-  const { user } = await requireSession();
+  const { user } = await requireRole("employee");
 
   return (
     <div>

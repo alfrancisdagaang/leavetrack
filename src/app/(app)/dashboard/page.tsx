@@ -4,16 +4,11 @@ import { Suspense } from "react";
 import { ButtonLink } from "@/components/ui/button";
 import { LoadingRegion } from "@/components/ui/skeleton";
 import { requireSession } from "@/lib/auth/guards";
+import { canRequestLeave } from "@/lib/auth/roles";
 import { getEnv } from "@/lib/env";
 import { monthKey, parseMonthParam, todayIn } from "@/lib/leave/calendar-layout";
 import { welcomeSubtitle } from "@/lib/leave/dashboard";
-import {
-  ActivitySection,
-  approvesLeave,
-  CalendarSection,
-  SummarySection,
-  UpcomingSection,
-} from "./sections";
+import { ActivitySection, CalendarSection, SummarySection, UpcomingSection } from "./sections";
 import { CalendarSkeleton, ListCardSkeleton, SummaryCardsSkeleton } from "./skeletons";
 
 export const metadata: Metadata = { title: "Dashboard" };
@@ -47,15 +42,17 @@ export default async function DashboardPage({
           </h1>
           <p className="text-sm leading-normal text-ink-muted">{welcomeSubtitle(role, null)}</p>
         </div>
-        <ButtonLink href="/requests/new" prefetch={false} className="shrink-0">
-          <Image src="/icons/plus.svg" alt="" width={20} height={20} unoptimized />
-          Request Leave
-        </ButtonLink>
+        {canRequestLeave(role) && (
+          <ButtonLink href="/requests/new" prefetch={false} className="shrink-0">
+            <Image src="/icons/plus.svg" alt="" width={20} height={20} unoptimized />
+            Request Leave
+          </ButtonLink>
+        )}
       </div>
       <Suspense
         fallback={
           <LoadingRegion>
-            <SummaryCardsSkeleton count={approvesLeave(role) ? 4 : 3} />
+            <SummaryCardsSkeleton count={canRequestLeave(role) ? 3 : 1} />
           </LoadingRegion>
         }
       >

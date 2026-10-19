@@ -13,11 +13,11 @@ export const metadata: Metadata = { title: "Team approvals: My team" };
 export const dynamic = "force-dynamic";
 
 /**
- * US-12. A manager's direct reports with their leave status. Managers and HR admins only (an
- * employee is sent to the dashboard); the real scope is in the SQL, by the session user's id.
+ * US-12. A manager's direct reports with their leave status. Managers only (anyone else is sent to
+ * the dashboard); the real scope is in the SQL, by the session user's id.
  */
 export default async function TeamPage() {
-  const { user } = await requireRole("manager", "hr_admin");
+  const { user } = await requireRole("manager");
   const today = todayIn(getEnv().APP_TIMEZONE ?? "UTC", new Date());
 
   return (

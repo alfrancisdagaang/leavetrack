@@ -58,14 +58,14 @@ const AUDIT: NavItem = {
 };
 
 /**
- * Navigation per role. Roles stack: managers and HR admins can also request leave.
+ * Navigation per role (EPIC-10). Only employees request leave and see a balance; only managers
+ * have Team Approvals; HR admins get HR Overrides and Audit History.
  * This only decides what is shown — access is enforced by requireRole()/assertRole() and SQL.
  */
 export function navItemsFor(role: UserRole): NavItem[] {
-  const items = [DASHBOARD, REQUEST, BALANCE];
-  if (role === "manager" || role === "hr_admin") items.push(APPROVALS);
-  if (role === "hr_admin") items.push(OVERRIDES, AUDIT);
-  return items;
+  if (role === "employee") return [DASHBOARD, REQUEST, BALANCE];
+  if (role === "manager") return [DASHBOARD, APPROVALS];
+  return [DASHBOARD, OVERRIDES, AUDIT];
 }
 
 /**

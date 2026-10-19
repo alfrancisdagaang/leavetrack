@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 type SearchParams = Record<string, string | string[] | undefined>;
 
 /**
- * US-13. One direct report's balances and requests, with filters. Managers and HR admins only.
+ * US-13. One direct report's balances and requests, with filters. Managers only.
  * The person comes from the address and is never trusted: the read finds them only if they report to
  * the signed-in user (in SQL), and a malformed address, another team's member, a missing person, a
  * deleted one and the caller themselves all end the same way: `notFound()`.
@@ -36,7 +36,7 @@ export default async function TeamMemberRoute({
   params: Promise<{ userId: string }>;
   searchParams: Promise<SearchParams>;
 }) {
-  const { user } = await requireRole("manager", "hr_admin");
+  const { user } = await requireRole("manager");
   const id = memberIdSchema.safeParse((await params).userId);
   if (!id.success) notFound();
 

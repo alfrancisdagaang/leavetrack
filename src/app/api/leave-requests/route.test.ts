@@ -82,15 +82,19 @@ describe("POST /api/leave-requests", () => {
     );
   });
 
-  it("lets managers and HR admins request their own leave (roles stack)", async () => {
-    createLeaveRequest.mockResolvedValue({ request: {}, warnings: [] });
-    getSession.mockResolvedValue({ role: "manager", user: MOCK_USERS.manager });
-    expect((await post(body)).status).toBe(201);
-    expect(createLeaveRequest).toHaveBeenLastCalledWith(
-      FAKE_SQL,
-      MOCK_USERS.manager.id,
-      expect.anything(),
-    );
+  it("EPIC-10 AC1: refuses a manager and an HR admin with 403 and a clear message, creating nothing", async () => {
+    for (const [role, user] of [
+      ["manager", MOCK_USERS.manager],
+      ["hr_admin", MOCK_USERS.hrAdmin],
+    ] as const) {
+      getSession.mockResolvedValue({ role, user });
+      const res = await post(body);
+      expect(res.status).toBe(403);
+      const json = await res.json();
+      expect(json).toMatchObject({ success: false, error: { code: "FORBIDDEN" } });
+      expect(json.error.message).toContain("Only employees can request leave");
+    }
+    expect(createLeaveRequest).not.toHaveBeenCalled();
   });
 
   it("US-01 AC2: rejects end before start with VALIDATION_ERROR and creates nothing", async () => {
@@ -170,6 +174,30 @@ describe("GET /api/leave-requests?scope=mine", () => {
   });
 });
 
+describe("GET /api/leave-requests?scope=mine (EPIC-10: employees only)", () => {
+  it("refuses a manager and an HR admin with 403 and reads nothing", async () => {
+    for (const [role, user] of [
+      ["manager", MOCK_USERS.manager],
+      ["hr_admin", MOCK_USERS.hrAdmin],
+    ] as const) {
+      getSession.mockResolvedValue({ role, user });
+      for (const query of ["", "?scope=mine"]) {
+        const res = await get(query);
+        expect(res.status).toBe(403);
+        expect((await res.json()).error.code).toBe("FORBIDDEN");
+      }
+    }
+    expect(getMySummary).not.toHaveBeenCalled();
+  });
+
+  it("still serves an employee their own summary", async () => {
+    asEmployee();
+    getMySummary.mockResolvedValue({ requests: [], balances: [] });
+    expect((await get("?scope=mine")).status).toBe(200);
+    expect(getMySummary).toHaveBeenCalledWith(FAKE_SQL, MOCK_USERS.employee.id);
+  });
+});
+
 describe("GET /api/leave-requests?scope=team", () => {
   const asManager = () =>
     getSession.mockResolvedValue({ role: "manager", user: MOCK_USERS.manager });
@@ -201,10 +229,11 @@ describe("GET /api/leave-requests?scope=team", () => {
     expect(getTeamQueue).toHaveBeenCalledWith(FAKE_SQL, MOCK_USERS.manager.id);
   });
 
-  it("HR admins also get a queue, for their own direct reports", async () => {
+  it("EPIC-10 AC1: an HR admin has no team, so gets 403 and the queue is never queried", async () => {
     getSession.mockResolvedValue({ role: "hr_admin", user: MOCK_USERS.hrAdmin });
-    getTeamQueue.mockResolvedValue([]);
-    expect((await get("?scope=team")).status).toBe(200);
-    expect(getTeamQueue).toHaveBeenCalledWith(FAKE_SQL, MOCK_USERS.hrAdmin.id);
+    const res = await get("?scope=team");
+    expect(res.status).toBe(403);
+    expect((await res.json()).error.code).toBe("FORBIDDEN");
+    expect(getTeamQueue).not.toHaveBeenCalled();
   });
 });

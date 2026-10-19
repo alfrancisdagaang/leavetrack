@@ -36,11 +36,15 @@ function fakeSql(
     approvals = 0,
     used = [],
     accrued = [],
+    role = "employee",
+    managerId = MARCO as string | null,
   }: {
     pending?: Pending[];
     approvals?: number;
     used?: Pending[];
     accrued?: { leave_type_id: string; amount: string }[];
+    role?: "employee" | "manager" | "hr_admin";
+    managerId?: string | null;
   } = {},
 ) {
   const calls: Call[] = [];
@@ -48,8 +52,8 @@ function fakeSql(
     const text = strings.join("?").replace(/\s+/g, " ").trim();
     calls.push({ text, values });
     let rows: unknown[] = [];
-    if (/^select id, manager_id from public\.users/.test(text)) {
-      rows = [{ id: ELENA, manager_id: MARCO }];
+    if (/^select id, manager_id, role from public\.users/.test(text)) {
+      rows = [{ id: ELENA, manager_id: managerId, role }];
     } else if (/json_agg\(.*public\.leave_types/.test(text)) {
       rows = [
         {
@@ -128,6 +132,34 @@ describe("createLeaveRequest (US-08 AC2: submit is never blocked by a balance)",
       code: "VALIDATION_ERROR",
     });
     expect(touched(/^insert into/)).toHaveLength(0);
+  });
+});
+
+describe("createLeaveRequest (EPIC-10 AC1: only employees request leave)", () => {
+  it.each(["manager", "hr_admin"] as const)(
+    "refuses a %s with FORBIDDEN and writes nothing",
+    async (role) => {
+      const { sql, touched } = fakeSql([{ leave_type_id: VAC, balance: "10.00" }], { role });
+      await expect(createLeaveRequest(sql, ELENA, input(VAC))).rejects.toMatchObject({
+        code: "FORBIDDEN",
+        message: expect.stringContaining("Only employees can request leave"),
+      });
+      expect(touched(/^insert into/)).toHaveLength(0);
+    },
+  );
+
+  it("tells a top-level HR admin (no manager) why, not 'no approver is assigned'", async () => {
+    const { sql } = fakeSql([], { role: "hr_admin", managerId: null });
+    await expect(createLeaveRequest(sql, ELENA, input(VAC))).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  it("still tells an employee with no manager that no approver is assigned", async () => {
+    const { sql } = fakeSql([], { managerId: null });
+    await expect(createLeaveRequest(sql, ELENA, input(VAC))).rejects.toMatchObject({
+      code: "CONFLICT",
+    });
   });
 });
 

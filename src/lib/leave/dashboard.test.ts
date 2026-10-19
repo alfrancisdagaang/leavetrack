@@ -52,29 +52,44 @@ describe("summaryCards", () => {
     expect(keys).toEqual(["vacation", "sick", "unpaid"]);
   });
 
-  it("gives managers and HR a fourth card with the pending count", () => {
-    for (const role of ["manager", "hr_admin"] as const) {
-      const cards = summaryCards({ role, balances: BALANCES, pendingApprovals: 3 });
-      expect(cards).toHaveLength(4);
-      expect(cards[3]).toMatchObject({
-        key: "approvals",
-        kind: "count",
-        amount: 3,
-        unit: "requests",
-      });
-    }
-    const one = summaryCards({ role: "manager", balances: BALANCES, pendingApprovals: 1 })[3];
+  it("gives managers only the pending-approvals card, with no balance cards (EPIC-10)", () => {
+    const cards = summaryCards({ role: "manager", balances: BALANCES, pendingApprovals: 3 });
+    expect(cards.map((c) => c.key)).toEqual(["approvals"]);
+    expect(cards[0]).toMatchObject({
+      key: "approvals",
+      kind: "count",
+      amount: 3,
+      unit: "requests",
+    });
+    const one = summaryCards({ role: "manager", balances: BALANCES, pendingApprovals: 1 })[0];
     expect(one).toMatchObject({ amount: 1, unit: "request" });
+  });
+
+  it("gives HR only the override-count card, never approvals or balances (TASK-059 AC3)", () => {
+    const cards = summaryCards({
+      role: "hr_admin",
+      balances: BALANCES,
+      pendingApprovals: 5,
+      overrides: 2,
+    });
+    expect(cards.map((c) => c.key)).toEqual(["overrides"]);
+    expect(cards[0]).toMatchObject({
+      title: "Awaiting HR override",
+      kind: "count",
+      amount: 2,
+      unit: "requests",
+    });
+    expect(
+      summaryCards({ role: "hr_admin", balances: null, pendingApprovals: null, overrides: 1 })[0],
+    ).toMatchObject({ amount: 1, unit: "request" });
+    expect(
+      summaryCards({ role: "hr_admin", balances: null, pendingApprovals: null })[0]?.kind,
+    ).toBe("unavailable");
   });
 
   it("says so when balances or the count are unavailable instead of inventing numbers", () => {
     const cards = summaryCards({ role: "manager", balances: null, pendingApprovals: null });
-    expect(cards.map((c) => c.kind)).toEqual([
-      "unavailable",
-      "unavailable",
-      "unavailable",
-      "unavailable",
-    ]);
+    expect(cards.map((c) => c.kind)).toEqual(["unavailable"]);
     expect(cards.every((c) => c.amount === null)).toBe(true);
   });
 
@@ -93,15 +108,25 @@ describe("welcomeSubtitle", () => {
     expect(welcomeSubtitle("employee", 5)).toBe("Your leave balance and requests, at a glance.");
   });
 
-  it("tells approvers how many approvals are waiting", () => {
+  it("tells managers how many approvals are waiting", () => {
     expect(welcomeSubtitle("manager", 3)).toBe(
-      "Your leave and team requests, at a glance. You have 3 approvals to review.",
+      "Your team's leave and approvals, at a glance. You have 3 approvals to review.",
     );
-    expect(welcomeSubtitle("hr_admin", 1)).toContain("You have 1 approval to review.");
+    expect(welcomeSubtitle("manager", 1)).toContain("You have 1 approval to review.");
+  });
+
+  it("tells HR admins about overrides, never about approvals or a team", () => {
+    expect(welcomeSubtitle("hr_admin", null)).toBe(
+      "Company leave, overrides and the audit record, at a glance.",
+    );
+    expect(welcomeSubtitle("hr_admin", 0)).toContain("No overrides are waiting.");
+    expect(welcomeSubtitle("hr_admin", 1)).toContain("1 request waits for an override.");
+    expect(welcomeSubtitle("hr_admin", 4)).toContain("4 requests wait for an override.");
+    expect(welcomeSubtitle("hr_admin", 4)).not.toContain("approval");
   });
 
   it("handles none waiting and an unavailable count", () => {
     expect(welcomeSubtitle("manager", 0)).toContain("No approvals are waiting.");
-    expect(welcomeSubtitle("manager", null)).toBe("Your leave and team requests, at a glance.");
+    expect(welcomeSubtitle("manager", null)).toBe("Your team's leave and approvals, at a glance.");
   });
 });

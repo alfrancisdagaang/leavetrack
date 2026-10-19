@@ -69,6 +69,28 @@ export async function getOverrideQueue(sql: Sql, hrId: string): Promise<Override
   };
 }
 
+/**
+ * How many requests wait for an override (the HR dashboard card): ONE statement, the same
+ * conditions as `getOverrideQueue` and so as `overrideLeaveRequest`. The gated test compares the
+ * count with the queue's `total`, so the three cannot drift apart unnoticed.
+ */
+export async function getOverrideCount(sql: Sql, hrId: string): Promise<number> {
+  const [row] = await sql<{ total: number }[]>`
+    select count(*)::int as total
+    from public.leave_requests r
+    join public.leave_types lt on lt.id = r.leave_type_id and lt.tracks_balance
+    join public.leave_balances lb
+      on lb.user_id = r.user_id and lb.leave_type_id = r.leave_type_id
+    cross join lateral (
+      select count(*)::int as days
+      from generate_series(r.start_date::timestamp, r.end_date::timestamp, interval '1 day') g
+      where extract(isodow from g) < 6
+    ) d
+    where r.status = 'pending' and r.is_deleted = false and r.user_id <> ${hrId}
+      and lb.balance >= 0 and lb.balance < d.days`;
+  return row?.total ?? 0;
+}
+
 export type RecentOverrideView = {
   id: string;
   employee_name: string;

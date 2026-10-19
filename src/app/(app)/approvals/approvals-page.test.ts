@@ -18,9 +18,9 @@ beforeEach(() => {
 });
 
 describe("ApprovalsPage", () => {
-  it("is for managers and HR admins, and reads for the session user's id", async () => {
+  it("is for managers only (EPIC-10), and reads for the session user's id", async () => {
     const out = renderToStaticMarkup(await ApprovalsPage());
-    expect(guards.requireRole).toHaveBeenCalledWith("manager", "hr_admin");
+    expect(guards.requireRole).toHaveBeenCalledWith("manager");
     expect(out).toContain("pending for m1");
     expect(out).toContain("decided for m1");
   });

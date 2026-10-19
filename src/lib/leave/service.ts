@@ -1,4 +1,5 @@
 import type { Sql, TransactionSql } from "postgres";
+import { canRequestLeave, EMPLOYEES_ONLY_MESSAGE } from "@/lib/auth/roles";
 import { getDb } from "@/lib/db/client";
 import type { LeaveBalance, LeaveRequest, LeaveType, User } from "@/lib/db/types";
 import { AppError } from "@/lib/errors/app-error";
@@ -149,10 +150,15 @@ export async function createLeaveRequest(
   input: CreateLeaveRequestInput,
 ): Promise<CreatedLeaveRequest> {
   return sql.begin(async (tx) => {
-    const [user] = await tx<Pick<User, "id" | "manager_id">[]>`
-      select id, manager_id from public.users where id = ${userId}`;
+    const [user] = await tx<Pick<User, "id" | "manager_id" | "role">[]>`
+      select id, manager_id, role from public.users where id = ${userId}`;
     if (!user) {
       throw new AppError("NOT_FOUND", "Your account is not set up yet. Ask HR to add you.");
+    }
+    // EPIC-10: the role comes from the users row, not the caller, so a stale session cannot slip
+    // through. Checked before the approver, so a top-level HR admin is told why, not "no approver".
+    if (!canRequestLeave(user.role)) {
+      throw new AppError("FORBIDDEN", EMPLOYEES_ONLY_MESSAGE);
     }
     if (!user.manager_id) {
       throw new AppError(

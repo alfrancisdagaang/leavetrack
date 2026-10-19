@@ -31,11 +31,17 @@ function frame(role: Parameters<typeof navItemsFor>[0]) {
 describe("AppFrame", () => {
   it("lists only the items the role may open, and nothing else", () => {
     const manager = frame("manager");
-    for (const label of ["Dashboard", "Request Leave", "My Balance", "Team Approvals"]) {
-      expect(manager).toContain(label);
+    for (const label of ["Dashboard", "Team Approvals"]) expect(manager).toContain(label);
+    // EPIC-10: only employees request leave and see a balance.
+    for (const label of ["Request Leave", "My Balance"]) {
+      expect(manager).not.toContain(label);
+      expect(frame("hr_admin")).not.toContain(label);
+      expect(frame("employee")).toContain(label);
     }
     expect(manager).not.toContain("Audit History");
     expect(frame("employee")).not.toContain("Team Approvals");
+    // EPIC-10: an HR admin has no team and no normal approvals.
+    expect(frame("hr_admin")).not.toContain("Team Approvals");
     expect(manager).not.toContain("My Team");
     expect(frame("employee")).not.toContain("My Team");
     expect(frame("hr_admin")).toContain("Audit History");
@@ -55,9 +61,9 @@ describe("AppFrame", () => {
     expect(html).toMatch(/<p class="[^"]*text-lg[^"]*">HR Overrides<\/p>/);
   });
 
-  it("for HR, /approvals/team still highlights Team Approvals, not HR Overrides", () => {
+  it("for a manager, /approvals/team highlights Team Approvals", () => {
     path = "/approvals/team";
-    const html = frame("hr_admin");
+    const html = frame("manager");
     path = "/approvals";
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
     expect(html).toMatch(/<a(?=[^>]*aria-current="page")(?=[^>]*href="\/approvals")[^>]*>/);

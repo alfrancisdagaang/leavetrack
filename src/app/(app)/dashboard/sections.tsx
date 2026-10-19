@@ -3,6 +3,7 @@ import { RecentActivityCard } from "@/components/ui/recent-activity";
 import { SummaryCard } from "@/components/ui/summary-card";
 import { UpcomingLeaveCard } from "@/components/ui/upcoming-leave";
 import { timedRead } from "@/lib/db/timed";
+import { canApproveLeave } from "@/lib/auth/roles";
 import type { UserRole } from "@/lib/db/types";
 import { getRecentActivity, type ActivityEvent } from "@/lib/leave/activity";
 import type { BalanceSummaryItem } from "@/lib/leave/balance";
@@ -14,6 +15,7 @@ import {
   type MonthRef,
 } from "@/lib/leave/calendar-layout";
 import { summaryCards } from "@/lib/leave/dashboard";
+import { getOverrideCount } from "@/lib/leave/override-queue";
 import { getDashboardSummary, requireDb } from "@/lib/leave/service";
 import { getUpcomingLeave, type UpcomingLeave } from "@/lib/leave/upcoming";
 import { logger } from "@/lib/logger";
@@ -79,15 +81,33 @@ async function recentActivity(
   }
 }
 
-export const approvesLeave = (role: UserRole) => role === "manager" || role === "hr_admin";
+export const approvesLeave = canApproveLeave;
 
-/** The row of summary cards: the user's balances and, for approvers, the pending count. */
+/** The override count for an HR admin's card (one statement). Null if unavailable. */
+async function overrideCount(hrId: string): Promise<number | null> {
+  try {
+    return await timedRead("dashboard.override_count", () => getOverrideCount(requireDb(), hrId));
+  } catch (err) {
+    logger.warn({ err }, "dashboard: override count unavailable");
+    return null;
+  }
+}
+
+/**
+ * The row of summary cards (one read, so the page stays within its connection budget): an
+ * employee's balances, a manager's pending approvals, or an HR admin's override count.
+ */
 export async function SummarySection({ role, userId }: { role: UserRole; userId: string }) {
-  const data = await summaryData(userId, approvesLeave(role));
+  const hr = role === "hr_admin";
+  const [data, overrides] = await Promise.all([
+    hr ? null : summaryData(userId, approvesLeave(role)),
+    hr ? overrideCount(userId) : null,
+  ]);
   const cards = summaryCards({
     role,
     balances: data?.balances ?? null,
     pendingApprovals: data?.pendingApprovals ?? null,
+    overrides,
   });
   return (
     <div className={cardsGridClass(cards.length)}>
