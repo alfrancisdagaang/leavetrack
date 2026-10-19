@@ -10,7 +10,13 @@ export type UserRole = (typeof USER_ROLES)[number];
 export const LEAVE_STATUSES = ["pending", "approved", "rejected"] as const;
 export type LeaveStatus = (typeof LEAVE_STATUSES)[number];
 
-export const AUDIT_ACTIONS = ["submitted", "approved", "rejected", "soft_deleted"] as const;
+export const AUDIT_ACTIONS = [
+  "submitted",
+  "approved",
+  "rejected",
+  "soft_deleted",
+  "override_approved",
+] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
 export type User = {
@@ -64,6 +70,13 @@ export type AuditLogEntry = {
   actor_id: string;
   action: AuditAction;
   occurred_at: Date;
+  /**
+   * The three figures below are set exactly on `override_approved` rows (enforced by
+   * audit_log_shortfall_consistent) and null on every other action.
+   */
+  days_requested: string | null;
+  balance_before: string | null;
+  shortfall: string | null;
 };
 
 export type AccrualLedgerEntry = {

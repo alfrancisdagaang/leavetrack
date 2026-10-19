@@ -87,6 +87,54 @@ begin
     raise exception 'decision_note was not stored';
   end if;
 
+  -- HR override (EPIC-6, TASK-037): the shortfall is recorded exactly on override_approved rows
+  insert into public.audit_log
+    (leave_request_id, actor_id, action, days_requested, balance_before, shortfall)
+  values (req_id, '00000000-0000-4000-8000-000000000001', 'override_approved', 10, 4, 6);
+  if (select shortfall from public.audit_log
+      where leave_request_id = req_id and action = 'override_approved') <> 6 then
+    raise exception 'the shortfall was not stored';
+  end if;
+  begin
+    insert into public.audit_log (leave_request_id, actor_id, action)
+    values (req_id, '00000000-0000-4000-8000-000000000001', 'override_approved');
+    raise exception 'override_approved without the shortfall figures was not blocked';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.audit_log
+      (leave_request_id, actor_id, action, days_requested, balance_before, shortfall)
+    values (req_id, '00000000-0000-4000-8000-000000000001', 'override_approved', 10, 4, 5);
+    raise exception 'an inconsistent shortfall was not blocked';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.audit_log
+      (leave_request_id, actor_id, action, days_requested, balance_before, shortfall)
+    values (req_id, '00000000-0000-4000-8000-000000000001', 'override_approved', 3, -1, 4);
+    raise exception 'a negative balance_before was not blocked';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.audit_log
+      (leave_request_id, actor_id, action, days_requested, balance_before, shortfall)
+    values (req_id, '00000000-0000-4000-8000-000000000001', 'submitted', 10, 4, 6);
+    raise exception 'shortfall figures on a submitted row were not blocked';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.audit_log set shortfall = 1
+    where leave_request_id = req_id and action = 'override_approved';
+    raise exception 'audit_log update of the shortfall was not blocked';
+  exception when restrict_violation then null;
+  end;
+  begin
+    delete from public.audit_log
+    where leave_request_id = req_id and action = 'override_approved';
+    raise exception 'audit_log delete was not blocked';
+  exception when restrict_violation then null;
+  end;
+
   -- accrual_ledger (ADR-LeaveTrack-E002): first-of-month only, one row per user/type/month, append-only
   insert into public.accrual_ledger (user_id, leave_type_id, period, amount)
   values ('00000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001',
