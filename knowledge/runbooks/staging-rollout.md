@@ -14,8 +14,26 @@ your own shell. No secret goes into chat, a file or a commit.
 
 ## 2. Demo data (Supabase SQL editor)
 
-Run the whole of `supabase/seed.sql` once. It is idempotent: safe to run again. It now adds four pending requests in October and
-early November, so the calendar and the queues have something to show. Nothing is deleted or changed.
+Run the whole of `supabase/seed.sql` once. It is idempotent: safe to run again. Nothing is deleted or changed.
+
+**Three roles (EPIC-10).** The seed gives leave policies, balances and requests to **employees only**. On a database seeded earlier
+it adds one request: Elena's pending **Sick** request of 8 working days (23 Nov to 2 Dec), over her balance, for the HR override demo.
+What it does **not** do, by design (rows cannot be hard-deleted, and nothing is changed without your say-so):
+
+- The older pending requests from **Marco, Priya and Hana** (and any from Sam) stay as history. Nobody can decide them now (managers
+  no longer have an approver in HR, and HR no longer approves normal requests), so they stay Pending in the audit list. List them
+  (read-only):
+
+  ```sql
+  select r.id, u.name, u.role, r.status, r.start_date, r.end_date
+  from public.leave_requests r join public.users u on u.id = r.user_id
+  where u.role <> 'employee' and r.status = 'pending' and r.is_deleted = false;
+  ```
+
+  If you want them out of the lists, that is a separate soft-delete data migration (`is_deleted = true`; the audit rows stay).
+  Decide before running one.
+
+- Old balances and leave policies of managers and HR admins stay. No page shows them, but the monthly accrual keeps crediting them.
 
 ## 3. Vercel (project settings -> Environment Variables)
 

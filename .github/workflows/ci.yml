@@ -73,12 +73,21 @@ jobs:
             end if;
           end $$;
           SQL
-      - name: Seed twice (proves idempotency)
+      - name: Seed twice (proves idempotency, the second run changes no row count)
         run: |
+          counts() {
+            psql -v ON_ERROR_STOP=1 -At -c "select (select count(*) from public.users), (select count(*) from public.leave_policies), (select count(*) from public.leave_balances), (select count(*) from public.leave_requests), (select count(*) from public.audit_log)"
+          }
           psql -v ON_ERROR_STOP=1 -f supabase/seed.sql
+          first=$(counts)
           psql -v ON_ERROR_STOP=1 -f supabase/seed.sql
+          second=$(counts)
+          echo "after first run: $first; after second run: $second"
+          test "$first" = "$second"
       - name: Verify schema invariants
         run: psql -v ON_ERROR_STOP=1 -f supabase/tests/verify_schema.sql
+      - name: Verify seed data (three-role model)
+        run: psql -v ON_ERROR_STOP=1 -f supabase/tests/verify_seed.sql
 
   db-push:
     name: Push migrations to Supabase
