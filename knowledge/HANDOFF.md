@@ -1,71 +1,96 @@
 # LeaveTrack — Session Handoff
 
-## READ FIRST — end of session 2026-10-19 (supersedes every older note below where they disagree)
+## READ FIRST: end of session 2026-10-19 (supersedes every older note below where they disagree)
 
-**State in a few lines.** EPIC-6 (the HR override) is built, validated and **pushed to `origin/main` (`ac71e64`)**. The user reports GitHub Actions all green
-and Vercel with no error (**reported, not seen by me**: `gh` is not installed); the pages' "could not be loaded" notes are gone, so the two new
-migrations were applied to staging by the `db-push` job (an inference from that report). Demo: the user says it is **TOMORROW, Tue 2026-10-20**. **Next is EPIC-10 (role scope tone-down, a MUST), in a new session.** TASK-041
-(the last EPIC-6 task) is **deferred by the user's decision**. Local `main` is ahead of `origin/main` by the docs commits of this handoff (the CSV status
-change and this file); the user asked for **commit, not push**.
+**State in a few lines.** EPIC-6 (the HR override) and **EPIC-10 (role scope tone-down) are built, validated and committed; both are pushed to `origin/main`**
+(EPIC-6 at `ac71e64`; EPIC-10 as `87edcea` TASK-058 and 059, `58c0ce7` TASK-060, then the docs commit of this handoff, which also holds the TASK-061 retro).
+The user reported GitHub Actions green and Vercel with no error for the EPIC-6 push (**reported, not seen by me**: `gh` is not installed). **For the EPIC-10
+push nothing is seen yet**: the new CI steps ("Seed twice" row-count comparison and "Verify seed data") have only run locally, so ask the user to look at
+the Actions run first. Demo: the user says it is **TOMORROW, Tue 2026-10-20**. **Next is EPIC-9 (in-app notifications bell), in a new session.** TASK-041
+(the last EPIC-6 task) is **deferred by the user's decision**.
 
 **Golden rule (the supervisor, 2026-10-19, relayed by the user): do not change the required features, such as the user roles defined in the docs; stick
 to the original roles.** Design new work as additive. **Docs rule:** no edits to the PRD, BRD, ARCH or the other requirement docs; new decisions go in
 `knowledge/` and in the epic CSVs under `docs/dev-tasks/`. (A memory file holds the golden rule.)
 
-**The role model the user decided (2026-10-19), "stick to simpler":**
+**The role model, now built (EPIC-10):**
 
-| Role     | Can                                                                                           | Cannot                                              |
-| -------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| Employee | Request leave, see own balance, calendar                                                      |                                                     |
-| Manager  | Approve or reject direct reports' requests, team views, team calendar                         | Request their own leave                             |
-| HR Admin | Override over-balance requests, Audit History, dashboard and calendar, (EPIC-8) manage people | Request leave, approve normal requests, have a team |
+| Role     | Can                                                                                                                       | Cannot                                                             |
+| -------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| Employee | Request leave, see own balance and requests, dashboard and calendar                                                       | Approve, override, see a team or the audit history                 |
+| Manager  | Approve or reject direct reports' requests, Team Approvals (queue and My team), team calendar                             | Request leave, see a balance, override, see the audit history      |
+| HR Admin | Override over-balance requests (or reject them), Audit History, dashboard with the company calendar and an override count | Request leave, see a balance, approve normal requests, have a team |
 
-**Today's code still lets managers and HR Admins request leave and lets HR Admin approve direct reports' requests** (EPIC-10 changes that; nothing of it is
-built). The supervisor's explicit OK for removing that has **not been seen**; the user decided it. State the known limitation when asked: a manager or HR
-Admin who needs leave has no way to request it.
+(EPIC-8, not built, would add managing people for HR Admin.) Every gate is in two places: the page or route (`requireRole`, `assertRole`, `canRequestLeave`,
+`canApproveLeave` in `src/lib/auth/roles.ts`) and, for the two writes, the SQL path (`createLeaveRequest` and `decideLeaveRequest` read the role from the
+`users` row). **State the known limitation when asked: a manager or HR Admin who needs leave has no way to request it.** The supervisor's explicit OK for
+removing the old behaviour (managers and HR requesting, HR approving) has **not been seen**; the user decided it ("yes").
 
 **What the docs say about roles (read from `docs/prd`, `docs/brd`, `docs/arch-docs`):** exactly three roles. Employee (submits requests, views own
 balance), Manager (approves or rejects direct reports only), HR Admin (configures leave policies, runs audit reports). There is no separate "HR" role:
-HR and HR Admin are the same. The docs do not say whether managers or HR Admins may request leave ("roles stack" was our own default of 2026-10-14,
-never in the docs). PRD US-01 AC3 says an over-balance request "may still submit for HR override" and never says who overrides.
+HR and HR Admin are the same. The docs never said managers or HR Admins may request leave ("roles stack" was our own default of 2026-10-14, now removed).
+PRD US-01 AC3 says an over-balance request "may still submit for HR override" and never says who overrides.
 
 ### Epics (CSVs in `docs/dev-tasks/`)
 
 | Epic                         | File                               | Status                                                                 |
 | ---------------------------- | ---------------------------------- | ---------------------------------------------------------------------- |
 | EPIC-6 HR override           | `epic-6-hr-override-tasks.csv`     | TASK-037 to 040 **Done** (shipped); **TASK-041 deferred**; header Open |
-| EPIC-10 Role scope tone-down | `epic-10-role-scope-tasks.csv`     | **NEXT.** TASK-058 to 061, all Open                                    |
-| EPIC-9 Notifications         | `epic-9-notifications-tasks.csv`   | Open (TASK-052 to 057)                                                 |
+| EPIC-10 Role scope tone-down | `epic-10-role-scope-tasks.csv`     | **Done** (TASK-058 to 061 and the header; pushed)                      |
+| EPIC-9 Notifications         | `epic-9-notifications-tasks.csv`   | **NEXT.** Open (TASK-052 to 057)                                       |
 | EPIC-7 HR calendar           | `epic-7-hr-calendar-tasks.csv`     | Open (TASK-042 to 044)                                                 |
 | EPIC-8 User management       | `epic-8-user-management-tasks.csv` | Open (TASK-045 to 051)                                                 |
 
-**PRIORITY ORDER (agreed with the user 2026-10-19; one epic at a time, evaluate, plan, apply, validate per task):** 1. EPIC-6 (done). 2. **EPIC-10**
-(a MUST; done before the rest because EPIC-9 edits `createLeaveRequest` and `decideLeaveRequest`, whose role gates and many tests EPIC-10 changes). 3. EPIC-9 in-app notifications bell (closes the biggest gap against the PRD: US-01 AC1 manager notified, US-03 employee notified; the bell is on every
-page, so its unread count must be ONE indexed statement within the page query budget `POOL_MAX - 1`; TASK-056 email copies only if time). 4. EPIC-7 HR calendar (counts per day, not a bar per person). 5. EPIC-8 user management with email invites (biggest and riskiest: server-only
-service-role key, SMTP, a new audit table, forced password change; needs the user's Supabase custom SMTP and `SUPABASE_SERVICE_ROLE_KEY` as a server-only
-Vercel variable; start the SMTP setup early; needs the supervisor's OK). **Email provider decision (user, 2026-10-19: "pick one free tier"):** Gmail SMTP
-for the demo (a dedicated Google account, 2-step verification, an app password; no domain needed; non-production; Gmail's terms were NOT checked; test
-first). Supabase's built-in sender only reaches project team members at 2 messages per hour. Production needs a provider with a verified domain.
-No-email fallback: HR copies an invite link. The user does the Supabase and Vercel steps; I cannot.
+**PRIORITY ORDER (agreed with the user 2026-10-19; one epic at a time, evaluate, plan, apply, validate per task):** 1. EPIC-6 (done). 2. EPIC-10 (done). 3. **EPIC-9 in-app notifications bell** (closes the biggest gap against the PRD: US-01 AC1 manager notified, US-03 employee notified; the bell is on every
+page, so its unread count must be ONE indexed statement within the page query budget `POOL_MAX - 1`; TASK-056 email copies only if time). 4. EPIC-7 HR
+calendar (counts per day, not a bar per person). 5. EPIC-8 user management with email invites (biggest and riskiest: server-only service-role key, SMTP, a
+new audit table, forced password change; needs the user's Supabase custom SMTP and `SUPABASE_SERVICE_ROLE_KEY` as a server-only Vercel variable; start the
+SMTP setup early; needs the supervisor's OK). **Email provider decision (user, 2026-10-19: "pick one free tier"):** Gmail SMTP for the demo (a dedicated
+Google account, 2-step verification, an app password; no domain needed; non-production; Gmail's terms were NOT checked; test first). Supabase's built-in
+sender only reaches project team members at 2 messages per hour. Production needs a provider with a verified domain. No-email fallback: HR copies an invite
+link. The user does the Supabase and Vercel steps; I cannot.
 
-### NEXT SESSION: EPIC-10 (start with `/evaluate EPIC-10`)
+### NEXT SESSION: EPIC-9 (start with `/evaluate EPIC-9`)
 
-- **Precondition, unanswered:** the EPIC-10 CSV says **the supervisor's OK is needed before any task starts** (it removes demoed behaviour). Ask the user
-  whether it was obtained; if not, build only if the user says to, and say so plainly.
-- **TASK-058** only Employees can request leave: `createLeaveRequest` and `POST /api/leave-requests` refuse manager and hr_admin (FORBIDDEN, clear message;
-  the check also in the SQL path); Request Leave and My Balance redirect them to `/dashboard`; their nav items and the dashboard balance cards are hidden.
-  **TASK-059** HR Admin has no team and no normal approvals: `POST /api/leave-requests/[id]/decision` becomes manager only (it is
-  `assertRole("manager", "hr_admin")` today, scoped by `u.manager_id`); Team Approvals and My team are manager only; HR keeps the dashboard, the audit
-  list and the override page. **TASK-060** seed and demo data for three roles (idempotent; only Employees get balances and requests; keep Marco's and
-  Priya's teams and Leo on another team; **add an over-balance pending request for the override demo**; a runbook note; update the demo checklist).
-  **TASK-061** validation (browser as Elena, Marco, Hana at 1440, 375, 320; direct URLs redirect; API refuses; retro with the removed behaviours and the
-  known limitation).
-- **Do not touch staging data:** rows cannot be hard-deleted, so the old Hana, Sam, Marco and Priya requests stay as history unless the user agrees a
-  soft-delete data migration.
-- **What EPIC-10 touches that EPIC-6 added** (check these, do not break them): `override.ts` and the HR queue exclude the caller's own request (stays
-  right, becomes moot for HR); the nav (`nav.ts`, `navItemsFor`, tests in `nav.test.ts` and `app-frame.test.ts`) lists HR Overrides for hr_admin; the
-  manager row and member page states (`balance-text.ts`, `over-balance.ts`) assume a manager approves; `balance-writers.test.ts` lists the three writers of
-  `leave_balances` (accrual, decide, override); the query-budget test lists every page's statements.
+- EPIC-9 edits `createLeaveRequest` and `decideLeaveRequest`; both now carry their role check (employee only, manager only) in SQL: keep those intact and
+  their tests (`service.test.ts`, `decide.test.ts`, `request-role` and `decide-role` gated tests) passing.
+- Who is notified: a request goes to the employee's `manager_id`; the employee hears about the decision. HR admins are not approvers any more (an override
+  by HR should notify the employee and probably the manager: a design question for the plan).
+- The bell is on every page: one indexed unread-count statement, and the page budget test (`query-budget.test.ts`) must still pass.
+
+### EPIC-10 as shipped (retros: `knowledge/retros/2026-10-19-task-058-employee-only-requests.md`, `-059-hr-no-team.md`, `-060-seed-three-roles.md`, `2026-10-19-epic-10-role-scope.md`)
+
+- **TASK-058** (`87edcea`, with 059): employees only request leave; `GET ?scope=mine` is employee-only too; Request Leave and My Balance redirect others to
+  `/dashboard`; balance cards and nav items hidden for managers and HR. **TASK-059:** the decision route, `scope=team`, Team Approvals, My team and the team
+  member page are manager only; HR's dashboard card is "Awaiting HR override" from one statement (`getOverrideCount`, replaces the summary read, so the page
+  stays within 4 statements); `decideLeaveRequest` checks the decider's role before it locks anything (Hana is still the `manager_id` of Marco and Priya in
+  the data, so the SQL check is what stops her). **TASK-060** (`58c0ce7`): `seed.sql` gives policies, balances and requests to employees only; the demo
+  requests of Marco, Priya and Hana (ids 03, 06, 07) are retired and must never be reused; new over-balance request `...08` (Elena, Sick, 23 Nov to 2 Dec,
+  8 working days against 5); `supabase/tests/verify_seed.sql` plus a CI row-count comparison between the two seed runs; the demo checklist and staging
+  rollout runbook rewritten. **TASK-061:** one matrix on one build: 3 roles x 8 pages x 3 widths, every nav link and every link on every open page, 18 API
+  refusals in the standard envelope that changed no data, the allowed API calls, another team (Leo): **248 checks, 0 failed**; all 16 gated files pass on
+  fresh databases; gate green (872 tests passed, 112 skipped, build passed in a throwaway copy).
+- **Not seen:** GitHub Actions for the EPIC-10 push (including the new seed steps), Vercel, real Supabase, and the **real sign-in path** (every browser check
+  used the mock `mock-role` cookie, which maps to Elena, Marco and Hana only; Priya, Leo and Sam were never signed in).
+- **Demo steps for the user (I cannot do them):** re-run the updated `supabase/seed.sql` in the Supabase SQL editor (adds Elena's over-balance Sick request;
+  changes nothing else); follow `knowledge/runbooks/demo-checklist.md` (rewritten for three roles). The shortfall reads 3 days on a fresh seed and about 2 on
+  staging after one accrual run.
+
+### Open decisions (the user's; nothing done)
+
+- **Orphaned pending requests on staging** (Marco, Priya, Hana and any from Sam): nobody can decide them now; they stay Pending in the audit list. Leave as
+  history (default) or a soft-delete data migration (`is_deleted = true`; audit rows stay). The staging-rollout runbook has the SQL to list them.
+- **Accrual** still credits the old policies of managers and HR Admins on staging each month (no page shows them). An employee-only join in `accrual.ts` would
+  stop it; not in any CSV.
+- Questions for the supervisor: who approves leave for managers and HR Admins; whether removing their ability to request is accepted; may HR Admin manage
+  users (EPIC-8). Defaults still awaiting the user's explicit OK: the manager can still reject an over-balance request and the first decision wins; HR
+  overrides only over-balance requests. The one-sentence override rule note for `AGENTS.md` was not added (needs the user's OK).
+- **TASK-041 deferred (the user's decision).** Missing: one gated test of the whole override flow in one run, "every step refuses the wrong role and the
+  caller's own request" in one place, and an EPIC-6 wrap-up retro. Then mark TASK-041 and the EPIC-6 header `Done` (only when asked).
+- Backlog: a not-found member page returns HTTP 200 because it streams (content identical to a missing person, nothing leaks); the My team roster's
+  last-request badge still says "Approved" for an overridden request (`roster-row.tsx`); the employee page reads a missing balance row as 0; the HR page uses
+  two statements, not the CSV's one; `ARCH-LeaveTrack-v1.0.md` still lists three statuses (docs rule, not edited); the HR welcome subtitle cannot show the
+  override count (the dashboard page passes `null`).
 
 ### EPIC-6 as shipped (retros: `knowledge/retros/2026-10-19-task-037-override-schema.md`, `-038-override-route.md`, `-039-override-page.md`, `-040-over-balance-states.md`)
 
@@ -135,10 +160,10 @@ Commits on `main`: `d41cef7` TASK-037, `e5c08a4` TASK-038, `82e66a1` TASK-039, `
 `20261019000000_add_override_approved_action.sql` and `20261019000100_audit_log_override_shortfall.sql` therefore reached staging. The older deployment
 facts (accounts, env vars, the database password living in four places, Supabase Auth, the demo password) are in section 0 below and are unchanged.
 
-**Suggested opening prompt for the EPIC-10 session:**
+**Suggested opening prompt for the EPIC-9 session:**
 
 > Read AGENTS.md, knowledge/HANDOFF.md and the newest retros in knowledge/retros/, then run git log and git status. Tell me the current state in a few
-> lines and what's next. Don't start any work. (Then: `/evaluate EPIC-10`.)
+> lines and what's next. Don't start any work. (Then: `/evaluate EPIC-9`.)
 
 ---
 

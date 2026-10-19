@@ -191,3 +191,13 @@ Learned in TASK-037 (2026-10-19), adding the `override_approved` audit action to
 - Mutation proofs for a route's SQL: copy the module to the scratchpad, patch one rule with a small script (assert the pattern exists),
   run the gated file, restore, and `cmp` against a saved copy. When two guards back each other up (a status check after a lock and a
   `status = 'pending'` in the UPDATE), remove both to prove the behaviour is covered.
+- **A role matrix needs one browser context per role.** Pages opened in one Chrome share one cookie jar, so a later `setCookie` silently
+  changes the role of every page already open (EPIC-10: all three "roles" ran as HR and a "no session" visit stayed signed in; 30 false
+  failures that looked like missing role gates). Use `browser.createBrowserContext()` per page, and have each role's page prove who it is
+  ("Welcome back, <name>") before it calls anything. Run refusals first and compare row counts before and after, then the allowed
+  mutations; use a fresh database for every full run.
+- **Do not assert a 404 status for a streamed `notFound()`.** A page that streams has already sent 200 when `notFound()` runs under
+  Suspense, so the status stays 200 and the not-found screen renders. Assert the content instead: for another team's member it must read
+  exactly like a person who does not exist and carry none of their data.
+- **A new CI step name with a colon is invalid YAML** (`name: Seed twice (proves idempotency: ...)`). `prettier --check` on the workflow file
+  catches it before CI does; there is no other local YAML parser in the repo.
