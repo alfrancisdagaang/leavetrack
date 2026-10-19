@@ -16,6 +16,8 @@ interface AppShellProps {
   userName: string;
   email: string;
   role: UserRole;
+  /** IANA zone (APP_TIMEZONE) for the bell's times. */
+  timeZone: string;
   items: NavItem[];
   signOutAction: () => Promise<void>;
   children: ReactNode;
@@ -25,7 +27,15 @@ interface AppShellProps {
  * Chrome for signed-in pages: the skip link, the Inter font and the sidebar + top bar frame.
  * Navigation items come from navItemsFor(role); the frame is a client component, the page is not.
  */
-export function AppShell({ userName, email, role, items, signOutAction, children }: AppShellProps) {
+export function AppShell({
+  userName,
+  email,
+  role,
+  timeZone,
+  items,
+  signOutAction,
+  children,
+}: AppShellProps) {
   return (
     <div className={`${inter.variable} min-h-dvh bg-page font-sans`}>
       <a
@@ -35,6 +45,8 @@ export function AppShell({ userName, email, role, items, signOutAction, children
         Skip to content
       </a>
       <AppFrame
+        role={role}
+        timeZone={timeZone}
         userName={userName}
         email={email}
         roleLabel={ROLE_LABEL[role]}

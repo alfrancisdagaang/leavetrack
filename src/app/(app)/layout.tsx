@@ -3,6 +3,7 @@ import { logoutAction } from "@/app/login/actions";
 import { AppShell } from "@/components/ui/app-shell";
 import { navItemsFor } from "@/components/ui/nav";
 import { requireSession } from "@/lib/auth/guards";
+import { getEnv } from "@/lib/env";
 
 /** No request may run for the platform default of 300 s: a hang fails fast and is logged. */
 export const maxDuration = 30;
@@ -19,6 +20,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       userName={user.name}
       email={user.email}
       role={role}
+      timeZone={getEnv().APP_TIMEZONE ?? "UTC"}
       items={navItemsFor(role)}
       signOutAction={logoutAction}
     >

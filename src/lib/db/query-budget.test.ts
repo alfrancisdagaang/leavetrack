@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Sql } from "postgres";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POOL_MAX } from "@/lib/db/client";
@@ -181,5 +183,52 @@ describe("query budget (parallel statements per page)", () => {
     });
     expect(tracker.peak()).toBe(2);
     expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+  });
+});
+
+/**
+ * TASK-055. The notification bell runs on EVERY signed-in page, and the three dashboards already
+ * use the whole budget (4 of POOL_MAX - 1). A statement in the layout would add a fifth, the
+ * number that stalled pages in October. So the bell reads in the BROWSER (the TASK-054 routes),
+ * after the page has loaded, and the layout and the chrome run no database statement for it. This
+ * guard fails if anyone moves that read onto the server render path.
+ */
+describe("the layout and the bell add no statement to a page (TASK-055)", () => {
+  const read = (file: string) => readFileSync(join(process.cwd(), file), "utf8");
+  const CHROME = [
+    "src/app/(app)/layout.tsx",
+    "src/components/ui/app-shell.tsx",
+    "src/components/ui/app-frame.tsx",
+    "src/components/ui/notification-bell.tsx",
+    "src/components/ui/notification-panel.tsx",
+    "src/components/ui/notification-state.ts",
+    "src/components/ui/notification-text.ts",
+  ];
+
+  it.each(CHROME)("%s imports nothing that reaches the database", (file) => {
+    const source = read(file);
+    // A value import of the db client, the service or the notifications module (type imports are
+    // erased, and `db/types` is constants only).
+    const reaching = source
+      .split("\n")
+      .filter((line) => /^import (?!type\b)/.test(line))
+      .filter((line) => /@\/lib\/(db\/(client|timed)|leave\/(notifications|service))/.test(line));
+    expect(reaching).toEqual([]);
+    expect(source).not.toMatch(
+      /\b(getDb|requireDb|timedRead|listNotifications|markNotificationsRead)\b/,
+    );
+  });
+
+  it("the bell is the only client piece, and it reads through the two API routes", () => {
+    const bell = read("src/components/ui/notification-bell.tsx");
+    expect(bell.startsWith('"use client";')).toBe(true);
+    expect(bell).toContain('"/api/notifications"');
+    expect(bell).toContain('"/api/notifications/read"');
+  });
+
+  it("never reads on navigation: no effect depends on the pathname", () => {
+    const bell = read("src/components/ui/notification-bell.tsx");
+    // The pathname only keys whether the panel is open; it is not a dependency of a read.
+    expect(bell).not.toMatch(/\[[^\]]*pathname[^\]]*\]/);
   });
 });

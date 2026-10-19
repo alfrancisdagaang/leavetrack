@@ -5,11 +5,16 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AccountMenu } from "@/components/ui/account-menu";
+import { NotificationBell } from "@/components/ui/notification-bell";
+import type { UserRole } from "@/lib/db/types";
 import { initialsOf } from "@/components/ui/initials";
 import { currentNavItem, type NavItem } from "@/components/ui/nav";
 import { NAV_ICON } from "@/components/ui/nav-icons";
 
 interface AppFrameProps {
+  role: UserRole;
+  /** IANA zone (APP_TIMEZONE): the bell shows times by this calendar. */
+  timeZone: string;
   userName: string;
   email: string;
   roleLabel: string;
@@ -93,6 +98,8 @@ function NavList({ items, pathname, collapsed = false }: NavListProps) {
  * decided by navItemsFor(role); access is still enforced by each page and route.
  */
 export function AppFrame({
+  role,
+  timeZone,
   userName,
   email,
   roleLabel,
@@ -204,6 +211,7 @@ export function AppFrame({
             </svg>
           </button>
           <p className="min-w-0 flex-1 truncate text-lg font-semibold text-ink">{title}</p>
+          <NotificationBell role={role} timeZone={timeZone} />
           <AccountMenu
             name={userName}
             roleLabel={roleLabel}

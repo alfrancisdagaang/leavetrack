@@ -16,6 +16,8 @@ function frame(role: Parameters<typeof navItemsFor>[0]) {
     createElement(
       AppFrame,
       {
+        role,
+        timeZone: "UTC",
         userName: "Marco Santos",
         email: "marco.santos@leavetrack.example",
         roleLabel: "Manager",
@@ -124,5 +126,20 @@ describe("AccountMenu", () => {
 
   it("names the account on the trigger for screen readers", () => {
     expect(html).toContain('aria-label="Account menu for Marco Santos"');
+  });
+});
+
+describe("AppFrame notification bell (TASK-055)", () => {
+  it("shows the bell in the top bar for every role, once, before the account menu", () => {
+    for (const role of ["employee", "manager", "hr_admin"] as const) {
+      const html = frame(role);
+      expect(html.match(/aria-controls="notification-panel"/g)).toHaveLength(1);
+      expect(html.indexOf('aria-label="Notifications"')).toBeGreaterThan(-1);
+      expect(html.indexOf('aria-label="Notifications"')).toBeLessThan(
+        html.indexOf("Account menu for"),
+      );
+      // The bell is not a nav item.
+      expect(html).not.toContain('aria-current="page">Notifications');
+    }
   });
 });
