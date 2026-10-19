@@ -210,7 +210,9 @@ export function AppFrame({
               />
             </svg>
           </button>
-          <p className="min-w-0 flex-1 truncate text-lg font-semibold text-ink">{title}</p>
+          <p className="min-w-0 flex-1 truncate text-base font-semibold text-ink sm:text-lg">
+            {title}
+          </p>
           <NotificationBell role={role} timeZone={timeZone} />
           <AccountMenu
             name={userName}

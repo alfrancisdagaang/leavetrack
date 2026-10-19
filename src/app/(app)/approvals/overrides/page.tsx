@@ -4,10 +4,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { LoadingRegion } from "@/components/ui/skeleton";
 import { requireRole } from "@/lib/auth/guards";
 import { getEnv } from "@/lib/env";
-import { DecidedSkeleton, PendingSkeleton } from "../approvals-skeleton";
+import { OverrideCardSkeleton } from "./override-skeleton";
 import { OverrideQueueSection, RecentOverridesSection } from "./override-sections";
 
-export const metadata: Metadata = { title: "HR overrides" };
+export const metadata: Metadata = { title: "Balance Overrides" };
 export const dynamic = "force-dynamic";
 
 /**
@@ -24,14 +24,14 @@ export default async function OverridesPage() {
   return (
     <div>
       <PageHeader
-        title="HR overrides"
+        title="Balance Overrides"
         description="Leave requests that ask for more days than the balance. Approving uses up the balance; rejecting needs a reason."
       />
       <div className="space-y-8">
         <Suspense
           fallback={
             <LoadingRegion>
-              <PendingSkeleton />
+              <OverrideCardSkeleton rows={2} />
             </LoadingRegion>
           }
         >
@@ -40,7 +40,7 @@ export default async function OverridesPage() {
         <Suspense
           fallback={
             <LoadingRegion>
-              <DecidedSkeleton />
+              <OverrideCardSkeleton rows={2} />
             </LoadingRegion>
           }
         >

@@ -225,7 +225,7 @@ describe("decideLeaveRequest", () => {
     expect(err.message).toContain("only 2 are available");
     // TASK-040: it names the override and where HR does it, and no longer says "not available yet".
     expect(err.message).toContain("needs an HR override");
-    expect(err.message).toContain("HR Overrides");
+    expect(err.message).toContain("Balance Overrides");
     expect(err.message).not.toContain("not available yet");
     expect(touched(/^update public\.leave_requests/)).toHaveLength(0);
     expect(touched(/^insert into public\.audit_log/)).toHaveLength(0);

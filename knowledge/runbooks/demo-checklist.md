@@ -17,12 +17,12 @@ Seed teams: Marco (manager) -> Elena, Jun; Priya (manager) -> Leo. Hana and Sam 
 
 ## AC1: each role signs in and sees only its own data
 
-| User               | Expect                                                                                             | OK  |
-| ------------------ | -------------------------------------------------------------------------------------------------- | --- |
-| `elena.cruz@...`   | Dashboard; balances Vacation, Sick; own requests on the calendar; **no** approvals link            | [ ] |
-| `marco.santos@...` | Pending approvals card; **no** Request Leave or My Balance; queue has Jun's and Elena's requests   | [ ] |
-| `hana.reyes@...`   | "Awaiting HR override" card (1); HR Overrides and Audit History; **no** Team Approvals, no balance | [ ] |
-| `leo.garcia@...`   | Own request (9-10 Nov) only; no approvals link; calendar shows only Leo                            | [ ] |
+| User               | Expect                                                                                                            | OK  |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------- | --- |
+| `elena.cruz@...`   | Dashboard; balances Vacation, Sick; own requests on the calendar; **no** approvals link                           | [ ] |
+| `marco.santos@...` | Pending approvals card; **no** Request Leave or My Balance; queue has Jun's and Elena's requests                  | [ ] |
+| `hana.reyes@...`   | "Awaiting HR override" card (1); Balance Overrides, Calendar and Audit History; **no** Team Approvals, no balance | [ ] |
+| `leo.garcia@...`   | Own request (9-10 Nov) only; no approvals link; calendar shows only Leo                                           | [ ] |
 
 (Emails end in `@leavetrack.example`.)
 
@@ -60,7 +60,7 @@ Seed teams: Marco (manager) -> Elena, Jun; Priya (manager) -> Leo. Hana and Sam 
    override: over your balance by N days" on her Sick request (N is 3 on a fresh seed, 2 on staging after one accrual run).
 3. **Marco** (second window): the new request is in his queue (the manager's notification). Approve one, reject another with a
    note. Elena's Sick request says "Waiting for HR override" and offers **Reject only**.
-4. **Hana** (third window): the dashboard card says one request is awaiting an override. **HR Overrides:** approve Elena's
+4. **Hana** (third window): the dashboard card says one request is awaiting an override. **Balance Overrides:** approve Elena's
    Sick request. Her Sick balance becomes 0 and the shortfall (3 days on a fresh seed, 2 after one accrual run) is recorded.
 5. **Elena:** balance and request status updated; the request reads "Approved (HR override)".
 6. **Hana:** audit history shows each decision: who, what, when (submitted, then override approved). Show the accrual with a manual

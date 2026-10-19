@@ -43,9 +43,17 @@ const APPROVALS: NavItem = {
 
 const OVERRIDES: NavItem = {
   key: "overrides",
-  label: "HR Overrides",
+  label: "Balance Overrides",
   href: "/approvals/overrides",
   description: "Decide leave requests that ask for more days than the balance.",
+  available: true,
+};
+
+const CALENDAR: NavItem = {
+  key: "calendar",
+  label: "Calendar",
+  href: "/calendar",
+  description: "See how many people are out each day, company-wide.",
   available: true,
 };
 
@@ -59,13 +67,13 @@ const AUDIT: NavItem = {
 
 /**
  * Navigation per role (EPIC-10). Only employees request leave and see a balance; only managers
- * have Team Approvals; HR admins get HR Overrides and Audit History.
+ * have Team Approvals; HR admins get Balance Overrides, the company Calendar and Audit History.
  * This only decides what is shown — access is enforced by requireRole()/assertRole() and SQL.
  */
 export function navItemsFor(role: UserRole): NavItem[] {
   if (role === "employee") return [DASHBOARD, REQUEST, BALANCE];
   if (role === "manager") return [DASHBOARD, APPROVALS];
-  return [DASHBOARD, OVERRIDES, AUDIT];
+  return [DASHBOARD, OVERRIDES, CALENDAR, AUDIT];
 }
 
 /**

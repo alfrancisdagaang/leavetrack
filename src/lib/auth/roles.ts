@@ -24,4 +24,4 @@ export function canApproveLeave(role: UserRole): boolean {
 
 /** The message for anyone but a manager who tries to approve or reject a request. */
 export const APPROVERS_ONLY_MESSAGE =
-  "Only managers can approve or reject a request. HR admins decide over-balance requests from HR Overrides.";
+  "Only managers can approve or reject a request. HR admins decide over-balance requests from Balance Overrides.";

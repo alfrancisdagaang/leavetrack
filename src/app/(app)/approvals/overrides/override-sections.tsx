@@ -8,6 +8,7 @@ import {
 } from "@/lib/leave/override-queue";
 import { requireDb } from "@/lib/leave/service";
 import { logger } from "@/lib/logger";
+import { OverrideCard } from "./override-card";
 import { OverrideRow, RecentOverrideRow } from "./override-row";
 import {
   OverrideQueueCapped,
@@ -33,10 +34,11 @@ export async function OverrideQueueSection({ hrId }: { hrId: string }) {
   }
 
   return (
-    <section aria-labelledby="override-queue-heading">
-      <h2 id="override-queue-heading" className="mb-3 text-xl font-semibold text-ink">
-        {`Waiting for an override (${queue.total})`}
-      </h2>
+    <OverrideCard
+      headingId="override-queue-heading"
+      title={`Waiting for an override (${queue.total})`}
+      chip={`${queue.total} pending`}
+    >
       {queue.rows.length === 0 ? (
         <OverrideQueueEmpty />
       ) : (
@@ -51,7 +53,7 @@ export async function OverrideQueueSection({ hrId }: { hrId: string }) {
           </ul>
         </>
       )}
-    </section>
+    </OverrideCard>
   );
 }
 
@@ -68,15 +70,16 @@ export async function RecentOverridesSection({ now, timeZone }: { now: Date; tim
   if (recent.length === 0) return null;
 
   return (
-    <section aria-labelledby="recent-overrides-heading">
-      <h2 id="recent-overrides-heading" className="mb-3 text-xl font-semibold text-ink">
-        Recently overridden
-      </h2>
+    <OverrideCard
+      headingId="recent-overrides-heading"
+      title="Recently overridden"
+      chip={`${recent.length} recent`}
+    >
       <ul aria-label="Recently overridden requests" className="space-y-3">
         {recent.map((override) => (
           <RecentOverrideRow key={override.id} override={override} now={now} timeZone={timeZone} />
         ))}
       </ul>
-    </section>
+    </OverrideCard>
   );
 }

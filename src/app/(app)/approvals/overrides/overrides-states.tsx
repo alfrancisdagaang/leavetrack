@@ -1,6 +1,5 @@
 import { Alert } from "@/components/ui/alert";
 import { ButtonLink } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { CenteredCard } from "../team/team-states";
 
 /** The queue could not be read: say so, and offer a way to try again. */
@@ -20,11 +19,7 @@ export function OverrideQueueError() {
 
 /** Nothing is waiting for HR. */
 export function OverrideQueueEmpty() {
-  return (
-    <Card>
-      <p className="text-ink-muted">No requests are waiting for an HR override.</p>
-    </Card>
-  );
+  return <p className="py-2 text-ink-muted">No requests are waiting for an HR override.</p>;
 }
 
 /** Shown when more requests wait than the page lists. */

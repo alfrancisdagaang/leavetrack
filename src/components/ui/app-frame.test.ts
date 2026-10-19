@@ -47,12 +47,12 @@ describe("AppFrame", () => {
     expect(manager).not.toContain("My Team");
     expect(frame("employee")).not.toContain("My Team");
     expect(frame("hr_admin")).toContain("Audit History");
-    expect(manager).not.toContain("HR Overrides");
-    expect(frame("employee")).not.toContain("HR Overrides");
-    expect(frame("hr_admin")).toContain("HR Overrides");
+    expect(manager).not.toContain("Balance Overrides");
+    expect(frame("employee")).not.toContain("Balance Overrides");
+    expect(frame("hr_admin")).toContain("Balance Overrides");
   });
 
-  it("on /approvals/overrides only HR Overrides is current, and it titles the top bar (not Team Approvals)", () => {
+  it("on /approvals/overrides only Balance Overrides is current, and it titles the top bar (not Team Approvals)", () => {
     path = "/approvals/overrides";
     const html = frame("hr_admin");
     path = "/approvals";
@@ -60,7 +60,7 @@ describe("AppFrame", () => {
     expect(html).toMatch(
       /<a(?=[^>]*aria-current="page")(?=[^>]*href="\/approvals\/overrides")[^>]*>/,
     );
-    expect(html).toMatch(/<p class="[^"]*text-lg[^"]*">HR Overrides<\/p>/);
+    expect(html).toMatch(/<p class="[^"]*text-lg[^"]*">Balance Overrides<\/p>/);
   });
 
   it("for a manager, /approvals/team highlights Team Approvals", () => {

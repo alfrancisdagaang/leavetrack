@@ -28,7 +28,7 @@ describe("OverrideRow", () => {
   it("AC2: writes out the shortfall, the balance and what approving does, in text", () => {
     const out = row();
     expect(out).toContain("Elena Cruz");
-    expect(out).toContain("2026-11-02 to 2026-11-06");
+    expect(out).toContain("Nov 2 to Nov 6, 2026");
     expect(out).toContain("5 working days");
     expect(out).toContain("Over balance by 3 days");
     expect(out).toContain("Vacation balance is 2 days.");
@@ -73,5 +73,14 @@ describe("OverrideRow", () => {
     expect(out).toContain("break-words");
     expect(out).not.toMatch(/#[0-9a-fA-F]{3,6}\b|rgb\(/);
     expect(out).not.toContain("whitespace-nowrap");
+  });
+
+  it("polish: the dates and working days carry icons, the effect sits in a note strip, and the shortfall is bold", () => {
+    const out = row();
+    expect(out).toContain("Nov 2 to Nov 6, 2026");
+    expect(out.match(/aria-hidden="true"/g)?.length).toBeGreaterThanOrEqual(3);
+    expect(out).toContain("bg-brand-50/60");
+    expect(out).toMatch(/font-semibold text-ink">Over balance by 3 days</);
+    expect(out).toContain("lg:border-l");
   });
 });

@@ -53,6 +53,7 @@ describe("OverrideQueueSection", () => {
     queue.getOverrideQueue.mockResolvedValue({ rows: [queued("a"), queued("b")], total: 2 });
     const out = await html(OverrideQueueSection({ hrId: "h1" }));
     expect(out).toContain("Waiting for an override (2)");
+    expect(out).toContain("2 pending");
     expect(out.match(/Over balance by 3 days/g)).toHaveLength(2);
     expect(out).not.toContain("Showing the oldest");
   });
@@ -97,6 +98,7 @@ describe("RecentOverridesSection", () => {
     ]);
     const out = await html(RecentOverridesSection({ now, timeZone: "UTC" }));
     expect(out).toContain("Recently overridden");
+    expect(out).toContain("1 recent");
     expect(out).toContain("Approved (HR override)");
     expect(out).toContain("Shortfall: 3 days");
     expect(out).toContain("By Hana Reyes");

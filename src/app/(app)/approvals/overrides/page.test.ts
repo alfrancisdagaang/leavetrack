@@ -35,7 +35,7 @@ describe("OverridesPage", () => {
   it("has the single h1 and no width cap", async () => {
     const out = renderToStaticMarkup(await OverridesPage());
     expect(out.match(/<h1/g)).toHaveLength(1);
-    expect(out).toMatch(/<h1[^>]*>HR overrides<\/h1>/);
+    expect(out).toMatch(/<h1[^>]*>Balance Overrides<\/h1>/);
     expect(out).not.toContain("max-w-5xl");
   });
 });

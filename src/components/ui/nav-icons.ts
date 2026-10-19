@@ -5,5 +5,6 @@ export const NAV_ICON: Record<string, string | undefined> = {
   balance: "/icons/nav-wallet.svg",
   approvals: "/icons/nav-users.svg",
   overrides: "/icons/nav-override.svg",
+  calendar: "/icons/nav-calendar.svg",
   audit: "/icons/nav-history.svg",
 };

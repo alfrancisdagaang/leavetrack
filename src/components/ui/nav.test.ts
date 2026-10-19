@@ -27,12 +27,18 @@ describe("navItemsFor", () => {
     expect(keys("hr_admin")).not.toContain("team");
   });
 
-  it("gives HR admins the dashboard, HR Overrides and the audit log, and no Team Approvals (EPIC-10 AC2)", () => {
-    expect(keys("hr_admin")).toEqual(["dashboard", "overrides", "audit"]);
+  it("gives HR admins the dashboard, Balance Overrides, the company calendar and the audit log, and no Team Approvals (EPIC-10 AC2)", () => {
+    expect(keys("hr_admin")).toEqual(["dashboard", "overrides", "calendar", "audit"]);
     expect(keys("hr_admin")).not.toContain("approvals");
   });
 
-  it("shows HR Overrides to HR admins only (TASK-039 AC3)", () => {
+  it("shows the company Calendar to HR admins only (EPIC-7 TASK-043 AC3)", () => {
+    expect(keys("employee")).not.toContain("calendar");
+    expect(keys("manager")).not.toContain("calendar");
+    expect(keys("hr_admin")).toContain("calendar");
+  });
+
+  it("shows Balance Overrides to HR admins only (TASK-039 AC3)", () => {
     expect(keys("employee")).not.toContain("overrides");
     expect(keys("manager")).not.toContain("overrides");
     expect(keys("hr_admin")).toContain("overrides");
@@ -42,7 +48,7 @@ describe("navItemsFor", () => {
     const linked = navItemsFor("hr_admin")
       .filter((i) => i.available)
       .map((i) => i.key);
-    expect(linked).toEqual(["dashboard", "overrides", "audit"]);
+    expect(linked).toEqual(["dashboard", "overrides", "calendar", "audit"]);
   });
 
   it("gives every item a unique key and an absolute href", () => {
@@ -60,12 +66,13 @@ describe("navItemsFor", () => {
     expect(navItemsFor("manager").map((i) => i.label)).toEqual(["Dashboard", "Team Approvals"]);
     expect(navItemsFor("hr_admin").map((i) => i.label)).toEqual([
       "Dashboard",
-      "HR Overrides",
+      "Balance Overrides",
+      "Calendar",
       "Audit History",
     ]);
   });
 
-  it("picks the item with the longest matching href, so HR Overrides wins under /approvals", () => {
+  it("picks the item with the longest matching href, so Balance Overrides wins under /approvals", () => {
     // No single role has both items now, so test the rule on the union of the two lists.
     const items = [
       ...navItemsFor("manager"),
@@ -77,7 +84,7 @@ describe("navItemsFor", () => {
     expect(at("/approvals/team/00000000-0000-4000-8000-000000000003")).toBe("approvals");
     expect(at("/approvals/overrides")).toBe("overrides");
     expect(at("/approvals/overrides/anything")).toBe("overrides");
-    // A sibling path that merely starts with the same letters is not under HR Overrides.
+    // A sibling path that merely starts with the same letters is not under Balance Overrides.
     expect(at("/approvals/overrides-not")).toBe("approvals");
     expect(at("/audit")).toBe("audit");
     expect(at("/nowhere")).toBeUndefined();
@@ -96,6 +103,7 @@ describe("navItemsFor", () => {
       expect(existsSync(`public${icon}`), `${icon} is missing`).toBe(true);
     }
     expect(NAV_ICON.audit).toBe("/icons/nav-history.svg");
+    expect(NAV_ICON.calendar).toBe("/icons/nav-calendar.svg");
     expect(NAV_ICON.overrides).toBe("/icons/nav-override.svg");
   });
 });
