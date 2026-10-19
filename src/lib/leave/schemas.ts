@@ -242,3 +242,81 @@ export function parseAuditListQuery(params: Record<string, string | string[] | u
 
   return { query: { q, leaveTypeId, status, decidedBy, from, to, page }, ignored };
 }
+
+/** EPIC-7. The HR calendar's filters, read from the page address (`month`, `team`, `type`, `day`, `q`, `page`). */
+export type HrCalendarQuery = {
+  /** `YYYY-MM`; undefined means the current month. */
+  month: string | undefined;
+  /** Only people whose manager is this person. */
+  managerId: string | undefined;
+  leaveTypeId: string | undefined;
+  /** A weekday inside the month shown; opens the list of who is out. */
+  day: string | undefined;
+  /** Part of a name, for the day's list. */
+  q: string | undefined;
+  page: number;
+};
+
+const HR_MONTH = /^(\d{4})-(0[1-9]|1[0-2])$/;
+
+/**
+ * Reads the HR calendar filters from the address. Every value is checked on its own: a bad one is
+ * dropped (and named in `ignored`) so the page shows its default for it and never fails. A day only
+ * counts when it is a real weekday inside the month shown; a name search and a page only matter once
+ * a day is open, so they are dropped without one.
+ */
+export function parseHrCalendarQuery(
+  params: Record<string, string | string[] | undefined>,
+  currentMonth: string,
+): { query: HrCalendarQuery; ignored: string[] } {
+  const ignored: string[] = [];
+  const raw = (key: string) => {
+    const value = first(params[key]);
+    return value === undefined || value === "" ? undefined : value;
+  };
+
+  let month: string | undefined;
+  const monthValue = raw("month");
+  if (monthValue !== undefined) {
+    const match = HR_MONTH.exec(monthValue);
+    if (match && Number(match[1]) >= 2000 && Number(match[1]) <= 2100) month = monthValue;
+    else ignored.push("month");
+  }
+
+  const uuid = (key: string, label: string) => {
+    const value = raw(key);
+    if (value === undefined) return undefined;
+    const parsed = z.uuid().safeParse(value);
+    if (parsed.success) return parsed.data;
+    ignored.push(label);
+    return undefined;
+  };
+  const managerId = uuid("team", "team");
+  const leaveTypeId = uuid("type", "leave type");
+
+  let day: string | undefined;
+  const dayValue = raw("day");
+  if (dayValue !== undefined) {
+    const shown = month ?? currentMonth;
+    const weekday = isRealIsoDate(dayValue) ? new Date(`${dayValue}T00:00:00Z`).getUTCDay() : -1;
+    if (dayValue.startsWith(`${shown}-`) && weekday >= 1 && weekday <= 5) day = dayValue;
+    else ignored.push("day");
+  }
+
+  let q: string | undefined;
+  const search = raw("q")?.trim();
+  if (search && day) {
+    if (search.length <= AUDIT_SEARCH_MAX) q = search;
+    else ignored.push("search");
+  }
+
+  let page = 1;
+  const pageValue = raw("page");
+  if (pageValue !== undefined && day) {
+    const n = /^\d{1,4}$/.test(pageValue) ? Number(pageValue) : NaN;
+    if (n >= 1 && n <= MEMBER_MAX_PAGE) page = n;
+    else ignored.push("page");
+  }
+
+  return { query: { month, managerId, leaveTypeId, day, q, page }, ignored };
+}
