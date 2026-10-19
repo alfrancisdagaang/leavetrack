@@ -1,5 +1,91 @@
 # LeaveTrack — Session Handoff
 
+## READ FIRST — 2026-10-19 direction change (supersedes the older notes below where they disagree)
+
+**Demo date: the user says it is TOMORROW, Tue 2026-10-20** (older notes below say Mon 10-19). The user has until then to tone the
+feature set down and add the items below. Verified by me on 2026-10-19; decisions are the user's unless marked.
+
+**Golden rule (the supervisor, 2026-10-19, relayed by the user): do not change the required features, such as the user roles defined in
+the docs; stick to the original roles.** Saved as a memory. Design new work as additive. The docs rule (no edits to the PRD, BRD,
+ARCH or the other requirement docs) still stands; new decisions go in `knowledge/` and in the epic CSVs under `docs/dev-tasks/`.
+
+**What the docs say about roles (read from `docs/prd`, `docs/brd`, `docs/arch-docs`):** exactly three roles. Employee (submits requests,
+views own balance), Manager (approves or rejects direct reports only), HR Admin (configures leave policies, runs audit reports). There is
+no separate "HR" role: HR and HR Admin are the same thing. The docs do not say whether managers or HR Admins may request leave ("roles
+stack" was our own default of 2026-10-14, never in the docs). PRD US-01 AC3 says an over-balance request "may still submit for HR
+override" and never says who overrides or what happens to the balance.
+
+**The model the user decided (2026-10-19), "stick to simpler":**
+
+| Role     | Can                                                                                           | Cannot                                              |
+| -------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| Employee | Request leave, see own balance, calendar                                                      |                                                     |
+| Manager  | Approve or reject direct reports' requests, team views, team calendar                         | Request their own leave                             |
+| HR Admin | Override over-balance requests, Audit History, dashboard and calendar, (EPIC-8) manage people | Request leave, approve normal requests, have a team |
+
+This removes the hierarchy problem (nobody at the top needs an approver; nobody decides their own request). **EPIC-10 (role tone-down)
+is a MUST** (the user: "it must"). Not seen: the supervisor's explicit OK for removing the existing manager/HR request ability and HR
+approvals; the user decided it. State the known limitation when asked: a manager or HR Admin who needs leave has no way to request it.
+The over-balance override design that was first proposed (a `pending_hr` status, a manager "Send to HR" step, peer-HR rules) was
+**dropped**; the override is now: any HR Admin (never the requester) can override a PENDING over-balance request from any team (balance
+of that leave type becomes 0, shortfall recorded in the audit row) or reject it with a note; the manager can still reject; first
+decision wins; override only for over-balance requests.
+
+**Epics (committed in `132d817`; CSVs in `docs/dev-tasks/`, all `Open`; ids TASK-037 to TASK-061):**
+
+| Epic                         | File                               | Tasks           |
+| ---------------------------- | ---------------------------------- | --------------- |
+| EPIC-6 HR override           | `epic-6-hr-override-tasks.csv`     | TASK-037 to 041 |
+| EPIC-7 HR calendar           | `epic-7-hr-calendar-tasks.csv`     | TASK-042 to 044 |
+| EPIC-8 User management       | `epic-8-user-management-tasks.csv` | TASK-045 to 051 |
+| EPIC-9 Notifications         | `epic-9-notifications-tasks.csv`   | TASK-052 to 057 |
+| EPIC-10 Role scope tone-down | `epic-10-role-scope-tasks.csv`     | TASK-058 to 061 |
+
+**PRIORITY ORDER (agreed with the user 2026-10-19; work in this order, one epic at a time, evaluate, plan, apply, validate per task):**
+
+1. **EPIC-6 HR override.** The only item the PRD names (US-01 AC3); no setup needed. First step is reworking TASK-037 (below).
+2. **EPIC-10 Role scope tone-down (MUST).** Done right after EPIC-6 and before the rest, because EPIC-9 edits `createLeaveRequest` and
+   `decideLeaveRequest` and EPIC-10 changes their role gates and many tests; doing it first avoids rewriting twice. Do not touch staging
+   data: rows cannot be hard-deleted, so old Hana, Sam, Marco and Priya requests stay as history unless the user agrees a soft-delete
+   data migration. Ask the supervisor for his OK in parallel.
+3. **EPIC-9 Notifications (in-app bell).** Closes the biggest gap against the original PRD (US-01 AC1 manager notified, US-03 employee
+   notified; neither is built). Risk: the bell is on every page, so its unread count must be ONE indexed statement within the page query
+   budget (`POOL_MAX - 1`); stream it. TASK-056 (email copies) only if time.
+4. **EPIC-7 HR calendar.** Isolated, no setup; counts per day for hundreds of staff, not a bar per person.
+5. **EPIC-8 User management with email invites.** Biggest and riskiest (server-only service-role key, SMTP, a new audit table, forced
+   password change). Needs the user's setup: Supabase custom SMTP and `SUPABASE_SERVICE_ROLE_KEY` as a server-only Vercel variable. **Start the
+   SMTP setup early, in parallel**, so it does not block. Show it tomorrow only if SMTP works. Needs the supervisor's OK (the PRD gives
+   HR Admin only policies and audit).
+
+**Email provider decision (user, 2026-10-19: "pick one free tier"):** Gmail SMTP for the demo (a dedicated Google account, 2-step
+verification, an app password; no domain needed, so a temp-mail recipient works; non-production). Checked on the web today: Supabase's
+built-in sender only delivers to project team members at 2 messages per hour, and custom SMTP raises it to 30 per hour by default;
+Brevo's own Supabase guide requires a verified domain; a search result said Resend's free plan sends only to the account owner
+(unverified). Gmail's terms were NOT checked: test before relying on it. Production needs a provider with a verified domain. No-email
+fallback: HR copies an invite link (demo only). The user does the Supabase and Vercel steps; I cannot.
+
+**Working tree at the end of 2026-10-19 (check `git status -sb`):** `origin/main` is at `ee95022`; three local commits are not pushed
+(`3aa70e1` handoff, `f9c1aa3` and `132d817` the epic CSVs). **Uncommitted, from the first TASK-037 attempt (the old `pending_hr` design), to
+be REWORKED, not committed as is:** `supabase/migrations/20261019000000_add_pending_hr_enum_values.sql`,
+`supabase/migrations/20261019000100_pending_hr_decision_rules_and_shortfall.sql` (never applied anywhere; the real-Postgres run was a
+throwaway), `src/lib/db/types.ts`, `supabase/tests/verify_schema.sql`, `src/lib/db/override-schema.integration.test.ts`, the two
+"Waiting for HR" labels in `team-format.ts` and `balance-requests.tsx` plus `team-format.test.ts`, the retro
+`knowledge/retros/2026-10-19-task-037-pending-hr-schema.md` and a new section in `knowledge/patterns/implement-and-test.md` (the pattern
+stays valid: enum value and its use are two files; embedded-postgres for real Postgres; pglite-socket mixes up results after a SQL
+error). The reworked TASK-037 keeps only the `override_approved` audit action and the shortfall columns; it reverts the pending_hr parts.
+**Do not push any migration until the enum name `override_approved` is agreed: enum values can never be removed, and the CI `db-push`
+job applies migrations to staging on the next push to `main`.**
+
+**Next step: `/evaluate TASK-037`** (the rework). Open defaults awaiting the user's explicit OK: the manager can still reject an
+over-balance request and the first decision wins; HR overrides only over-balance requests. Questions for the supervisor: who
+approves the top HR Admin's leave (moot after EPIC-10), may HR Admin manage users (EPIC-8), the role tone-down itself (EPIC-10).
+
+**Harness notes learned 2026-10-19:** real PostgreSQL 18 on the Mac without Docker via `npm i embedded-postgres` in the scratchpad (see
+the pattern); pglite-socket desyncs after any SQL error, so do not use it for tests that expect constraint errors; run gated suites on
+one fresh database (`dashboard-lists` fails its "at most five" asserts when other files crowded the same database).
+
+---
+
 Last updated: Sunday 2026-10-18 (end of session, late night) · Code state: `origin/main` is at `ee95022` (sign-in redesign); a later
 `docs:` commit that refreshes this file is local until the user pushes it. Check `git log` and `git status -sb`.
 Commits 2026-10-18 (newest first): `ee95022` (sign-in page redesign, brand icons reachable when signed out, login tests that now run),
