@@ -201,3 +201,47 @@ Learned in TASK-037 (2026-10-19), adding the `override_approved` audit action to
   exactly like a person who does not exist and carry none of their data.
 - **A new CI step name with a colon is invalid YAML** (`name: Seed twice (proves idempotency: ...)`). `prettier --check` on the workflow file
   catches it before CI does; there is no other local YAML parser in the repo.
+
+## Canonical new-table migration pattern (learned in TASK-052, 2026-10-20)
+
+- **A new table breaks `verify_schema.sql` on purpose.** It asserts the table count and the RLS count by name, so add the table to both
+  lists and bump both numbers in the same change, or CI `db-verify` goes red. Add one probe per rule (CHECK, immutable columns, no delete,
+  no truncate), each in a `begin ... exception when <class> then null` block that raises if the rule did not fire.
+- **A text column with a CHECK list instead of an enum** (a value that may need removing later) is mirrored in `types.ts` by hand. Pin it with
+  an ungated test that parses the CHECK list out of the migration file and compares it to the TypeScript tuple.
+- **`ON DELETE RESTRICT` raises 23001 (`restrict_violation`), not 23503**; so do the repo's guard triggers. 23503 is for a missing parent on insert.
+- **`verify_schema` cannot see indexes.** Prove an index with a gated `EXPLAIN` test (`set local enable_seqscan = off` inside `sql.begin`,
+  a few hundred rows, `analyze`) and mutation-test it by dropping the index. Mutation-test the rest by weakening one rule per copy of `supabase/`
+  and expecting exactly the matching probe to fail; check which of the two suites catches each, since some rules only one of them can see.
+
+## Canonical notify-in-the-same-transaction pattern (learned in TASK-053, 2026-10-20)
+
+- **One statement, recipients from the database.** `notifyLeaveEvent(tx, ...)` is called inside the event's own `sql.begin`, right after the
+  audit insert, and works out the recipients in SQL from the employee's `manager_id` (never from the caller). A failed insert throws and
+  takes the whole event with it. Do not wrap it in try/catch.
+- **Prove the rollback with a scoped failure trigger.** In a gated test create a `before insert` trigger on the table with
+  `when (new.recipient_id in (<this file's own users>))` that raises, run the event, and assert the request, audit and balance are unchanged;
+  drop it in `finally` and in `afterAll`. Scoping the trigger to the file's own ids keeps other gated files unaffected.
+- **Two guards that hide each other need a paired mutation.** The actor guard hid "decide tells the manager" and "submit tells the employee"
+  (the wrongly named recipient is the actor), so each single mutation survived the gated test. Remove both together to prove the behaviour
+  is covered; the unit tests on the statement's values catch the single ones.
+- **A gated file that inserts over-balance requests races `override-count.integration`** (an HR-wide count). It failed in combined runs
+  before TASK-053 too. Run it alone and say so in the header of any new file that inserts over-balance requests.
+- **Assert what must always hold about a query plan**, not which of two eligible indexes the planner picks: other files change the statistics
+  while a combined run is in progress. Assert an index scan and no `Seq Scan`, and check an index's definition from `pg_indexes`.
+- Harness: `vitest run <many paths>` can print "No test files found", and `--exclude` swallows a positional filter; use one substring filter
+  (`vitest run .integration.test --exclude '**/dashboard-lists*'`), or move a file aside to get a baseline.
+
+## Canonical shared-chrome client component pattern (learned in TASK-055, 2026-10-20)
+
+- **Anything in the layout runs on every page, and a page budget has no spare statement.** Do not add a server read to the layout or shell.
+  Read in the browser through an existing route, after the page has loaded (idle callback), and guard it with a source-level test in
+  `query-budget.test.ts` (no value import of the db client, the service or the module's SQL; no effect keyed on the pathname).
+- **The repo has no DOM test environment.** Put the logic in a pure reducer and pure helpers (unit tests), render the presentational part with
+  `renderToStaticMarkup`, and prove the interaction in a real browser (puppeteer-core in the scratchpad, one context per role, throwaway
+  production build). Do not trust a mock-based test of an optimistic update.
+- **Optimistic UI plus a read in flight is a race.** A read that started before a click answers with the pre-click list and undoes the click.
+  Invalidate older reads when a mark starts, and read again when it settles. Test it by fetching the answer from Node before the click and
+  delivering it later through request interception: delaying the REQUEST is not enough, the server then answers after the click.
+- **An anchored dropdown next to the avatar can leave the viewport at 320 px.** Below `sm` use `fixed inset-x-4` under the bar; from `sm`
+  `absolute right-0 w-96`. Assert the panel's rect is inside the viewport at 1440, 375 and 320.
