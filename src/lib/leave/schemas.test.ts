@@ -7,6 +7,7 @@ import {
   parseTeamMemberQuery,
   listQuerySchema,
   memberIdSchema,
+  markReadSchema,
   requestIdSchema,
 } from "@/lib/leave/schemas";
 
@@ -112,6 +113,20 @@ describe("requestIdSchema", () => {
   it("accepts a uuid and rejects anything else", () => {
     expect(requestIdSchema.safeParse(TYPE_ID).success).toBe(true);
     expect(requestIdSchema.safeParse("1; drop table").success).toBe(false);
+  });
+});
+
+describe("markReadSchema (TASK-054)", () => {
+  it("accepts no id (mark all) or one uuid, and strips a client-sent user id", () => {
+    expect(markReadSchema.parse({})).toEqual({});
+    expect(markReadSchema.parse({ id: TYPE_ID })).toEqual({ id: TYPE_ID });
+    expect(markReadSchema.parse({ id: TYPE_ID, user_id: "someone-else" })).toEqual({ id: TYPE_ID });
+  });
+
+  it("rejects an id that is not a uuid", () => {
+    expect(markReadSchema.safeParse({ id: "1; drop table" }).success).toBe(false);
+    expect(markReadSchema.safeParse({ id: 5 }).success).toBe(false);
+    expect(markReadSchema.safeParse([]).success).toBe(false);
   });
 });
 

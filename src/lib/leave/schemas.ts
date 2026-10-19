@@ -53,6 +53,13 @@ export type DecisionInput = z.infer<typeof decisionSchema>;
 
 export const requestIdSchema = z.uuid();
 
+/**
+ * POST /api/notifications/read body (TASK-054). No `id` marks every unread notification of the
+ * session user; an `id` marks that one. Unknown keys (a client-sent `user_id`) are stripped: the
+ * recipient is always the session user.
+ */
+export const markReadSchema = z.object({ id: z.uuid().optional() });
+
 /** An optional YYYY-MM-DD query value; an empty form field counts as "not set". */
 const optionalDate = z.preprocess((v) => (v === "" ? undefined : v), isoDate.optional());
 
