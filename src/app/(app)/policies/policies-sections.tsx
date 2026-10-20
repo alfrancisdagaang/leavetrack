@@ -1,5 +1,6 @@
 import { unstable_rethrow } from "next/navigation";
 import { Card } from "@/components/ui/card";
+import { Pager } from "@/components/ui/pager";
 import { FilterShell, ResultsRegion } from "@/components/ui/filter-shell";
 import { timedRead } from "@/lib/db/timed";
 import {
@@ -21,7 +22,6 @@ import {
   RecentChangesError,
 } from "./policies-states";
 import { PolicyFilters } from "./policy-filters";
-import { PolicyPager } from "./policy-pager";
 import { PolicySummaryTiles } from "./policy-summary";
 import { PolicyTable } from "./policy-table";
 import { clearedHref, policiesHref } from "./policies-url";
@@ -85,7 +85,7 @@ export async function PolicyListSection({
             ) : (
               <>
                 <PolicyTable key={address} people={data.people} query={query} timeZone={timeZone} />
-                <PolicyPager
+                <Pager
                   page={data.page}
                   total={data.total}
                   pageSize={data.pageSize}

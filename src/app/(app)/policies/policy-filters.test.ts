@@ -106,13 +106,10 @@ describe("PolicyFilters (EPIC-13 AC1)", () => {
     expect(html).toContain(`href="/policies?status=none&amp;sort=sick&amp;per=50"`);
   });
 
-  it("a select applies as soon as it changes (the form's change handler), and the search on submit", () => {
-    expect(source).toMatch(
-      /onChange=\{\(event\) => \{\s*if \(event\.target instanceof HTMLSelectElement\) apply\(event\.currentTarget\);/,
-    );
-    expect(source).toMatch(
-      /onSubmit=\{\(event\) => \{\s*event\.preventDefault\(\);\s*apply\(event\.currentTarget\);/,
-    );
+  it("is built on the shared filter form, so a select applies at once and the search on submit", () => {
+    expect(source).toContain("<FilterForm");
+    expect(source).toContain("<CollapsibleSelects");
+    expect(source).toContain("<FilterChips");
   });
 
   it("every change starts again at page 1", () => {

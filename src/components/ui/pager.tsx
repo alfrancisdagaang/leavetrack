@@ -17,9 +17,10 @@ const LINK =
 
 /**
  * "Showing 1 to 25 of 1,248", Previous and Next, and numbered pages with the current one marked. Every
- * link keeps the search, filters and order (the caller builds each address). Nothing for a single page.
+ * link keeps the search, filters and order (the caller builds each address). Only the range for a single page.
+ * Shared by Leave Policies, Team Approvals and Balance Overrides.
  */
-export function PolicyPager({
+export function Pager({
   page,
   total,
   pageSize,

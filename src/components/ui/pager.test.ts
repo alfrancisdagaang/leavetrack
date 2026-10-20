@@ -1,11 +1,11 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { PolicyPager, pageWindow } from "./policy-pager";
+import { Pager, pageWindow } from "./pager";
 
 const hrefFor = (n: number) => `/policies?page=${n}`;
 const render = (page: number, total: number, pageSize = 25) =>
-  renderToStaticMarkup(createElement(PolicyPager, { page, total, pageSize, hrefFor }));
+  renderToStaticMarkup(createElement(Pager, { page, total, pageSize, hrefFor }));
 
 describe("pageWindow", () => {
   it.each([
@@ -21,7 +21,7 @@ describe("pageWindow", () => {
   });
 });
 
-describe("PolicyPager", () => {
+describe("Pager", () => {
   it("says which rows are shown, with thousands separators", () => {
     expect(render(1, 1248)).toContain("Showing 1 to 25 of 1,248");
     expect(render(50, 1248)).toContain("Showing 1,226 to 1,248 of 1,248");
