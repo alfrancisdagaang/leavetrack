@@ -4,6 +4,7 @@ import type * as OrgModule from "@/lib/leave/org";
 
 const guard = vi.hoisted(() => ({ requireSession: vi.fn() }));
 vi.mock("@/lib/auth/guards", () => ({ requireSession: guard.requireSession }));
+vi.mock("@/lib/auth/session", () => ({ getSessionSource: async () => "supabase" }));
 vi.mock("@/lib/logger", () => ({ logger: { warn: vi.fn(), error: vi.fn() } }));
 vi.mock("next/navigation", () => ({ unstable_rethrow: () => {} }));
 vi.mock("@/lib/leave/service", () => ({ requireDb: () => ({}) }));
@@ -45,5 +46,26 @@ describe.each(PAGES)("the %s page (TASK-062)", (tab, Page) => {
     expect(html).toContain("My Profile");
     expect(html.match(/aria-current="page"/g)).toHaveLength(1);
     expect(html).toMatch(new RegExp(`aria-current="page"[^>]*>${tab}</a>`));
+  });
+});
+
+describe("the Account settings page (TASK-065)", () => {
+  it("AC3: a mock-login session sees the explanation and no form", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/auth/session", () => ({ getSessionSource: async () => "mock" }));
+    vi.doMock("@/lib/auth/guards", () => ({ requireSession: async () => ({}) }));
+    const { default: Page } = await import("./settings/page");
+    const html = renderToStaticMarkup(await Page());
+    expect(html).toContain("Password change is not available with the demo login.");
+    expect(html).not.toContain("<form");
+    vi.doUnmock("@/lib/auth/session");
+    vi.doUnmock("@/lib/auth/guards");
+  });
+
+  it("a real session sees the Security card with the form", async () => {
+    const html = renderToStaticMarkup(await SettingsPage());
+    expect(html).toContain("Security");
+    expect(html).toContain('id="current-password"');
+    expect(html).not.toContain("demo login");
   });
 });

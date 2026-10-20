@@ -10,6 +10,9 @@ const env = getEnv();
  */
 const SECRET_KEYS = [
   "password",
+  "current_password",
+  "new_password",
+  "confirm_password",
   "token",
   "access_token",
   "refresh_token",

@@ -67,9 +67,17 @@ async function sessionFromMockCookie(): Promise<Session | null> {
   return role ? { role, user: MOCK_USER_BY_ROLE[role] } : null;
 }
 
-const resolveSession = cache(async (): Promise<Session | null> => {
+/** Where a session came from: a real Supabase account, or the labelled mock cookie. */
+export type SessionSource = "supabase" | "mock";
+
+type Resolved = { session: Session; source: SessionSource } | null;
+
+const resolveSession = cache(async (): Promise<Resolved> => {
   try {
-    return (await sessionFromSupabase()) ?? (await sessionFromMockCookie());
+    const real = await sessionFromSupabase();
+    if (real) return { session: real, source: "supabase" };
+    const mock = await sessionFromMockCookie();
+    return mock ? { session: mock, source: "mock" } : null;
   } catch (err) {
     // Next signals "this render is dynamic" and redirects by throwing; those must pass through.
     unstable_rethrow(err);
@@ -86,5 +94,14 @@ const resolveSession = cache(async (): Promise<Session | null> => {
 
 /** Current session for server components, actions, and route handlers. */
 export async function getSession(): Promise<Session | null> {
-  return resolveSession();
+  return (await resolveSession())?.session ?? null;
+}
+
+/**
+ * Where the current session came from, from the same cached resolution as `getSession()` (no
+ * second lookup). Null means no session. Only for features a mock session cannot use, such as
+ * changing a password (a mock user has no Supabase account); it grants nothing.
+ */
+export async function getSessionSource(): Promise<SessionSource | null> {
+  return (await resolveSession())?.source ?? null;
 }

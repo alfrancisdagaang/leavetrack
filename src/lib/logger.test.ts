@@ -18,6 +18,9 @@ describe("logger redaction", () => {
   it("TASK-025 AC3: censors a secret at the top level of the log object", () => {
     for (const key of [
       "password",
+      "current_password",
+      "new_password",
+      "confirm_password",
       "token",
       "access_token",
       "refresh_token",
@@ -34,6 +37,9 @@ describe("logger redaction", () => {
   it("TASK-025 AC3: censors a secret one level down, such as inside an error context", () => {
     for (const key of [
       "password",
+      "current_password",
+      "new_password",
+      "confirm_password",
       "token",
       "access_token",
       "refresh_token",

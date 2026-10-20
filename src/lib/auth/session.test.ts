@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   getSession,
+  getSessionSource,
   parseRole,
   SESSION_MAX_AGE_SECONDS,
   sessionCookieOptions,
@@ -179,5 +180,36 @@ describe("getSession", () => {
       Object.assign(new Error("Dynamic server usage"), { digest: "DYNAMIC_SERVER_USAGE" }),
     );
     await expect(getSession()).rejects.toThrow(/Dynamic server usage/);
+  });
+});
+
+describe("getSessionSource (TASK-065)", () => {
+  beforeEach(() => {
+    mocks.cookieValue = undefined;
+    mocks.allowMock = true;
+    mocks.supabase = null;
+    mocks.sql = {};
+    mocks.findUserByEmail.mockReset();
+  });
+
+  it("is 'supabase' for a real account, 'mock' for the cookie and null for no session", async () => {
+    mocks.supabase = supabaseUser("elena.cruz@leavetrack.example");
+    mocks.findUserByEmail.mockResolvedValue(MOCK_USERS.employee);
+    expect(await getSessionSource()).toBe("supabase");
+
+    mocks.supabase = null;
+    mocks.cookieValue = "manager";
+    expect(await getSessionSource()).toBe("mock");
+
+    mocks.cookieValue = undefined;
+    expect(await getSessionSource()).toBeNull();
+  });
+
+  it("a real account wins over a lingering mock cookie, and getSession is unchanged", async () => {
+    mocks.cookieValue = "hr_admin";
+    mocks.supabase = supabaseUser("elena.cruz@leavetrack.example");
+    mocks.findUserByEmail.mockResolvedValue(MOCK_USERS.employee);
+    expect(await getSessionSource()).toBe("supabase");
+    expect(await getSession()).toEqual({ role: "employee", user: MOCK_USERS.employee });
   });
 });
