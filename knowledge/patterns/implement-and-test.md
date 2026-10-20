@@ -319,3 +319,40 @@ Learned in TASK-037 (2026-10-19), adding the `override_approved` audit action to
 - **Check every SQL assertion file, not only the one named after the thing**: CI runs `verify_schema.sql` as well as `verify_seed.sql`, and the former held "Hana must have a second hr_admin as her manager".
   Search `supabase/tests/` for the names and ids you change, and run both files against the migrated database.
 - **Keep the mock users and the seed in one test**: parse the seed's users insert and assert each mock user equals its row, so the two cannot drift.
+
+## Fake Auth server for routes that call Supabase Auth (learned in TASK-065, 2026-10-20)
+
+- **A route that needs the real sign-in path is testable without Supabase.** Put a tiny stateful HTTP server behind `NEXT_PUBLIC_SUPABASE_URL` (endpoints: `POST /auth/v1/token` for password and refresh, `GET` and `PUT /auth/v1/user`, `POST /auth/v1/logout?scope=`; HS256 JWTs with `sub`, `email`, `exp` and `session_id` are enough for `getClaims`, which falls back to `GET /user`). In a unit test, mock `createSupabaseServerClient` to return `createClient(fakeUrl, "anon", { auth: { persistSession: false } })` and assert the ORDER of calls and the state afterwards (new password signs in, old does not). In a browser run, the same server lets the real login form and the proxy run.
+- **Make the fake's failure switch match method and path** (`PUT:/auth/v1/user`), because the proxy calls `GET /user` on every request and swallows a path-only switch. Do not count the harness's own `/__state` reads as calls: count writes (`POST`/`PUT`) only.
+- **A password change changes the harness state:** run the width that succeeds LAST, or reset the fake, or later contexts sign in with a password that no longer works.
+- **Never put the password in anything a test can read twice:** assert on the log lines, response bodies and page HTML that the typed passwords are absent, and grep the production server's own log after the run.
+- **Mock vs real session:** `getSessionSource()` (same cached resolution as `getSession()`) tells them apart; features that need a real account (change password, EPIC-8's set-password) check it in the page and in the route.
+
+## End to end for a data section without a page (learned in TASK-066, 2026-10-20)
+
+- **Render the real server component from a gated test.** `renderToStaticMarkup(await Section(props))` with only `requireDb` and `getSession` replaced runs the real reads and the real markup on a real database, so "this person sees exactly these people" is asserted on what the page would show. Static markup includes client components' first render, which is enough for names and counts. Mock `next/navigation` (`redirect`, `unstable_rethrow`) too.
+- **Count a name carefully.** A person can legitimately appear several times (summary, side card, tree). For "each person once" assert on the read's ids, not on text occurrences.
+- **A streamed section is not there when `goto` resolves.** In a browser check wait for the section's "Loading…" to disappear before reading the text; three false failures came from reading too early.
+- **Judge a depth-cap or paging test by its mutation.** If removing the cap or the clamp does not fail a test, the test only asserted what was present, not what must be absent or the people on the clamped page.
+
+## HR write with a change record, and proving a lock (learned in EPIC-13, 2026-10-20)
+
+- **Record the change in the same transaction, decide in SQL.** `setPolicyRate` takes an advisory lock, reads the actor's role, the target's role and the current value in one statement, throws `FORBIDDEN` or `NOT_FOUND` from those booleans, and writes the new value and its history row in ONE CTE statement. The route's `assertRole` is only the first gate; a gated test calls the function directly as an employee and a manager to prove the SQL refuses on its own.
+- **A history table that only grows must never be joined before it is cut.** `with latest as (select ... order by changed_at desc limit 10)` first, then join the names: 1,600 rows made the plan look fine and 100,000 would not have. Read the EXPLAIN at a large size, not just the timing.
+- **Prove a lock by holding it.** A race test ("two at once") passes without the lock. Open another transaction that takes the same `pg_advisory_xact_lock(hashtext(key))`, start the write, wait a moment, assert it has NOT finished and changed nothing, release, assert it completes. Export the key builder so the test and the code cannot drift.
+- **Rerun-safe gated files:** prefix every name the test creates with a per-run random tag (`Pol1a2b3c4d`), or a rerun on the same database matches the last run's people and totals double.
+- **Test an accrual-like job through the real job**, with dates derived from the latest ledger month, so the test works on a database that already ran it.
+- **A number field cleared by script keeps its React state.** In a browser check select the text (`element.select()`) and press Backspace instead of assigning `value = ""`.
+- **Do not combine request interception with a later switch-off.** Leave interception on and make the handler `continue()` when not faking.
+
+## Editable data table for many rows (learned in EPIC-13 phase 1, 2026-10-20)
+
+- **A CTE's order does not survive an aggregate.** `json_agg(... order by k.name)` over a CTE sorted by something else silently re-sorts. Carry the chosen order as a column (`row_number() over (order by <the CASE list>, name, id) as rn`) and aggregate `order by rn`. A gated test per sort key and direction found it; no unit test on the SQL text could.
+- **Sort from a whitelist through `CASE` over bound values:** `case when ${sort} = 'vacation' and ${dir} = 'desc' then f.vacation end desc nulls last, ... , f.name, f.id`. No fragment, nothing interpolated; zod validates `sort` against a fixed list and the unit test asserts the values are bound. Put "empty last" in both directions and name then id as the last tie-break, or paging repeats and skips rows.
+- **Keep the rows you edit.** After a save the server re-renders with fresh rows (to refresh tiles and history); a table that renders from the new props reorders, or drops, the row you just edited when the list is sorted by that value or filtered by it. Take the rows once into state (`const [rows] = useState(people)`), key the table by the address, and guard it with a test that the rendered rows never come from the props.
+- **One state, two structures.** A responsive table and its phone cards that both hold inputs must share one state (a map keyed by row and column) and give each input its own id (`-t`, `-c`); the hidden one is `display:none`, so it is neither focusable nor read out. Assert both structures and the 2x input count.
+- **Save-on-blur needs an "unchanged" check** (`isUnchanged("1.5", "1.50")`), Esc to revert, an inline error without sending, and a `role="status"` Saved that clears itself; keep these checks in a small pure module so they are unit-tested.
+- **Filters that apply on change:** put the `change` handler on the form and ignore everything but `HTMLSelectElement` targets; keep the search on submit; a no-script Apply button in `<noscript>`; every change goes back to page 1. On a phone collapse the selects behind a button (closed unless a filter is applied) so the list starts on the first screen.
+- **Check the layout against the real width.** The mockup's right-hand panel fitted at 1536 px with a narrow sidebar; with ours the table was cramped, so the panel moved to 1700 px. Read the screenshots, not only the checks.
+- **A harness that reads `innerText` of a row gets the avatar's initials first;** select the name element. A `border` on a scroll container makes a sticky header read 1 px, so allow 1 px.
+- **A browser script that throws loses its results.** Add a `process.on("uncaughtException")` that prints the checks so far.
