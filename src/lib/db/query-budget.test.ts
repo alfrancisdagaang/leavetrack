@@ -3,7 +3,9 @@ import { join } from "node:path";
 import type { Sql } from "postgres";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POOL_MAX } from "@/lib/db/client";
+import { DEFAULT_OVERRIDE_QUERY, parseOverrideListQuery } from "@/lib/leave/override-list-schema";
 import { DEFAULT_POLICY_QUERY } from "@/lib/leave/policies-schema";
+import { DEFAULT_TEAM_QUERY, parseTeamQueueQuery } from "@/lib/leave/team-queue-schema";
 import type * as ServiceModule from "@/lib/leave/service";
 
 /**
@@ -104,10 +106,9 @@ const { CalendarSection, SummarySection, UpcomingSection, ActivitySection } =
   await import("@/app/(app)/dashboard/sections");
 const { RequestFormSection } = await import("@/app/(app)/requests/new/request-form-section");
 const { BalanceSection } = await import("@/app/(app)/balance/balance-section");
-const { PendingSection, DecidedSection } = await import("@/app/(app)/approvals/approvals-sections");
+const { ApprovalsSection } = await import("@/app/(app)/approvals/approvals-sections");
 const { AuditBody } = await import("@/app/(app)/audit/audit-body");
-const { OverrideQueueSection, RecentOverridesSection } =
-  await import("@/app/(app)/approvals/overrides/override-sections");
+const { OverridesSection } = await import("@/app/(app)/approvals/overrides/override-sections");
 const { RosterSection } = await import("@/app/(app)/approvals/team/roster-section");
 const { MemberPopup } = await import("@/app/(app)/approvals/team/member-popup");
 const { OverviewSection } = await import("@/app/(app)/profile/overview-section");
@@ -181,20 +182,39 @@ describe("query budget (parallel statements per page)", () => {
     expect(tracker.peak()).toBeLessThanOrEqual(3);
   });
 
-  it("Team approvals stays within the budget", async () => {
-    await Promise.all([PendingSection({ managerId: "m1" }), DecidedSection({ managerId: "m1" })]);
-    expect(tracker.peak()).toBeGreaterThan(0);
-    expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
-  });
+  it.each([
+    ["pending", DEFAULT_TEAM_QUERY],
+    ["decided", parseTeamQueueQuery({ view: "decided" }).query],
+  ])(
+    "Team Approvals (%s view) reads the page and the filter choices: exactly TWO statements, however many requests (EPIC-14)",
+    async (_view, query) => {
+      await ApprovalsSection({
+        managerId: "m1",
+        query,
+        now: new Date("2026-10-19T09:00:00Z"),
+        timeZone: "UTC",
+      });
+      expect(tracker.peak()).toBe(2);
+      expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+    },
+  );
 
-  it("HR overrides reads the queue and the recent overrides: two statements", async () => {
-    await Promise.all([
-      OverrideQueueSection({ hrId: "h1" }),
-      RecentOverridesSection({ now: new Date("2026-10-19T09:00:00Z"), timeZone: "UTC" }),
-    ]);
-    expect(tracker.peak()).toBe(2);
-    expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
-  });
+  it.each([
+    ["waiting", DEFAULT_OVERRIDE_QUERY],
+    ["overridden", parseOverrideListQuery({ view: "overridden" }).query],
+  ])(
+    "Balance Overrides (%s view) reads the page and the filter choices: exactly TWO statements, however many requests (EPIC-14)",
+    async (_view, query) => {
+      await OverridesSection({
+        hrId: "h1",
+        query,
+        now: new Date("2026-10-19T09:00:00Z"),
+        timeZone: "UTC",
+      });
+      expect(tracker.peak()).toBe(2);
+      expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+    },
+  );
 
   it.each([
     ["employee", 1],

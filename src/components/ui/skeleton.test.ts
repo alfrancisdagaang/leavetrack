@@ -66,11 +66,13 @@ describe("loading states mirror their pages", () => {
     expect(html).toContain("h-12 w-full"); // the note under the cards
   });
 
-  it("approvals: a pending card and a decided card, each with request rows", () => {
+  it("approvals: three tiles, the search card and the list card with its rows", () => {
     const html = render(ApprovalsLoading);
     expect(count(html, "border-b border-line")).toBe(0); // no tab bar: My Team is its own nav item
-    expect(count(html, "shadow-tile")).toBe(2); // the pending card and the decided card
-    expect(count(html, "h-32")).toBe(4); // two request rows in each card
+    expect(count(html, "grid-cols-3")).toBe(1); // the three tiles
+    expect(count(html, "h-20")).toBe(3);
+    expect(count(html, "shadow-tile")).toBe(2); // the search card and the list card
+    expect(count(html, "h-16")).toBe(4); // four rows
   });
 
   it("audit: the filter card, five summary figures and the rows", () => {

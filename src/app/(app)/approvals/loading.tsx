@@ -1,15 +1,12 @@
 import { LoadingRegion, SkeletonHeader } from "@/components/ui/skeleton";
-import { DecidedSkeleton, PendingSkeleton } from "./approvals-skeleton";
+import { ApprovalsSkeleton } from "./approvals-skeleton";
 
-/** Mirrors Team approvals: the header, then the pending rows and the decided rows. */
+/** Mirrors Team Approvals: the header, the tabs' height, then the tiles, filters and list. */
 export default function Loading() {
   return (
     <LoadingRegion>
       <SkeletonHeader />
-      <div className="space-y-8">
-        <PendingSkeleton />
-        <DecidedSkeleton />
-      </div>
+      <ApprovalsSkeleton />
     </LoadingRegion>
   );
 }

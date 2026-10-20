@@ -11,6 +11,15 @@ const dayWord = (value: string) => (Number(value) === 1 ? "day" : "days");
 const days = (value: string) => `${num(value)} ${dayWord(value)}`;
 const workingDays = (n: number) => `${n} working day${n === 1 ? "" : "s"}`;
 
+/** What approving does, in words: it uses the whole balance and records the shortfall in the audit history. */
+export function overrideEffectText(
+  r: Pick<OverrideQueueRow, "balance" | "shortfall" | "leave_type_name">,
+): string {
+  return Number(r.balance) === 0
+    ? `Approving keeps their ${r.leave_type_name} balance at 0 and records a shortfall of ${days(r.shortfall)} in the audit history.`
+    : `Approving uses all of their ${days(r.balance)} of ${r.leave_type_name} and records a shortfall of ${days(r.shortfall)} in the audit history.`;
+}
+
 /**
  * One pending request that asks for more days than the employee has (PRD US-01 AC3). The shortfall
  * and the effect of approving are written out; nothing relies on colour. The employee's reason is
@@ -48,11 +57,7 @@ export function OverrideRow({ request: r }: { request: OverrideQueueRow }) {
           />
         </div>
       </div>
-      <NoteStrip>
-        {Number(r.balance) === 0
-          ? `Approving keeps their ${r.leave_type_name} balance at 0 and records a shortfall of ${days(r.shortfall)} in the audit history.`
-          : `Approving uses all of their ${days(r.balance)} of ${r.leave_type_name} and records a shortfall of ${days(r.shortfall)} in the audit history.`}
-      </NoteStrip>
+      <NoteStrip>{overrideEffectText(r)}</NoteStrip>
     </li>
   );
 }

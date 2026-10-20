@@ -1,15 +1,12 @@
 import { LoadingRegion, SkeletonHeader } from "@/components/ui/skeleton";
-import { OverrideCardSkeleton } from "./override-skeleton";
+import { ApprovalsSkeleton } from "../approvals-skeleton";
 
-/** Mirrors Balance Overrides: the header, the queue card, then the recently overridden card. */
+/** Mirrors Balance Overrides: the header, then the tiles, filters and list. */
 export default function Loading() {
   return (
     <LoadingRegion>
       <SkeletonHeader />
-      <div className="space-y-8">
-        <OverrideCardSkeleton rows={2} />
-        <OverrideCardSkeleton rows={2} />
-      </div>
+      <ApprovalsSkeleton />
     </LoadingRegion>
   );
 }
