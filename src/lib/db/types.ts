@@ -47,6 +47,21 @@ export type LeavePolicy = {
   accrual_per_month: string;
 };
 
+/**
+ * One change to an employee's accrual rate (EPIC-13), written with the change. Append-only.
+ * `old_rate` is null when the employee had no policy for that leave type before.
+ */
+export type LeavePolicyChange = {
+  id: string;
+  user_id: string;
+  leave_type_id: string;
+  /** The HR Admin who made the change (the session user, never a client value). */
+  changed_by: string;
+  old_rate: string | null;
+  new_rate: string;
+  changed_at: Date;
+};
+
 export type LeaveBalance = {
   id: string;
   user_id: string;

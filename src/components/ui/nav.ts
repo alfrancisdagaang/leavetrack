@@ -65,6 +65,14 @@ const CALENDAR: NavItem = {
   available: true,
 };
 
+const POLICIES: NavItem = {
+  key: "policies",
+  label: "Leave Policies",
+  href: "/policies",
+  description: "Set how many days each employee earns a month.",
+  available: true,
+};
+
 const PROFILE: NavItem = {
   key: "profile",
   label: "My Profile",
@@ -83,14 +91,14 @@ const AUDIT: NavItem = {
 
 /**
  * Navigation per role (EPIC-10). Only employees request leave and see a balance; only managers
- * have Team Approvals and My Team; HR admins get Balance Overrides, the company Calendar and Audit History.
+ * have Team Approvals and My Team; HR admins get Balance Overrides, the company Calendar, Leave Policies and Audit History.
  * Every role ends with My Profile (EPIC-11): it is each person's own page, so it is not role-gated.
  * This only decides what is shown — access is enforced by requireRole()/assertRole() and SQL.
  */
 export function navItemsFor(role: UserRole): NavItem[] {
   if (role === "employee") return [DASHBOARD, REQUEST, BALANCE, PROFILE];
   if (role === "manager") return [DASHBOARD, APPROVALS, TEAM, PROFILE];
-  return [DASHBOARD, OVERRIDES, CALENDAR, AUDIT, PROFILE];
+  return [DASHBOARD, OVERRIDES, CALENDAR, POLICIES, AUDIT, PROFILE];
 }
 
 /**

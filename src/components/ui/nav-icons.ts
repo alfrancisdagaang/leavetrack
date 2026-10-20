@@ -7,6 +7,7 @@ export const NAV_ICON: Record<string, string | undefined> = {
   team: "/icons/nav-team.svg",
   overrides: "/icons/nav-override.svg",
   calendar: "/icons/nav-calendar.svg",
+  policies: "/icons/nav-policies.svg",
   audit: "/icons/nav-history.svg",
   profile: "/icons/nav-profile.svg",
 };

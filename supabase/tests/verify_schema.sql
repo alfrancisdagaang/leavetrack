@@ -7,11 +7,11 @@ declare
   n int;
   req_id uuid;
 begin
-  -- 8 domain tables exist
+  -- 9 domain tables exist
   select count(*) into n from information_schema.tables
   where table_schema = 'public'
-    and table_name in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log','accrual_ledger','notifications');
-  if n <> 8 then raise exception 'expected 8 tables, found %', n; end if;
+    and table_name in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log','accrual_ledger','notifications','leave_policy_changes');
+  if n <> 9 then raise exception 'expected 9 tables, found %', n; end if;
 
   -- Seed idempotent: exactly 3 leave types, 7 users
   select count(*) into n from public.leave_types;
@@ -34,8 +34,8 @@ begin
   -- RLS enabled everywhere
   select count(*) into n from pg_tables
   where schemaname = 'public' and rowsecurity
-    and tablename in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log','accrual_ledger','notifications');
-  if n <> 8 then raise exception 'expected RLS on 8 tables, found %', n; end if;
+    and tablename in ('users','leave_types','leave_policies','leave_balances','leave_requests','audit_log','accrual_ledger','notifications','leave_policy_changes');
+  if n <> 9 then raise exception 'expected RLS on 9 tables, found %', n; end if;
 
   -- is_deleted defaults to false
   insert into public.leave_requests (user_id, leave_type_id, start_date, end_date, reason)
@@ -209,6 +209,52 @@ begin
   begin
     truncate public.notifications;
     raise exception 'notifications truncate was not blocked';
+  exception when restrict_violation then null;
+  end;
+
+  -- leave_policy_changes (EPIC-13, TASK-070): a real change, bounded, append-only
+  insert into public.leave_policy_changes (user_id, leave_type_id, changed_by, old_rate, new_rate)
+  values ('00000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001',
+          '00000000-0000-4000-8000-000000000001', 1.25, 1.50);
+  insert into public.leave_policy_changes (user_id, leave_type_id, changed_by, old_rate, new_rate)
+  values ('00000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001',
+          '00000000-0000-4000-8000-000000000001', null, 1.00);
+  begin
+    insert into public.leave_policy_changes (user_id, leave_type_id, changed_by, old_rate, new_rate)
+    values ('00000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001',
+            '00000000-0000-4000-8000-000000000001', 1.25, 32);
+    raise exception 'a policy rate above 31 was not blocked';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.leave_policy_changes (user_id, leave_type_id, changed_by, old_rate, new_rate)
+    values ('00000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001',
+            '00000000-0000-4000-8000-000000000001', 1.25, -1);
+    raise exception 'a negative policy rate was not blocked';
+  exception when check_violation then null;
+  end;
+  begin
+    insert into public.leave_policy_changes (user_id, leave_type_id, changed_by, old_rate, new_rate)
+    values ('00000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000001',
+            '00000000-0000-4000-8000-000000000001', 1.25, 1.25);
+    raise exception 'a policy "change" to the same rate was not blocked';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.leave_policy_changes set new_rate = 9
+    where user_id = '00000000-0000-4000-8000-000000000003';
+    raise exception 'leave_policy_changes update was not blocked';
+  exception when restrict_violation then null;
+  end;
+  begin
+    delete from public.leave_policy_changes
+    where user_id = '00000000-0000-4000-8000-000000000003';
+    raise exception 'leave_policy_changes delete was not blocked';
+  exception when restrict_violation then null;
+  end;
+  begin
+    truncate public.leave_policy_changes;
+    raise exception 'leave_policy_changes truncate was not blocked';
   exception when restrict_violation then null;
   end;
 

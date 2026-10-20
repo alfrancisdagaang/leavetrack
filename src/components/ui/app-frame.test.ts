@@ -59,6 +59,9 @@ describe("AppFrame", () => {
     expect(manager).not.toContain("Balance Overrides");
     expect(frame("employee")).not.toContain("Balance Overrides");
     expect(frame("hr_admin")).toContain("Balance Overrides");
+    expect(frame("hr_admin")).toContain("Leave Policies");
+    expect(frame("employee")).not.toContain("Leave Policies");
+    expect(manager).not.toContain("Leave Policies");
   });
 
   it("on /approvals/overrides only Balance Overrides is current, and it titles the top bar (not Team Approvals)", () => {

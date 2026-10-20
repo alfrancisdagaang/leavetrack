@@ -22,7 +22,7 @@ manager**: Marco, Priya, Hana and Sam have none, so they sit at the top of the o
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
 | `elena.cruz@...`   | Dashboard; balances Vacation, Sick; own requests on the calendar; **no** approvals link                                                                 | [ ] |
 | `marco.santos@...` | Pending approvals card; **no** Request Leave or My Balance; Team Approvals and My Team are separate sidebar items; queue has Jun's and Elena's requests | [ ] |
-| `hana.reyes@...`   | "Awaiting HR override" card (1); Balance Overrides, Calendar and Audit History; **no** Team Approvals, no balance                                       | [ ] |
+| `hana.reyes@...`   | "Awaiting HR override" card (1); Balance Overrides, Calendar, Leave Policies and Audit History; **no** Team Approvals, no balance                       | [ ] |
 | `leo.garcia@...`   | Own request (9-10 Nov) only; no approvals link; calendar shows only Leo                                                                                 | [ ] |
 
 (Emails end in `@leavetrack.example`.)
@@ -75,6 +75,6 @@ manager**: Marco, Priya, Hana and Sam have none, so they sit at the top of the o
 6. **Hana:** audit history shows each decision: who, what, when (submitted, then override approved). Show the accrual with a manual
    trigger (a GET to `/api/jobs/accrual` with `Authorization: Bearer $CRON_SECRET` from your own shell; its first scheduled run
    is 1 Nov 00:00 UTC).
-7. **Say plainly:** HR creating users, forced password change, emailed invites, "forgot password", email notifications and HR policy
-   editing are not built. Older requests from managers and HR admins (before the three-role change) stay as history.
+7. **Say plainly:** HR creating users, forced password change, emailed invites, "forgot password" and email notifications
+   are not built. HR can edit each employee's accrual rate on the Leave Policies page; a new rate applies from the next monthly accrual. Older requests from managers and HR admins (before the three-role change) stay as history.
 8. If a page hangs, refresh once; if sign-in fails, use the rollback in [staging-rollout.md](staging-rollout.md).

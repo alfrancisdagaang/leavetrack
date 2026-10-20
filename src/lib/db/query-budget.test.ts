@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { Sql } from "postgres";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { POOL_MAX } from "@/lib/db/client";
+import { DEFAULT_POLICY_QUERY } from "@/lib/leave/policies-schema";
 import type * as ServiceModule from "@/lib/leave/service";
 
 /**
@@ -31,7 +32,9 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/env", () => ({ getEnv: () => ({ APP_TIMEZONE: "UTC" }) }));
 vi.mock("@/lib/auth/guards", () => ({
   requireRole: async () => ({ role: "manager", user: { id: "m1", name: "Marco" } }),
+  requireSession: async () => ({ role: "employee", user: { id: "u1", name: "Elena" } }),
 }));
+vi.mock("@/lib/auth/session", () => ({ getSessionSource: async () => "supabase" }));
 vi.mock("@/lib/leave/service", async (importOriginal) => ({
   ...(await importOriginal<typeof ServiceModule>()),
   requireDb: () => holder.sql,
@@ -110,6 +113,9 @@ const { MemberPopup } = await import("@/app/(app)/approvals/team/member-popup");
 const { OverviewSection } = await import("@/app/(app)/profile/overview-section");
 const { OrgSection } = await import("@/app/(app)/profile/organization/org-section");
 const { CalendarBody } = await import("@/app/(app)/calendar/calendar-body");
+const { default: SettingsPage } = await import("@/app/(app)/profile/settings/page");
+const { PolicyListSection, RecentChangesSection } =
+  await import("@/app/(app)/policies/policies-sections");
 const { default: TeamMemberRoute } = await import("@/app/(app)/approvals/team/[userId]/page");
 
 let tracker: ReturnType<typeof trackingSql>;
@@ -210,6 +216,24 @@ describe("query budget (parallel statements per page)", () => {
     await OverviewSection({ userId: "u1" });
     expect(tracker.peak()).toBe(1);
     expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it("Leave Policies reads the employee page, the filter choices and the recent changes: exactly THREE statements, however many employees (EPIC-13)", async () => {
+    await Promise.all([
+      PolicyListSection({
+        viewerId: "h1",
+        query: DEFAULT_POLICY_QUERY,
+        timeZone: "UTC",
+      }),
+      RecentChangesSection({ viewerId: "h1", timeZone: "UTC" }),
+    ]);
+    expect(tracker.peak()).toBe(3);
+    expect(tracker.peak()).toBeLessThanOrEqual(BUDGET);
+  });
+
+  it("Account settings reads NO database statement (TASK-066 AC2)", async () => {
+    await SettingsPage();
+    expect(tracker.peak()).toBe(0);
   });
 
   it("My Team (the roster) reads everything in ONE statement, however many people report to the manager", async () => {

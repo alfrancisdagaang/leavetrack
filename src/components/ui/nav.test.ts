@@ -27,8 +27,15 @@ describe("navItemsFor", () => {
     expect(keys("hr_admin")).not.toContain("team");
   });
 
-  it("gives HR admins the dashboard, Balance Overrides, the company calendar and the audit log, and no Team Approvals (EPIC-10 AC2)", () => {
-    expect(keys("hr_admin")).toEqual(["dashboard", "overrides", "calendar", "audit", "profile"]);
+  it("gives HR admins the dashboard, Balance Overrides, the company calendar, Leave Policies and the audit log, and no Team Approvals (EPIC-10 AC2, EPIC-13)", () => {
+    expect(keys("hr_admin")).toEqual([
+      "dashboard",
+      "overrides",
+      "calendar",
+      "policies",
+      "audit",
+      "profile",
+    ]);
     expect(keys("hr_admin")).not.toContain("approvals");
   });
 
@@ -36,6 +43,16 @@ describe("navItemsFor", () => {
     expect(keys("employee")).not.toContain("calendar");
     expect(keys("manager")).not.toContain("calendar");
     expect(keys("hr_admin")).toContain("calendar");
+  });
+
+  it("shows Leave Policies to HR admins only (EPIC-13 AC3), after the Calendar and before Audit History", () => {
+    expect(keys("employee")).not.toContain("policies");
+    expect(keys("manager")).not.toContain("policies");
+    expect(keys("hr_admin")).toContain("policies");
+    const hr = keys("hr_admin");
+    expect(hr.indexOf("policies")).toBe(hr.indexOf("calendar") + 1);
+    expect(hr.indexOf("audit")).toBe(hr.indexOf("policies") + 1);
+    expect(navItemsFor("hr_admin").find((i) => i.key === "policies")?.href).toBe("/policies");
   });
 
   it("shows Balance Overrides to HR admins only (TASK-039 AC3)", () => {
@@ -48,7 +65,7 @@ describe("navItemsFor", () => {
     const linked = navItemsFor("hr_admin")
       .filter((i) => i.available)
       .map((i) => i.key);
-    expect(linked).toEqual(["dashboard", "overrides", "calendar", "audit", "profile"]);
+    expect(linked).toEqual(["dashboard", "overrides", "calendar", "policies", "audit", "profile"]);
   });
 
   it("gives every item a unique key and an absolute href", () => {
@@ -74,6 +91,7 @@ describe("navItemsFor", () => {
       "Dashboard",
       "Balance Overrides",
       "Calendar",
+      "Leave Policies",
       "Audit History",
       "My Profile",
     ]);
@@ -116,6 +134,7 @@ describe("navItemsFor", () => {
     expect(NAV_ICON.audit).toBe("/icons/nav-history.svg");
     expect(NAV_ICON.calendar).toBe("/icons/nav-calendar.svg");
     expect(NAV_ICON.overrides).toBe("/icons/nav-override.svg");
+    expect(NAV_ICON.policies).toBe("/icons/nav-policies.svg");
     expect(NAV_ICON.team).toBe("/icons/nav-team.svg");
     expect(NAV_ICON.team).not.toBe(NAV_ICON.approvals);
     expect(NAV_ICON.profile).toBe("/icons/nav-profile.svg");
