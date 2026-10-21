@@ -2,8 +2,8 @@
 
 Self-service leave requests, scoped manager approval, and an auditable decision record.
 
-> **⚠ Day 0 scaffold — mock auth only.** Sign-in accepts any input and stores only a role in a
-> cookie. Real authentication is wired in Day 1. See `AGENTS.md`.
+> **Sign-in is real** (Supabase Auth, email + password). A labelled mock login still exists for
+> local development only, behind `ALLOW_MOCK_LOGIN`. See `AGENTS.md`.
 
 ## Prerequisites
 
@@ -18,8 +18,29 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000 → you'll be redirected to `/login`. Pick a role and sign in.
-No `.env` file, database, or credentials are needed for Day 0.
+Copy `.env.example` to `.env.local` (see [Environment](#environment)), open http://localhost:3000
+→ you'll be redirected to `/login`, then sign in with a demo account (see below).
+
+## Signing in (demo accounts)
+
+All demo accounts share one password: **`password123`**. All data is fake. This password is for
+the demo project only; never reuse it anywhere real.
+
+| Role       | Name         | Email                             | What they can do                                     |
+| ---------- | ------------ | --------------------------------- | ---------------------------------------------------- |
+| `hr_admin` | Sam Okafor   | `sam.okafor@leavetrack.example`   | HR: all requests, audit record, leave policies       |
+| `manager`  | Marco Santos | `marco.santos@leavetrack.example` | Approves requests from his direct reports            |
+| `employee` | Elena Cruz   | `elena.cruz@leavetrack.example`   | Submits requests and sees her balance (Marco's team) |
+
+1. Open `/login`.
+2. Enter the email and the shared password.
+3. To switch role, open the account menu in the header, choose **Sign out**, and sign in as another account.
+
+Other accounts: Hana Reyes (`hana.reyes@…`, `hr_admin`), Priya Nair (`priya.nair@…`, `manager`),
+Jun Bautista (`jun.bautista@…`, `employee`, Marco's team), Leo Garcia (`leo.garcia@…`,
+`employee`, Priya's team: use him to check that managers only see their own reports).
+
+To reset the shared password, see `knowledge/runbooks/seed-auth-users.md`.
 
 ## Scripts
 
@@ -61,10 +82,13 @@ Then set `DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres` t
 The schema enforces retention rules itself: hard `DELETE` on `leave_requests` and any
 `UPDATE`/`DELETE` on `audit_log` raise an error.
 
-## Auth (Day 0 mock)
+## Auth
 
-- `/login` sets an httpOnly `mock-role` cookie (`employee` | `manager` | `hr_admin`, 8h).
-- `src/proxy.ts` redirects pages to `/login` and returns a 401 envelope for APIs without it.
+- `/login` signs in with Supabase Auth (email + password). The `users` row found by email decides the
+  role (`employee` | `manager` | `hr_admin`). See `docs/arch-docs/ADR-LeaveTrack-E003-Real-Sign-In.md`.
+- Only when `ALLOW_MOCK_LOGIN=true` (default on in development, off elsewhere) does the labelled
+  mock login set an httpOnly `mock-role` cookie (8h). Keep it off on any public URL.
+- `src/proxy.ts` redirects pages to `/login` and returns a 401 envelope for APIs without a session.
 - `/api/health` is public; `/api/jobs/*` requires `Authorization: Bearer $CRON_SECRET`.
 
 ## API conventions
